@@ -88,4 +88,5 @@ Thumbs.db
 
 # Claude Code local configuration
 CLAUDE.local.md
+.claude/CLAUDE.local.md
 .claude/settings.local.json
