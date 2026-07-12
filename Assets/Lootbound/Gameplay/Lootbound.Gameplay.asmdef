@@ -1,0 +1,16 @@
+{
+    "name": "Lootbound.Gameplay",
+    "rootNamespace": "Lootbound.Gameplay",
+    "references": [
+        "Lootbound.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
