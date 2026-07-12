@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 626ea780e68e6c942b27aff5808198a8, type: 3}
   m_Name: LootboundGameConfig
   m_EditorClassIdentifier: Lootbound.Core::Lootbound.Core.Configuration.LootboundGameConfig
-  defaultGameplayScene: 10_FoundationSandbox
+  defaultGameplayScene: 11_CharacterControllerSandbox
   enableDebugTools: 1
   logLevel: 1
   gameVersion: 0.1.0

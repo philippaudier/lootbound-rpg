@@ -105,6 +105,106 @@ Toggle with F3 key (configurable).
 
 Uses `OnGUI` for simplicity and reliability. No external dependencies.
 
+## Gameplay Systems
+
+### Player (`Lootbound.Gameplay.Player`)
+
+The player system consists of focused components that work together:
+
+```
+PlayerCharacter (Prefab)
+├── CharacterController (Unity built-in)
+├── PlayerInputReader
+├── FirstPersonMotor
+├── PlayerStanceController
+├── PlayerMovementDebug
+└── CameraRoot
+    └── Camera + PlayerCameraController
+```
+
+#### PlayerMovementConfig
+
+ScriptableObject containing all movement parameters:
+
+```csharp
+[CreateAssetMenu(fileName = "PlayerMovementConfig", menuName = "Lootbound/Player Movement Config")]
+public class PlayerMovementConfig : ScriptableObject
+```
+
+Parameters include:
+- Movement speeds (walk, sprint, crouch)
+- Acceleration/deceleration rates
+- Jump height, gravity, terminal velocity
+- Coyote time, jump buffer
+- Stance heights and transition speed
+- Camera sensitivity and pitch limits
+- CharacterController dimensions
+
+#### PlayerInputReader
+
+Reads from Unity Input System and exposes semantic intentions:
+
+```csharp
+public Vector2 MoveInput { get; }
+public Vector2 LookInput { get; }
+public bool JumpPressedThisFrame { get; }
+public bool SprintHeld { get; }
+public bool CrouchHeld { get; }
+```
+
+Does not process movement - only provides input state.
+
+#### FirstPersonMotor
+
+Core movement logic using CharacterController:
+
+- Ground detection (CharacterController + SphereCast)
+- Slope handling with configurable max angle
+- Step climbing via CharacterController.stepOffset
+- Jump with coyote time and jump buffer
+- Air control (reduced but present)
+- Gravity with terminal velocity
+- Sprint and crouch speed modifiers
+
+Exposes state for other systems:
+
+```csharp
+public bool IsGrounded { get; }
+public bool IsSprinting { get; }
+public bool IsCrouching { get; }
+public Vector3 Velocity { get; }
+public float CurrentSpeed { get; }
+public float GroundAngle { get; }
+```
+
+#### PlayerCameraController
+
+FPS camera control:
+
+- Horizontal rotation (yaw) applied to player body
+- Vertical rotation (pitch) applied to camera only
+- Pitch clamped to configurable limits
+- Cursor lock/unlock management
+
+#### PlayerStanceController
+
+Manages standing/crouching:
+
+- Smooth height transitions
+- Updates CharacterController height
+- Updates camera position
+- Headroom check prevents standing under obstacles
+
+#### PlayerMovementDebug
+
+Development overlay (toggle with F4):
+
+- Ground state and angle
+- Velocity and speed
+- Sprint/crouch state
+- Coyote time and jump buffer timers
+- Input values
+
 ## Namespaces
 
 ```
@@ -114,7 +214,7 @@ Lootbound.Core.Configuration
 Lootbound.Core.Logging
 Lootbound.Core.Scenes
 Lootbound.Debugging
-Lootbound.Gameplay.*        (future)
+Lootbound.Gameplay.Player
 ```
 
 ## Scene Architecture
@@ -136,6 +236,20 @@ Development scene containing:
 - Debug overlay
 
 Used for testing core systems before gameplay is implemented.
+
+### 11_CharacterControllerSandbox
+
+Character controller test scene containing:
+- Player prefab with all movement components
+- Flat ground area
+- Slopes at various angles (15°, 30°, 45°, 55°)
+- Standard and edge-case stairs
+- Crouch passages with headroom tests
+- Platform drops at various heights
+- Narrow passages
+- Debug overlay
+
+Used for tuning and validating character movement.
 
 ## Design Principles
 

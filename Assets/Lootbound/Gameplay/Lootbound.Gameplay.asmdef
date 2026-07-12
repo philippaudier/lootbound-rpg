@@ -2,7 +2,8 @@
     "name": "Lootbound.Gameplay",
     "rootNamespace": "Lootbound.Gameplay",
     "references": [
-        "Lootbound.Core"
+        "Lootbound.Core",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

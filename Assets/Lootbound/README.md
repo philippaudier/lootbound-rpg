@@ -59,6 +59,7 @@ A finished, readable feature is worth more than an extremely generic architectur
 |-------|-------------|
 | `00_Boot` | Bootstrap scene, initializes core systems and loads gameplay |
 | `10_FoundationSandbox` | Development sandbox for testing foundations |
+| `11_CharacterControllerSandbox` | Character controller testing sandbox |
 
 ### Key Folders
 
@@ -100,26 +101,26 @@ After opening the project for the first time:
 
 ## Controls
 
-### Player (Future)
+### Player
 | Action | Keyboard | Gamepad |
 |--------|----------|---------|
 | Move | WASD / Arrows | Left Stick |
 | Look | Mouse | Right Stick |
 | Jump | Space | A / Cross |
 | Sprint | Left Shift | Left Stick Press |
-| Crouch | C | B / Circle |
+| Crouch | C (hold) | B / Circle |
 | Interact | E | Y / Triangle |
 | Primary Action | Left Click | X / Square |
 | Secondary Action | Right Click | Left Trigger |
-| Pause | Escape | Start |
+| Pause / Unlock Cursor | Escape | Start |
 
 ### Debug
 | Action | Key |
 |--------|-----|
 | Toggle Debug Overlay | F3 |
-| Toggle Free Camera | F4 (future) |
+| Toggle Movement Debug | F4 |
 
-## Current State: Slice 0.1 - Project Foundation
+## Current State: Slice 0.2 - Character Controller V1
 
 ### Implemented
 - Project folder structure
@@ -132,9 +133,16 @@ After opening the project for the first time:
 - Input Actions (Player, UI, Debug maps)
 - Boot scene with auto-load
 - Foundation Sandbox scene
+- **First-person character controller**
+- **Movement (walk, sprint, crouch)**
+- **Jump with coyote time and jump buffer**
+- **Slope handling and step climbing**
+- **FPS camera with mouse look**
+- **Cursor lock/unlock**
+- **Movement debug overlay**
+- **Character Controller Sandbox scene**
 
 ### Not Implemented (Future Slices)
-- Character Controller
 - Procedural terrain
 - Combat system
 - Enemies and AI
@@ -144,15 +152,63 @@ After opening the project for the first time:
 - Enhancement system
 - Save system
 - Refuge
+- Stamina
+- Dodge/Dash
 
 ## Upcoming Slices
 
 | Slice | Focus |
 |-------|-------|
-| 0.2 | Character Controller V1 |
 | 0.3 | Simple procedural terrain |
 | 0.4 | Basic interaction system |
 | 0.5 | Inventory V1 |
+
+## Character Controller
+
+### Components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `PlayerInputReader` | Reads Unity Input System, exposes movement intentions |
+| `FirstPersonMotor` | Calculates and applies movement via CharacterController |
+| `PlayerCameraController` | Handles FPS camera rotation (yaw on body, pitch on camera) |
+| `PlayerStanceController` | Manages crouching with smooth height transitions |
+| `PlayerMovementDebug` | Displays movement state (toggle with F4) |
+
+### Configuration
+
+Movement parameters are configured via `PlayerMovementConfig` ScriptableObject:
+- Located at `Assets/Lootbound/ScriptableObjects/Player/DefaultPlayerMovementConfig.asset`
+- All values exposed in Inspector for tuning
+
+### Prefab
+
+Player prefab: `Assets/Lootbound/Prefabs/Player/PlayerCharacter.prefab`
+
+Structure:
+```
+PlayerCharacter
+├── CharacterController
+├── PlayerInputReader
+├── FirstPersonMotor
+├── PlayerStanceController
+├── PlayerMovementDebug
+└── CameraRoot
+    └── Camera + PlayerCameraController
+```
+
+### V1 Limitations
+
+Not implemented in V1:
+- Stamina
+- Dodge/Dash
+- Slide
+- Wall-run
+- Climbing
+- Swimming
+- Head bob
+- Footsteps audio
+- Visible body/hands
 
 ## Technical Notes
 

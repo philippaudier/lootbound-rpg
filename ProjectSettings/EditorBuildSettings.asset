@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Lootbound/Scenes/10_FoundationSandbox.unity
     guid: 2de90fff4ec6e634db136044796200c7
+  - enabled: 1
+    path: Assets/Lootbound/Scenes/11_CharacterControllerSandbox.unity
+    guid: 2244c7ff3c850c64180dd3f507158de5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

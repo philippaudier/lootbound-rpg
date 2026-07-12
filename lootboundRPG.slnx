@@ -21,6 +21,7 @@
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
+  <Project Path="Lootbound.Gameplay.csproj" />
   <Project Path="UnityEditor.TestRunner.csproj" />
   <Project Path="Unity.VisualScripting.Core.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
@@ -54,6 +55,7 @@
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="Lootbound.Core.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Lootbound.Tests.EditMode.csproj" />
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.Shared.csproj" />
@@ -62,7 +64,6 @@
   <Project Path="Lootbound.Debugging.csproj" />
   <Project Path="Unity.VisualScripting.DocCodeExamples.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.Entities.csproj" />
-  <Project Path="Lootbound.Tests.EditMode.csproj" />
   <Project Path="Unity.Rendering.LightTransport.Editor.csproj" />
   <Project Path="Unity.Collections.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />

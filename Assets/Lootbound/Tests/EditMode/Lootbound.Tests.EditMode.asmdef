@@ -4,7 +4,8 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Lootbound.Core"
+        "Lootbound.Core",
+        "Lootbound.Gameplay"
     ],
     "includePlatforms": [
         "Editor"
