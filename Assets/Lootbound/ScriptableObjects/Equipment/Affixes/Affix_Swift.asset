@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c1043d90a443bdc4fac4d806ebbe09d3, type: 3}
   m_Name: Affix_Swift
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.AffixDefinition
-  affixId: 
-  displayName: 
-  descriptionFormat: +{0:F0}%
-  modifierType: 0
+  affixId: affix_swift
+  displayName: Swift
+  descriptionFormat: +{0:F0}% attack speed
+  modifierType: 1
   isNegative: 0
   minValue: 5
-  maxValue: 15
+  maxValue: 12
   tier: 0

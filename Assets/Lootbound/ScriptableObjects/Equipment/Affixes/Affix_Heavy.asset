@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c1043d90a443bdc4fac4d806ebbe09d3, type: 3}
   m_Name: Affix_Heavy
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.AffixDefinition
-  affixId: 
-  displayName: 
-  descriptionFormat: +{0:F0}%
-  modifierType: 0
+  affixId: affix_heavy
+  displayName: Heavy
+  descriptionFormat: +{0:F0}% stagger
+  modifierType: 3
   isNegative: 0
-  minValue: 5
-  maxValue: 15
-  tier: 0
+  minValue: 10
+  maxValue: 20
+  tier: 1
