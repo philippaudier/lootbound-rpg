@@ -41,6 +41,30 @@ Responsibilities:
 
 The bootstrap is designed to be the single entry point for the game. The `00_Boot` scene should be first in the build order.
 
+If a `developmentMenuPrefab` is assigned, the bootstrap opens a scene selection menu instead of auto-loading a scene.
+
+### Development Menu (`Lootbound.Core.Scenes` + `Lootbound.UI`)
+
+The development menu system provides scene selection and pause functionality during development.
+
+```
+DevelopmentSceneEntry     - Serializable scene entry data
+DevelopmentSceneCatalog   - ScriptableObject listing dev scenes
+DevelopmentMenuController - UI controller (persists with bootstrap)
+```
+
+Scene catalog configuration:
+- `DisplayName` - Name shown in menu
+- `SceneName` - Exact scene name (must match Build Settings)
+- `Description` - Shown when selected
+- `Visible` - Whether to show in menu
+
+SceneLoader enhancements:
+- `CanLoadScene(string)` - Validates scene exists
+- `IsLoading` - Prevents concurrent loads
+
+This is a development tool, not the final game menu.
+
 ### Configuration (`Lootbound.Core.Configuration`)
 
 The `LootboundGameConfig` ScriptableObject holds central game configuration:
@@ -320,6 +344,9 @@ Lootbound.Core.Scenes
 Lootbound.Debugging
 Lootbound.Gameplay.Player
 Lootbound.Gameplay.World
+Lootbound.Gameplay.Interaction
+Lootbound.Gameplay.Inventory
+Lootbound.UI
 ```
 
 ## Scene Architecture
@@ -329,7 +356,7 @@ Lootbound.Gameplay.World
 Minimal scene containing only:
 - `GameBootstrap` object with the bootstrap component
 
-The bootstrap initializes systems and loads the configured default scene.
+The bootstrap initializes systems. If `developmentMenuPrefab` is assigned, it displays the scene selection menu. Otherwise, it loads the configured default scene.
 
 ### 10_FoundationSandbox
 
@@ -367,6 +394,132 @@ Procedural terrain test scene containing:
 Used for testing and tuning terrain generation.
 
 Generation controls available in Inspector on TerrainGenerator object.
+
+### 13_InteractionInventorySandbox
+
+Interaction and inventory test scene containing:
+- Player prefab with PlayerInteractor and PlayerInventory
+- ItemWorldPickup objects for testing
+- InventoryUI, InteractionPromptUI, NotificationUI
+- Debug overlays
+
+Used for testing interaction detection and inventory operations.
+
+## Interaction System (`Lootbound.Gameplay.Interaction`)
+
+### IInteractable Interface
+
+```csharp
+public interface IInteractable
+{
+    string InteractionPrompt { get; }
+    bool CanInteract { get; }
+    string IconId { get; }
+    float HoldDuration { get; }
+    Transform InteractionTransform { get; }
+
+    void OnInteractionStart(PlayerInteractor interactor);
+    void OnInteractionComplete(PlayerInteractor interactor);
+    void OnInteractionCancel(PlayerInteractor interactor);
+}
+```
+
+### PlayerInteractor
+
+Detects interactables via raycast/spherecast from camera:
+- Configurable detection distance and sphere radius
+- Layer mask filtering
+- Hold-duration support for timed interactions
+- Events for UI binding: `OnTargetChanged`, `OnHoldProgressChanged`, `OnInteractionCompleted`
+
+## Inventory System (`Lootbound.Gameplay.Inventory`)
+
+### ItemDefinition
+
+ScriptableObject defining item properties:
+- Item ID, display name, description
+- Icon sprite, world prefab
+- Rarity (Common, Uncommon, Rare, Epic, Legendary)
+- Stacking settings (max stack size)
+- Pickup settings (prompt, hold duration)
+
+### ItemInstance
+
+Runtime item with mutable state:
+- References an ItemDefinition
+- Tracks current quantity
+- Operations: Add, Remove, Split, Clone
+
+### InventorySlot
+
+Container for a single ItemInstance:
+- Empty or filled state
+- Type checking for stacking
+- Quantity management
+
+### Inventory
+
+Collection of slots with operations:
+- `TryAddItem` - Add with automatic stacking
+- `TryAddItemWithResult` - Returns AddItemResult with detailed info
+- `RemoveItem` - Remove by definition and quantity
+- Events: `OnInventoryChanged`, `OnSlotChanged`
+
+### AddItemResult
+
+Structured result for add operations:
+- `Requested`, `Added`, `Overflow` quantities
+- `IsComplete`, `IsPartial`, `IsFailed` status
+
+### PlayerInventory
+
+MonoBehaviour exposing inventory to other systems:
+- Events: `OnItemAdded`, `OnItemRemoved`, `OnInventoryFull`
+- Wraps Inventory operations with event firing
+
+## World Pickups (`Lootbound.Gameplay.World`)
+
+### ItemWorldPickup
+
+IInteractable pickup in the game world:
+- Visual effects (rotation, bobbing)
+- Partial pickup support for overflow
+- Concurrent interaction prevention
+- Static `SpawnPickup` factory method
+
+## UI System (`Lootbound.UI`)
+
+Uses Unity UI Toolkit (UXML + USS + C#).
+
+### InteractionPromptUI
+
+Shows interaction prompt when targeting an interactable:
+- Item icon and prompt text
+- Hold progress bar
+- Opacity based on distance
+
+### InventoryUI
+
+Grid-based inventory panel:
+- Slot grid with item icons and quantities
+- Item details panel with description
+- Drop button for selected items
+- Cursor lock/unlock management
+
+### NotificationUI
+
+Temporary notifications for pickups:
+- Auto-fade after duration
+- Queue system for multiple notifications
+
+### DevelopmentMenuController
+
+Development scene menu (not final game menu):
+- Scene selection at boot
+- Pause menu via Escape in sandboxes
+- Scene reload and switching
+- Persists with GameBootstrap
+- Manages cursor and time scale
 
 ## Design Principles
 

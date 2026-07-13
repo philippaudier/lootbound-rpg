@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="DevelopmentMenu.uss" />
+    <ui:VisualElement name="menu-root" class="menu-root" style="display: none;">
+        <!-- Pause View -->
+        <ui:VisualElement name="pause-view" class="menu-panel" style="display: none;">
+            <ui:Label text="PAUSED" class="menu-title" />
+            <ui:VisualElement class="button-container">
+                <ui:Button name="continue-btn" text="Continue" class="menu-button" />
+                <ui:Button name="reload-btn" text="Reload Scene" class="menu-button" />
+                <ui:Button name="change-scene-btn" text="Change Scene" class="menu-button" />
+                <ui:Button name="return-menu-btn" text="Return to Dev Menu" class="menu-button" />
+                <ui:Button name="quit-btn" text="Quit" class="menu-button menu-button-danger" />
+            </ui:VisualElement>
+            <ui:Label text="Development Build" class="dev-indicator" />
+        </ui:VisualElement>
+
+        <!-- Scene Selection View -->
+        <ui:VisualElement name="selection-view" class="menu-panel" style="display: none;">
+            <ui:Label text="LOOTBOUND" class="menu-title" />
+            <ui:Label text="Development Scenes" class="menu-subtitle" />
+            <ui:ScrollView name="scene-list" class="scene-list" />
+            <ui:VisualElement name="scene-info" class="scene-info">
+                <ui:Label name="scene-description" class="scene-description" />
+            </ui:VisualElement>
+            <ui:Button name="back-btn" text="Back" class="menu-button back-button" />
+            <ui:Label text="Development Build" class="dev-indicator" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

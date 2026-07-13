@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Lootbound.Gameplay.Player
@@ -21,6 +22,12 @@ namespace Lootbound.Gameplay.Player
         public float Pitch => pitch;
         public float Yaw => yaw;
         public bool CursorLocked => cursorLocked;
+
+        /// <summary>
+        /// Invoked when the pause input is pressed.
+        /// Subscribe to this to handle pause menu or other pause logic.
+        /// </summary>
+        public event Action OnPauseRequested;
 
         private void Awake()
         {
@@ -87,7 +94,16 @@ namespace Lootbound.Gameplay.Player
         {
             if (inputReader.PausePressedThisFrame)
             {
-                ToggleCursorLock();
+                // Invoke event for pause menu handling
+                // If no subscribers, fall back to cursor toggle for backwards compatibility
+                if (OnPauseRequested != null)
+                {
+                    OnPauseRequested.Invoke();
+                }
+                else
+                {
+                    ToggleCursorLock();
+                }
             }
         }
 

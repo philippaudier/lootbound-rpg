@@ -1,0 +1,161 @@
+/* Development Menu Styles */
+
+.menu-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-panel {
+    background-color: rgba(30, 30, 35, 0.95);
+    border-radius: 8px;
+    padding: 40px;
+    min-width: 400px;
+    max-width: 600px;
+    border-width: 1px;
+    border-color: rgba(100, 100, 100, 0.3);
+}
+
+.menu-title {
+    font-size: 32px;
+    color: rgb(220, 200, 170);
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
+    letter-spacing: 4px;
+}
+
+.menu-subtitle {
+    font-size: 14px;
+    color: rgba(180, 180, 180, 0.7);
+    margin-bottom: 24px;
+    -unity-text-align: middle-center;
+    letter-spacing: 2px;
+}
+
+.button-container {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.menu-button {
+    height: 48px;
+    margin: 6px 0;
+    padding: 12px 24px;
+    background-color: rgba(60, 60, 65, 0.9);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(100, 100, 100, 0.4);
+    color: rgb(220, 220, 220);
+    font-size: 16px;
+    -unity-font-style: normal;
+    transition-duration: 0.15s;
+}
+
+.menu-button:hover {
+    background-color: rgba(80, 80, 85, 0.95);
+    border-color: rgba(150, 140, 120, 0.6);
+    color: rgb(255, 255, 255);
+}
+
+.menu-button:active {
+    background-color: rgba(100, 95, 85, 0.95);
+}
+
+.menu-button-danger {
+    color: rgb(200, 120, 120);
+}
+
+.menu-button-danger:hover {
+    background-color: rgba(100, 50, 50, 0.9);
+    border-color: rgba(180, 100, 100, 0.6);
+    color: rgb(255, 150, 150);
+}
+
+/* Scene List */
+.scene-list {
+    max-height: 300px;
+    margin: 16px 0;
+    background-color: rgba(20, 20, 25, 0.5);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.scene-button {
+    height: auto;
+    min-height: 60px;
+    margin: 4px 0;
+    padding: 12px 16px;
+    background-color: rgba(50, 50, 55, 0.8);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(80, 80, 80, 0.3);
+    flex-direction: column;
+    align-items: flex-start;
+    transition-duration: 0.15s;
+}
+
+.scene-button:hover {
+    background-color: rgba(70, 70, 75, 0.9);
+    border-color: rgba(150, 140, 120, 0.5);
+}
+
+.scene-button:active {
+    background-color: rgba(90, 85, 75, 0.95);
+}
+
+.scene-button-selected {
+    background-color: rgba(80, 75, 65, 0.9);
+    border-color: rgba(180, 160, 120, 0.7);
+}
+
+.scene-button-unavailable {
+    opacity: 0.4;
+}
+
+.scene-button-name {
+    font-size: 16px;
+    color: rgb(220, 220, 220);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.scene-button-scene {
+    font-size: 11px;
+    color: rgba(150, 150, 150, 0.7);
+}
+
+/* Scene Info */
+.scene-info {
+    min-height: 60px;
+    padding: 12px;
+    margin: 8px 0;
+    background-color: rgba(40, 40, 45, 0.6);
+    border-radius: 4px;
+}
+
+.scene-description {
+    font-size: 14px;
+    color: rgba(200, 200, 200, 0.9);
+    white-space: normal;
+}
+
+/* Back Button */
+.back-button {
+    margin-top: 16px;
+    background-color: rgba(50, 50, 55, 0.7);
+}
+
+/* Dev Indicator */
+.dev-indicator {
+    font-size: 10px;
+    color: rgba(100, 100, 100, 0.5);
+    margin-top: 24px;
+    -unity-text-align: middle-center;
+    letter-spacing: 1px;
+}

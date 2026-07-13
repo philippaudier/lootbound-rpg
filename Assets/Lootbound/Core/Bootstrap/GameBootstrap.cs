@@ -9,11 +9,21 @@ namespace Lootbound.Core.Bootstrap
     {
         private const string Category = "Bootstrap";
 
+        [Header("Configuration")]
         [SerializeField] private LootboundGameConfig gameConfig;
+
+        [Header("Development Menu")]
+        [Tooltip("Prefab with DevelopmentMenuController. If assigned, scene selection is shown at boot instead of auto-loading.")]
+        [SerializeField] private GameObject developmentMenuPrefab;
+
+        [Header("Legacy Behavior")]
+        [Tooltip("If true and no development menu is configured, loads the default scene automatically.")]
         [SerializeField] private bool loadDefaultSceneOnStart = true;
 
         private static GameBootstrap instance;
         private static bool isBootstrapped;
+
+        private GameObject menuInstance;
 
         public static bool IsBootstrapped => isBootstrapped;
         public static LootboundGameConfig GameConfig => instance?.gameConfig;
@@ -54,10 +64,28 @@ namespace Lootbound.Core.Bootstrap
 
             isBootstrapped = true;
 
-            if (loadDefaultSceneOnStart)
+            // Prioritize development menu over legacy auto-load
+            if (developmentMenuPrefab != null)
+            {
+                InitializeDevelopmentMenu();
+            }
+            else if (loadDefaultSceneOnStart)
             {
                 LoadDefaultScene();
             }
+        }
+
+        private void InitializeDevelopmentMenu()
+        {
+            LootboundLog.Info(Category, "Initializing development menu...");
+
+            // Instantiate the menu as a child of bootstrap (persists across scenes)
+            menuInstance = Instantiate(developmentMenuPrefab, transform);
+
+            // The DevelopmentMenuController will self-initialize via its Awake/Start
+            // and open scene selection automatically when it detects it's in the boot scene
+
+            LootboundLog.Info(Category, "Development menu instantiated.");
         }
 
         private void LoadDefaultScene()

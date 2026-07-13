@@ -61,6 +61,7 @@ A finished, readable feature is worth more than an extremely generic architectur
 | `10_FoundationSandbox` | Development sandbox for testing foundations |
 | `11_CharacterControllerSandbox` | Character controller testing sandbox |
 | `12_ProceduralTerrainSandbox` | Procedural terrain testing sandbox |
+| `13_InteractionInventorySandbox` | Interaction and inventory testing sandbox |
 
 ### Key Folders
 
@@ -122,7 +123,7 @@ After opening the project for the first time:
 | Toggle Movement Debug | F4 |
 | Toggle Terrain Debug | F5 |
 
-## Current State: Slice 0.3 - Procedural Terrain V1
+## Current State: Slice 0.4.1 - Development Scene Menu
 
 ### Implemented
 - Project folder structure
@@ -130,10 +131,13 @@ After opening the project for the first time:
 - Game configuration (ScriptableObject)
 - Logging system
 - Bootstrap system
-- Scene loading
+- Scene loading with validation
 - Debug overlay (FPS, scene name, version)
 - Input Actions (Player, UI, Debug maps)
-- Boot scene with auto-load
+- **Development scene menu at boot**
+- **Pause menu with Escape in sandboxes**
+- **Scene catalog (ScriptableObject)**
+- **Scene reload and switching**
 - Foundation Sandbox scene
 - First-person character controller
 - Movement (walk, sprint, crouch)
@@ -143,19 +147,27 @@ After opening the project for the first time:
 - Cursor lock/unlock
 - Movement debug overlay
 - Character Controller Sandbox scene
-- **Procedural terrain generation**
-- **Deterministic seed-based generation**
-- **Layered noise (macro, valleys, ridges, details)**
-- **Spawn zone with progressive flattening**
-- **Procedural surface painting**
-- **Terrain debug overlay**
-- **Procedural Terrain Sandbox scene**
+- Procedural terrain generation
+- Deterministic seed-based generation
+- Layered noise (macro, valleys, ridges, details)
+- Spawn zone with progressive flattening
+- Procedural surface painting
+- Terrain debug overlay
+- Procedural Terrain Sandbox scene
+- **Raycast/spherecast interaction system**
+- **IInteractable interface with hold-duration support**
+- **Slot-based inventory system with stacking**
+- **ItemDefinition ScriptableObjects with rarity**
+- **UI Toolkit: interaction prompts, inventory panel, notifications**
+- **World pickup objects with layer-based detection**
+- **Drop functionality with partial pickup support**
+- **Interaction & Inventory Sandbox scene**
 
 ### Not Implemented (Future Slices)
 - Combat system
 - Enemies and AI
-- Inventory
-- Loot system
+- Equipment and gear
+- Loot tables and drops
 - Equipment durability
 - Enhancement system
 - Save system
@@ -167,9 +179,9 @@ After opening the project for the first time:
 
 | Slice | Focus |
 |-------|-------|
-| 0.4 | Basic interaction system |
-| 0.5 | Inventory V1 |
-| 0.6 | Simple combat V1 |
+| 0.5 | Combat V1 |
+| 0.6 | Equipment & Stats V1 |
+| 0.7 | Simple enemies V1 |
 
 ## Character Controller
 
@@ -258,6 +270,44 @@ Not implemented in V1:
 - Points of interest
 
 See `Docs/PROCEDURAL_TERRAIN.md` for detailed documentation.
+
+## Interaction & Inventory
+
+### Components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `IInteractable` | Interface for interactable objects |
+| `PlayerInteractor` | Raycast/spherecast detection and interaction handling |
+| `Inventory` | Slot-based container with stacking and events |
+| `PlayerInventory` | Player-attached inventory component |
+| `ItemDefinition` | ScriptableObject item template |
+| `ItemInstance` | Runtime item with mutable quantity |
+| `ItemWorldPickup` | IInteractable pickup in world |
+| `InventoryUI` | UI Toolkit inventory panel |
+| `InteractionPromptUI` | UI Toolkit interaction prompts |
+| `NotificationUI` | UI Toolkit pickup notifications |
+
+### Configuration
+
+- `InteractionConfig` - Raycast settings, layer mask, prompt distances
+- `InventoryConfig` - Slot count, grid layout
+- `ItemDefinition` - Item ID, display name, icon, rarity, stacking
+
+### V1 Limitations
+
+Not implemented in V1:
+- Equipment slots
+- Item use/consume
+- Item combining/crafting
+- Drag-and-drop rearrangement
+- Item sorting
+- Quick-use hotbar
+- Container/chest interaction
+- Item durability
+- Save/load inventory
+
+See `Docs/INTERACTION_INVENTORY.md` for detailed documentation.
 
 ## Technical Notes
 

@@ -29,13 +29,14 @@ namespace Lootbound.Gameplay.World
         private Vector3 initialPosition;
         private float bobOffset;
         private bool isPickedUp;
+        private bool isInteractionInProgress;
 
         // IInteractable implementation
         public string InteractionPrompt => itemDefinition != null
             ? $"{itemDefinition.PickupPrompt} {itemDefinition.DisplayName}"
             : "Pick up";
 
-        public bool CanInteract => !isPickedUp && itemDefinition != null;
+        public bool CanInteract => !isPickedUp && !isInteractionInProgress && itemDefinition != null;
 
         public string IconId => itemDefinition?.ItemId;
 
@@ -87,23 +88,29 @@ namespace Lootbound.Gameplay.World
 
         public void OnInteractionStart(PlayerInteractor interactor)
         {
-            // Visual feedback can be added here
+            // Lock to prevent concurrent interactions
+            isInteractionInProgress = true;
         }
 
         public void OnInteractionComplete(PlayerInteractor interactor)
         {
-            if (isPickedUp) return;
+            if (isPickedUp)
+            {
+                isInteractionInProgress = false;
+                return;
+            }
 
             // Find player inventory
             var playerInventory = interactor.GetComponentInParent<PlayerInventory>();
             if (playerInventory == null)
             {
-                playerInventory = FindObjectOfType<PlayerInventory>();
+                playerInventory = FindFirstObjectByType<PlayerInventory>();
             }
 
             if (playerInventory == null)
             {
                 Debug.LogWarning("[ItemWorldPickup] No PlayerInventory found!");
+                isInteractionInProgress = false;
                 return;
             }
 
@@ -112,29 +119,31 @@ namespace Lootbound.Gameplay.World
 
             if (added > 0)
             {
-                isPickedUp = true;
-
                 // If we added all items, destroy the pickup
                 if (added >= quantity)
                 {
+                    isPickedUp = true;
                     Destroy(gameObject);
                 }
                 else
                 {
-                    // Partial pickup - reduce quantity
+                    // Partial pickup - reduce quantity and allow further interaction
                     quantity -= added;
+                    initialPosition = transform.position; // Update bob origin
+                    isInteractionInProgress = false;
                 }
             }
             else
             {
-                // Inventory full - could play feedback here
-                Debug.Log("[ItemWorldPickup] Inventory full!");
+                // Inventory full - allow retry
+                isInteractionInProgress = false;
             }
         }
 
         public void OnInteractionCancel(PlayerInteractor interactor)
         {
-            // Reset visual state if needed
+            // Unlock interaction on cancel
+            isInteractionInProgress = false;
         }
 
         /// <summary>
@@ -145,6 +154,7 @@ namespace Lootbound.Gameplay.World
             itemDefinition = definition;
             quantity = Mathf.Max(1, amount);
             isPickedUp = false;
+            isInteractionInProgress = false;
         }
 
         /// <summary>
