@@ -60,6 +60,7 @@ A finished, readable feature is worth more than an extremely generic architectur
 | `00_Boot` | Bootstrap scene, initializes core systems and loads gameplay |
 | `10_FoundationSandbox` | Development sandbox for testing foundations |
 | `11_CharacterControllerSandbox` | Character controller testing sandbox |
+| `12_ProceduralTerrainSandbox` | Procedural terrain testing sandbox |
 
 ### Key Folders
 
@@ -119,8 +120,9 @@ After opening the project for the first time:
 |--------|-----|
 | Toggle Debug Overlay | F3 |
 | Toggle Movement Debug | F4 |
+| Toggle Terrain Debug | F5 |
 
-## Current State: Slice 0.2 - Character Controller V1
+## Current State: Slice 0.3 - Procedural Terrain V1
 
 ### Implemented
 - Project folder structure
@@ -133,17 +135,23 @@ After opening the project for the first time:
 - Input Actions (Player, UI, Debug maps)
 - Boot scene with auto-load
 - Foundation Sandbox scene
-- **First-person character controller**
-- **Movement (walk, sprint, crouch)**
-- **Jump with coyote time and jump buffer**
-- **Slope handling and step climbing**
-- **FPS camera with mouse look**
-- **Cursor lock/unlock**
-- **Movement debug overlay**
-- **Character Controller Sandbox scene**
+- First-person character controller
+- Movement (walk, sprint, crouch)
+- Jump with coyote time and jump buffer
+- Slope handling and step climbing
+- FPS camera with mouse look
+- Cursor lock/unlock
+- Movement debug overlay
+- Character Controller Sandbox scene
+- **Procedural terrain generation**
+- **Deterministic seed-based generation**
+- **Layered noise (macro, valleys, ridges, details)**
+- **Spawn zone with progressive flattening**
+- **Procedural surface painting**
+- **Terrain debug overlay**
+- **Procedural Terrain Sandbox scene**
 
 ### Not Implemented (Future Slices)
-- Procedural terrain
 - Combat system
 - Enemies and AI
 - Inventory
@@ -159,9 +167,9 @@ After opening the project for the first time:
 
 | Slice | Focus |
 |-------|-------|
-| 0.3 | Simple procedural terrain |
 | 0.4 | Basic interaction system |
 | 0.5 | Inventory V1 |
+| 0.6 | Simple combat V1 |
 
 ## Character Controller
 
@@ -209,6 +217,47 @@ Not implemented in V1:
 - Head bob
 - Footsteps audio
 - Visible body/hands
+
+## Procedural Terrain
+
+### Components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `TerrainGenerationConfig` | ScriptableObject with all generation parameters |
+| `ProceduralTerrainGenerator` | Orchestrates generation and applies to Unity Terrain |
+| `TerrainHeightGenerator` | Generates heightmap using layered noise |
+| `TerrainSpawnPlanner` | Finds valid spawn and flattens the area |
+| `TerrainSurfacePainter` | Paints texture layers based on height/slope |
+| `TerrainGenerationDebug` | Debug overlay (toggle with F5) |
+
+### Configuration
+
+Terrain parameters are configured via `TerrainGenerationConfig` ScriptableObject:
+- Located at `Assets/Lootbound/ScriptableObjects/World/DefaultTerrainGenerationConfig.asset`
+- All values exposed in Inspector for tuning
+
+### Generation Pipeline
+
+```
+Seed → Offsets → Macro → Valleys → Ridges → Details → Remap
+→ Spawn Search → Flatten → Slopes → Apply → Paint → Place Player
+```
+
+### V1 Terrain Limitations
+
+Not implemented in V1:
+- Infinite terrain / streaming
+- Runtime chunk loading
+- GPU generation
+- Caves / tunnels
+- Rivers / water
+- Erosion simulation
+- Full biome system
+- Vegetation
+- Points of interest
+
+See `Docs/PROCEDURAL_TERRAIN.md` for detailed documentation.
 
 ## Technical Notes
 

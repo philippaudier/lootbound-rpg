@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="InteractionPrompt.uss" />
+    <ui:VisualElement name="prompt-container" class="prompt-container" style="display: none;">
+        <ui:VisualElement class="prompt-background">
+            <ui:Label name="prompt-label" text="Pick up" class="prompt-label" />
+            <ui:Label name="key-hint-label" text="[E]" class="key-hint-label" />
+            <ui:VisualElement name="hold-progress-bar" class="hold-progress-bar">
+                <ui:VisualElement name="hold-progress-fill" class="hold-progress-fill" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

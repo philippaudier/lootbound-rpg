@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="Inventory.uss" />
+    <ui:VisualElement name="inventory-panel" class="inventory-panel" style="display: none;">
+        <ui:VisualElement class="inventory-header">
+            <ui:Label name="inventory-title" text="Inventory" class="inventory-title" />
+            <ui:Label name="capacity-label" text="0/20" class="capacity-label" />
+            <ui:Button name="close-button" text="X" class="close-button" />
+        </ui:VisualElement>
+        <ui:VisualElement class="inventory-content">
+            <ui:VisualElement name="slots-container" class="slots-container" />
+            <ui:VisualElement name="item-details" class="item-details">
+                <ui:VisualElement name="details-icon" class="details-icon" />
+                <ui:Label name="details-name" text="" class="details-name" />
+                <ui:Label name="details-description" text="" class="details-description" />
+                <ui:Label name="details-quantity" text="" class="details-quantity" />
+                <ui:Button name="drop-button" text="Drop" class="drop-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

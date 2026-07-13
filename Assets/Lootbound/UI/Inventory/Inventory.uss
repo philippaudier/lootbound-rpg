@@ -1,0 +1,198 @@
+/* Inventory Panel Styles */
+
+.inventory-panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    background-color: rgba(30, 30, 35, 0.95);
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: rgba(100, 100, 120, 0.5);
+    padding: 16px;
+    /* Width for slots + details panel */
+    width: 580px;
+}
+
+.inventory-content {
+    flex-direction: row;
+}
+
+.inventory-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(100, 100, 120, 0.3);
+}
+
+.inventory-title {
+    color: rgb(255, 255, 255);
+    font-size: 20px;
+    -unity-font-style: bold;
+}
+
+.capacity-label {
+    color: rgb(180, 180, 180);
+    font-size: 14px;
+    margin-left: auto;
+    margin-right: 16px;
+}
+
+.close-button {
+    width: 28px;
+    height: 28px;
+    background-color: rgba(200, 60, 60, 0.6);
+    border-radius: 4px;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.close-button:hover {
+    background-color: rgba(220, 80, 80, 0.8);
+}
+
+.slots-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    /* 5 columns: (64px slot + 8px margin) * 5 = 360px */
+    max-width: 370px;
+}
+
+/* Slot Styles */
+
+.inventory-slot {
+    width: 64px;
+    height: 64px;
+    margin: 4px;
+    background-color: rgba(50, 50, 60, 0.8);
+    border-radius: 6px;
+    border-width: 2px;
+    border-color: rgba(80, 80, 100, 0.5);
+    position: relative;
+}
+
+.inventory-slot:hover {
+    border-color: rgba(150, 150, 180, 0.8);
+    background-color: rgba(60, 60, 75, 0.9);
+}
+
+.inventory-slot.slot-filled {
+    border-bottom-width: 3px;
+}
+
+.slot-icon {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 4px;
+    bottom: 4px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.slot-quantity {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    color: rgb(255, 255, 255);
+    font-size: 12px;
+    -unity-font-style: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Rarity Colors */
+
+.rarity-common {
+    border-bottom-color: rgb(180, 180, 180);
+}
+
+.rarity-uncommon {
+    border-bottom-color: rgb(50, 200, 50);
+}
+
+.rarity-rare {
+    border-bottom-color: rgb(50, 100, 255);
+}
+
+.rarity-epic {
+    border-bottom-color: rgb(150, 50, 200);
+}
+
+.rarity-legendary {
+    border-bottom-color: rgb(255, 150, 25);
+}
+
+/* Selected Slot */
+
+.inventory-slot.slot-selected {
+    border-color: rgb(255, 200, 100);
+    border-width: 3px;
+}
+
+/* Item Details Panel */
+
+.item-details {
+    width: 160px;
+    margin-left: 16px;
+    padding: 12px;
+    background-color: rgba(40, 40, 50, 0.8);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(80, 80, 100, 0.5);
+    display: none;
+}
+
+.item-details.has-selection {
+    display: flex;
+}
+
+.details-icon {
+    width: 64px;
+    height: 64px;
+    align-self: center;
+    margin-bottom: 12px;
+    background-color: rgba(50, 50, 60, 0.8);
+    border-radius: 6px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.details-name {
+    color: rgb(255, 255, 255);
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
+}
+
+.details-description {
+    color: rgb(180, 180, 180);
+    font-size: 12px;
+    margin-bottom: 8px;
+    white-space: normal;
+}
+
+.details-quantity {
+    color: rgb(150, 200, 150);
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.drop-button {
+    height: 32px;
+    background-color: rgba(180, 80, 80, 0.6);
+    border-radius: 4px;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    margin-top: auto;
+}
+
+.drop-button:hover {
+    background-color: rgba(200, 100, 100, 0.8);
+}

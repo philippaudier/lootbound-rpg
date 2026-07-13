@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
 namespace Lootbound.Gameplay.Player
 {
@@ -17,6 +18,8 @@ namespace Lootbound.Gameplay.Player
         private InputAction sprintAction;
         private InputAction crouchAction;
         private InputAction pauseAction;
+        private InputAction interactAction;
+        private InputAction inventoryAction;
 
         private Vector2 moveInput;
         private Vector2 lookInput;
@@ -24,8 +27,17 @@ namespace Lootbound.Gameplay.Player
         private bool sprintHeld;
         private bool crouchHeld;
         private bool pausePressedThisFrame;
+        private bool interactHeld;
+        private bool interactPressedThisFrame;
+        private bool interactReleasedThisFrame;
+        private bool inventoryPressedThisFrame;
 
         private bool inputEnabled = true;
+
+        // Events for interaction system
+        public event Action OnInteractPressed;
+        public event Action OnInteractReleased;
+        public event Action OnInventoryToggled;
 
         // Public accessors for other components
         public Vector2 MoveInput => inputEnabled ? moveInput : Vector2.zero;
@@ -34,6 +46,10 @@ namespace Lootbound.Gameplay.Player
         public bool SprintHeld => inputEnabled && sprintHeld;
         public bool CrouchHeld => inputEnabled && crouchHeld;
         public bool PausePressedThisFrame => pausePressedThisFrame;
+        public bool InteractHeld => inputEnabled && interactHeld;
+        public bool InteractPressedThisFrame => inputEnabled && interactPressedThisFrame;
+        public bool InteractReleasedThisFrame => inputEnabled && interactReleasedThisFrame;
+        public bool InventoryPressedThisFrame => inventoryPressedThisFrame;
         public bool InputEnabled => inputEnabled;
 
         private void Awake()
@@ -62,6 +78,8 @@ namespace Lootbound.Gameplay.Player
             sprintAction = playerMap.FindAction("Sprint");
             crouchAction = playerMap.FindAction("Crouch");
             pauseAction = playerMap.FindAction("Pause");
+            interactAction = playerMap.FindAction("Interact");
+            inventoryAction = playerMap.FindAction("Inventory");
 
             // Subscribe to events
             if (jumpAction != null)
@@ -72,6 +90,17 @@ namespace Lootbound.Gameplay.Player
             if (pauseAction != null)
             {
                 pauseAction.performed += OnPausePerformed;
+            }
+
+            if (interactAction != null)
+            {
+                interactAction.started += OnInteractStarted;
+                interactAction.canceled += OnInteractCanceled;
+            }
+
+            if (inventoryAction != null)
+            {
+                inventoryAction.performed += OnInventoryPerformed;
             }
         }
 
@@ -96,6 +125,17 @@ namespace Lootbound.Gameplay.Player
             {
                 pauseAction.performed -= OnPausePerformed;
             }
+
+            if (interactAction != null)
+            {
+                interactAction.started -= OnInteractStarted;
+                interactAction.canceled -= OnInteractCanceled;
+            }
+
+            if (inventoryAction != null)
+            {
+                inventoryAction.performed -= OnInventoryPerformed;
+            }
         }
 
         private void Update()
@@ -108,6 +148,9 @@ namespace Lootbound.Gameplay.Player
             // Clear one-frame flags after all Update processing
             jumpPressedThisFrame = false;
             pausePressedThisFrame = false;
+            interactPressedThisFrame = false;
+            interactReleasedThisFrame = false;
+            inventoryPressedThisFrame = false;
         }
 
         private void ReadInputValues()
@@ -131,6 +174,11 @@ namespace Lootbound.Gameplay.Player
             {
                 crouchHeld = crouchAction.IsPressed();
             }
+
+            if (interactAction != null)
+            {
+                interactHeld = interactAction.IsPressed();
+            }
         }
 
         private void OnJumpPerformed(InputAction.CallbackContext context)
@@ -141,6 +189,30 @@ namespace Lootbound.Gameplay.Player
         private void OnPausePerformed(InputAction.CallbackContext context)
         {
             pausePressedThisFrame = true;
+        }
+
+        private void OnInteractStarted(InputAction.CallbackContext context)
+        {
+            interactPressedThisFrame = true;
+            if (inputEnabled)
+            {
+                OnInteractPressed?.Invoke();
+            }
+        }
+
+        private void OnInteractCanceled(InputAction.CallbackContext context)
+        {
+            interactReleasedThisFrame = true;
+            if (inputEnabled)
+            {
+                OnInteractReleased?.Invoke();
+            }
+        }
+
+        private void OnInventoryPerformed(InputAction.CallbackContext context)
+        {
+            inventoryPressedThisFrame = true;
+            OnInventoryToggled?.Invoke();
         }
 
         /// <summary>

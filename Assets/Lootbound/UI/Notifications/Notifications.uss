@@ -1,0 +1,66 @@
+/* Notification Styles */
+
+.notification-container {
+    position: absolute;
+    right: 20px;
+    top: 100px;
+    width: 280px;
+    align-items: flex-end;
+}
+
+.notification-item {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(30, 30, 35, 0.9);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(100, 100, 120, 0.4);
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    opacity: 1;
+    transition-property: opacity, translate;
+    transition-duration: 0.3s;
+    translate: 0 0;
+}
+
+.notification-item.notification-fade-out {
+    opacity: 0;
+    translate: 50px 0;
+}
+
+.notification-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+    -unity-background-scale-mode: scale-to-fit;
+    flex-shrink: 0;
+}
+
+.notification-text-container {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.notification-name {
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-right: 8px;
+}
+
+.notification-quantity {
+    color: rgb(180, 180, 180);
+    font-size: 13px;
+}
+
+/* Animation for new notifications */
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        translate: 50px 0;
+    }
+    to {
+        opacity: 1;
+        translate: 0 0;
+    }
+}

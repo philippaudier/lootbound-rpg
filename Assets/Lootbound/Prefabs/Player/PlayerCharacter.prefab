@@ -200,6 +200,8 @@ GameObject:
   - component: {fileID: 4129324653345230284}
   - component: {fileID: 2435996291211684668}
   - component: {fileID: 2352341136824471993}
+  - component: {fileID: 480202985262724666}
+  - component: {fileID: 4471596059645939610}
   m_Layer: 0
   m_Name: PlayerCharacter
   m_TagString: Untagged
@@ -310,3 +312,30 @@ MonoBehaviour:
   cameraController: {fileID: 5546983951964009810}
   showOnStart: 1
   toggleKey: 97
+--- !u!114 &480202985262724666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bef1df3576c03741b7bddc8a0867fd4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Interaction.PlayerInteractor
+  config: {fileID: 11400000, guid: 56ff8f7684e2cd645915b018aedbd281, type: 2}
+  raycastOrigin: {fileID: 3678459415488717381}
+--- !u!114 &4471596059645939610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be5b7245ff0fe3043abcf02a06e8e240, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Inventory.PlayerInventory
+  config: {fileID: 11400000, guid: 3b146ac80af19ba4884de53f620266df, type: 2}

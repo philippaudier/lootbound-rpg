@@ -205,6 +205,110 @@ Development overlay (toggle with F4):
 - Coyote time and jump buffer timers
 - Input values
 
+### World (`Lootbound.Gameplay.World`)
+
+The procedural terrain system generates finite, seed-based worlds.
+
+```
+ProceduralWorld
+├── TerrainGenerator (ProceduralTerrainGenerator)
+└── Terrain (Unity Terrain)
+```
+
+#### TerrainGenerationConfig
+
+ScriptableObject containing all generation parameters:
+
+```csharp
+[CreateAssetMenu(fileName = "TerrainGenerationConfig", menuName = "Lootbound/Terrain Generation Config")]
+public class TerrainGenerationConfig : ScriptableObject
+```
+
+Parameters include:
+- Seed and dimensions
+- Macro terrain noise settings
+- Valley and ridge features
+- Detail noise
+- Spawn zone configuration
+- Surface classification thresholds
+
+#### TerrainGenerationContext
+
+Runtime data produced during generation:
+
+```csharp
+public sealed class TerrainGenerationContext
+{
+    public int Seed { get; }
+    public float[,] HeightMap { get; }
+    public float[,] NormalizedHeightMap { get; }
+    public float[,] SlopeMap { get; }
+    public float[,] MacroMap { get; }
+    public Vector3 SpawnPosition { get; set; }
+}
+```
+
+Not a ScriptableObject - runtime data only.
+
+#### TerrainHeightGenerator
+
+Static class generating heightmap via layered noise:
+
+- Macro terrain (FBM noise)
+- Valley features (inverted noise)
+- Ridge features (ridged noise)
+- Detail noise
+- Height remapping
+- Slope calculation
+
+Uses `System.Random` with seed for determinism.
+
+#### TerrainSpawnPlanner
+
+Static class finding valid spawn location:
+
+- Searches center region
+- Evaluates slope and accessibility
+- Applies progressive flattening
+- Core zone nearly flat
+- Blend zone transitions naturally
+
+#### TerrainSurfacePainter
+
+Static class painting terrain layers:
+
+- Layer 0: Grass (lowlands, gentle slopes)
+- Layer 1: DryGround (mid elevations)
+- Layer 2: Rock (steep slopes)
+- Layer 3: Highland (high elevations)
+
+Uses height, slope, and noise for natural transitions.
+
+#### ProceduralTerrainGenerator
+
+MonoBehaviour orchestrating all generation:
+
+```csharp
+public void Generate(int seed);
+public void GenerateDefault();
+public void GenerateRandom();
+public void Regenerate();
+public void ClearTerrain();
+```
+
+Custom editor provides Inspector buttons for generation control.
+
+#### TerrainGenerationDebug
+
+Development overlay (toggle with F5):
+
+- Seed and status
+- Terrain dimensions
+- Height statistics
+- Spawn position and slope
+- Generation timing
+- Map visualization (height, slope, macro)
+
 ## Namespaces
 
 ```
@@ -215,6 +319,7 @@ Lootbound.Core.Logging
 Lootbound.Core.Scenes
 Lootbound.Debugging
 Lootbound.Gameplay.Player
+Lootbound.Gameplay.World
 ```
 
 ## Scene Architecture
@@ -250,6 +355,18 @@ Character controller test scene containing:
 - Debug overlay
 
 Used for tuning and validating character movement.
+
+### 12_ProceduralTerrainSandbox
+
+Procedural terrain test scene containing:
+- ProceduralWorld with TerrainGenerator and Terrain
+- Player prefab positioned at spawn
+- Debug overlays (F3, F4, F5)
+- Directional light with shadows
+
+Used for testing and tuning terrain generation.
+
+Generation controls available in Inspector on TerrainGenerator object.
 
 ## Design Principles
 
