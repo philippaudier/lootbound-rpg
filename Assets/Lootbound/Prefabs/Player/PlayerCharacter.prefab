@@ -237,6 +237,11 @@ GameObject:
   - component: {fileID: 2352341136824471993}
   - component: {fileID: 480202985262724666}
   - component: {fileID: 4471596059645939610}
+  - component: {fileID: 1003590245021206126}
+  - component: {fileID: 3497194455863290280}
+  - component: {fileID: 4507215707646922427}
+  - component: {fileID: 5308648090781776033}
+  - component: {fileID: 4535864293518479657}
   m_Layer: 0
   m_Name: PlayerCharacter
   m_TagString: Untagged
@@ -375,3 +380,86 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Inventory.PlayerInventory
   config: {fileID: 11400000, guid: 3b146ac80af19ba4884de53f620266df, type: 2}
+--- !u!114 &1003590245021206126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 659ad46cb834d1f449f89dad06ee9547, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerHealth
+  maxHealth: 100
+--- !u!114 &3497194455863290280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cab749753e2704f4b8c8ab4edc3c5a4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerDodge
+  distance: 2.5
+  duration: 0.3
+  invulnerabilityStart: 0.05
+  invulnerabilityEnd: 0.25
+  cooldown: 0.8
+  characterController: {fileID: 2172380316175661297}
+  inputReader: {fileID: 3435499054096214388}
+  cameraTransform: {fileID: 3678459415488717381}
+--- !u!114 &4507215707646922427
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13d1ccd78d5c6d34694f280cb6d614d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerCombatController
+  inputReader: {fileID: 3435499054096214388}
+  meleeWeapon: {fileID: 478766206942817115}
+  dodge: {fileID: 0}
+  playerHealth: {fileID: 0}
+  combatBlocked: 0
+--- !u!114 &5308648090781776033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 922982f1f0f80ba47bf5a6824cf7afb3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerStagger
+  staggerDuration: 0.15
+  knockbackForce: 2
+  staggerSpeedMultiplier: 0.3
+  playerHealth: {fileID: 0}
+  characterController: {fileID: 2172380316175661297}
+--- !u!114 &4535864293518479657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87f3e2a7d2f0c494eb80d6311fa88a4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.PlayerEquipment
+  playerInventory: {fileID: 4471596059645939610}
+  meleeWeapon: {fileID: 478766206942817115}
+  equipmentRegistry: {fileID: 11400000, guid: a40bac1b6935b07489fd76cf200fb399, type: 2}
+  weaponViewSocket: {fileID: 0}

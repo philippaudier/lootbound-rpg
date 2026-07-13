@@ -363,6 +363,168 @@ namespace Lootbound.Tests.EditMode
 
         #endregion
 
+        #region AddItemResult and Overflow Tests
+
+        [Test]
+        public void AddItemResult_Properties_CorrectForComplete()
+        {
+            var result = new AddItemResult(10, 10);
+
+            Assert.AreEqual(10, result.Requested);
+            Assert.AreEqual(10, result.Added);
+            Assert.AreEqual(0, result.Overflow);
+            Assert.IsTrue(result.IsComplete);
+            Assert.IsFalse(result.IsPartial);
+            Assert.IsFalse(result.IsFailed);
+            Assert.IsTrue(result.AnyAdded);
+        }
+
+        [Test]
+        public void AddItemResult_Properties_CorrectForPartial()
+        {
+            var result = new AddItemResult(10, 7);
+
+            Assert.AreEqual(10, result.Requested);
+            Assert.AreEqual(7, result.Added);
+            Assert.AreEqual(3, result.Overflow);
+            Assert.IsFalse(result.IsComplete);
+            Assert.IsTrue(result.IsPartial);
+            Assert.IsFalse(result.IsFailed);
+            Assert.IsTrue(result.AnyAdded);
+        }
+
+        [Test]
+        public void AddItemResult_Properties_CorrectForFailed()
+        {
+            var result = new AddItemResult(10, 0);
+
+            Assert.AreEqual(10, result.Requested);
+            Assert.AreEqual(0, result.Added);
+            Assert.AreEqual(10, result.Overflow);
+            Assert.IsFalse(result.IsComplete);
+            Assert.IsFalse(result.IsPartial);
+            Assert.IsTrue(result.IsFailed);
+            Assert.IsFalse(result.AnyAdded);
+        }
+
+        [Test]
+        public void Inventory_TryAddItemWithResult_ReturnsCorrectOverflow()
+        {
+            var inventory = new Inventory(2);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Fill inventory partially
+            inventory.TryAddItem(new ItemInstance(definition, 10));
+            inventory.TryAddItem(new ItemInstance(definition, 10));
+
+            // Now inventory is full (2 slots * 10 each = 20)
+            var result = inventory.TryAddItemWithResult(new ItemInstance(definition, 5));
+
+            Assert.AreEqual(5, result.Requested);
+            Assert.AreEqual(0, result.Added);
+            Assert.AreEqual(5, result.Overflow);
+            Assert.IsTrue(result.IsFailed);
+        }
+
+        [Test]
+        public void Inventory_TryAddItemWithResult_WithPreexistingStack_CorrectCalculation()
+        {
+            var inventory = new Inventory(2);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Add 5 items first
+            inventory.TryAddItem(new ItemInstance(definition, 5));
+            Assert.AreEqual(5, inventory.GetItemCount(definition));
+
+            // Add 3 more - should work, total should be 8
+            var result = inventory.TryAddItemWithResult(new ItemInstance(definition, 3));
+
+            Assert.AreEqual(3, result.Requested);
+            Assert.AreEqual(3, result.Added);
+            Assert.AreEqual(0, result.Overflow);
+            Assert.IsTrue(result.IsComplete);
+            Assert.AreEqual(8, inventory.GetItemCount(definition));
+        }
+
+        [Test]
+        public void Inventory_TryAddItemWithResult_PartialAdd_CorrectOverflow()
+        {
+            var inventory = new Inventory(1);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Add 8 items to the only slot
+            inventory.TryAddItem(new ItemInstance(definition, 8));
+
+            // Try to add 5 more - only 2 should fit
+            var result = inventory.TryAddItemWithResult(new ItemInstance(definition, 5));
+
+            Assert.AreEqual(5, result.Requested);
+            Assert.AreEqual(2, result.Added);
+            Assert.AreEqual(3, result.Overflow);
+            Assert.IsTrue(result.IsPartial);
+            Assert.AreEqual(10, inventory.GetItemCount(definition));
+        }
+
+        [Test]
+        public void Inventory_AddItemWithOverflow_WithPreexistingStack_ReturnsCorrectOverflow()
+        {
+            var inventory = new Inventory(2);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Pre-fill with 15 items (one full slot of 10, one slot with 5)
+            // Note: ItemInstance clamps to maxStack, so we add in two operations
+            inventory.TryAddItem(new ItemInstance(definition, 10));
+            inventory.TryAddItem(new ItemInstance(definition, 5));
+            Assert.AreEqual(15, inventory.GetItemCount(definition));
+
+            // Try to add 10 more - only 5 should fit (filling second slot)
+            int overflow = inventory.AddItemWithOverflow(new ItemInstance(definition, 10));
+
+            Assert.AreEqual(5, overflow);
+            Assert.AreEqual(20, inventory.GetItemCount(definition));
+        }
+
+        [Test]
+        public void Inventory_AddItemWithOverflow_FullInventory_ReturnsAllAsOverflow()
+        {
+            var inventory = new Inventory(2);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Fill completely (2 slots * 10 each = 20)
+            // Note: ItemInstance clamps to maxStack, so we add in two operations
+            inventory.TryAddItem(new ItemInstance(definition, 10));
+            inventory.TryAddItem(new ItemInstance(definition, 10));
+            Assert.AreEqual(20, inventory.GetItemCount(definition));
+            Assert.IsTrue(inventory.IsFull);
+
+            // Try to add more
+            int overflow = inventory.AddItemWithOverflow(new ItemInstance(definition, 7));
+
+            Assert.AreEqual(7, overflow);
+            Assert.AreEqual(20, inventory.GetItemCount(definition));
+        }
+
+        [Test]
+        public void Inventory_TotalQuantity_ConservedAfterPartialAdd()
+        {
+            var inventory = new Inventory(1);
+            var definition = CreateTestItem("TestItem", true, 10);
+
+            // Start with 8 items
+            inventory.TryAddItem(new ItemInstance(definition, 8));
+            int pickupQuantity = 7;
+            int initialTotal = inventory.GetItemCount(definition) + pickupQuantity;
+
+            // Partial add
+            var result = inventory.TryAddItemWithResult(new ItemInstance(definition, pickupQuantity));
+
+            // Verify conservation: inventory + overflow = initial total
+            int finalTotal = inventory.GetItemCount(definition) + result.Overflow;
+            Assert.AreEqual(initialTotal, finalTotal, "Total quantity must be conserved");
+        }
+
+        #endregion
+
         [TearDown]
         public void TearDown()
         {

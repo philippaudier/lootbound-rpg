@@ -10,8 +10,8 @@
     border-width: 2px;
     border-color: rgba(100, 100, 120, 0.5);
     padding: 16px;
-    /* Width for slots + details panel */
-    width: 580px;
+    /* Width for slots (370px) + details panel (180px) + margins */
+    width: 600px;
 }
 
 .inventory-content {
@@ -135,10 +135,18 @@
     border-width: 3px;
 }
 
+/* Equipped Slot */
+
+.inventory-slot.slot-equipped {
+    border-left-width: 3px;
+    border-left-color: rgb(100, 200, 100);
+}
+
 /* Item Details Panel */
 
 .item-details {
-    width: 160px;
+    width: 180px;
+    min-width: 180px;
     margin-left: 16px;
     padding: 12px;
     background-color: rgba(40, 40, 50, 0.8);
@@ -146,6 +154,7 @@
     border-width: 1px;
     border-color: rgba(80, 80, 100, 0.5);
     display: none;
+    overflow: hidden;
 }
 
 .item-details.has-selection {
@@ -160,27 +169,33 @@
     background-color: rgba(50, 50, 60, 0.8);
     border-radius: 6px;
     -unity-background-scale-mode: scale-to-fit;
+    flex-shrink: 0;
 }
 
 .details-name {
     color: rgb(255, 255, 255);
-    font-size: 16px;
+    font-size: 14px;
     -unity-font-style: bold;
     margin-bottom: 8px;
     -unity-text-align: middle-center;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .details-description {
     color: rgb(180, 180, 180);
-    font-size: 12px;
+    font-size: 11px;
     margin-bottom: 8px;
     white-space: normal;
+    overflow: hidden;
 }
 
 .details-quantity {
     color: rgb(150, 200, 150);
-    font-size: 12px;
-    margin-bottom: 12px;
+    font-size: 11px;
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
 }
 
 .drop-button {
@@ -195,4 +210,71 @@
 
 .drop-button:hover {
     background-color: rgba(200, 100, 100, 0.8);
+}
+
+/* Equipment Stats Section */
+
+#equipment-stats {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: rgba(50, 50, 60, 0.5);
+    border-radius: 4px;
+}
+
+#equipment-stats Label {
+    font-size: 11px;
+}
+
+/* Affixes Section */
+
+#affixes {
+    margin-bottom: 8px;
+}
+
+#affixes Label {
+    font-size: 10px;
+    white-space: normal;
+    margin-bottom: 2px;
+}
+
+/* History Section */
+
+#history {
+    margin-bottom: 8px;
+}
+
+#history Label {
+    font-size: 10px;
+    white-space: normal;
+    color: rgb(140, 140, 150);
+}
+
+/* Comparison Section */
+
+#comparison {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top-width: 1px;
+    border-top-color: rgba(100, 100, 120, 0.4);
+}
+
+#comparison Label {
+    font-size: 10px;
+}
+
+/* Equip Button */
+
+#equip-button {
+    height: 32px;
+    border-radius: 4px;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+#equip-button:hover {
+    opacity: 0.9;
 }

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78942ba8cff3c8a4d9e8daaa0f2f8236, type: 3}
+  m_Name: EquipmentRegistry
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.EquipmentRegistry
+  weaponDefinitions:
+  - {fileID: 11400000, guid: 68a006f5c393aca41ab898616f2f655c, type: 2}
+  - {fileID: 11400000, guid: 977c6022edfc0414ba8a3a1ae29ae712, type: 2}
+  - {fileID: 11400000, guid: 55083b26420edcc4e9a343f234acd7a5, type: 2}
+  affixDefinitions:
+  - {fileID: 11400000, guid: d387ae3c498353742a0bcdb0ecc03d0b, type: 2}
+  - {fileID: 11400000, guid: fa1597b91d482f247acd4b830399b1e2, type: 2}
+  - {fileID: 11400000, guid: 88549bad3921ce944be94ddae1542618, type: 2}
+  - {fileID: 11400000, guid: ea5d247a788da554f9b292e6e62b528a, type: 2}
+  itemDefinitions:
+  - {fileID: 11400000, guid: eed0a381de7717f49bd3a647eeb264b9, type: 2}
+  - {fileID: 11400000, guid: 321514c8707505f438b62909f29c71a6, type: 2}

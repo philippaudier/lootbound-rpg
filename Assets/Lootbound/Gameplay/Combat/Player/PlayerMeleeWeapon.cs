@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Lootbound.Core.Logging;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.Gameplay.Combat
 {
     /// <summary>
     /// Handles player melee weapon attack phases and hit detection.
+    /// Uses equipment stats when available, falls back to config values.
     /// </summary>
     public class PlayerMeleeWeapon : MonoBehaviour
     {
@@ -26,6 +28,8 @@ namespace Lootbound.Gameplay.Combat
         private AttackPhase currentPhase = AttackPhase.Ready;
         private float attackTimer;
         private MeleeHitDetector hitDetector;
+        private ResolvedWeaponStats equipmentStats;
+        private bool hasEquipmentStats;
 
         /// <summary>
         /// Current attack phase.
@@ -45,9 +49,15 @@ namespace Lootbound.Gameplay.Combat
         /// <summary>
         /// Progress through the current attack (0-1).
         /// </summary>
-        public float AttackProgress => attackConfig != null && attackConfig.TotalDuration > 0
-            ? Mathf.Clamp01(attackTimer / attackConfig.TotalDuration)
-            : 0f;
+        public float AttackProgress
+        {
+            get
+            {
+                if (attackConfig == null || attackConfig.TotalDuration <= 0) return 0f;
+                float totalDuration = attackConfig.TotalDuration * GetDurationMultiplier();
+                return Mathf.Clamp01(attackTimer / totalDuration);
+            }
+        }
 
         /// <summary>
         /// Number of targets hit during the current attack.
@@ -124,10 +134,13 @@ namespace Lootbound.Gameplay.Combat
         {
             attackTimer += Time.deltaTime;
 
+            // Apply duration multiplier from equipment stats (lower = faster attacks)
+            float durationMult = GetDurationMultiplier();
+
             switch (currentPhase)
             {
                 case AttackPhase.Windup:
-                    if (attackTimer >= attackConfig.ActiveWindowStart)
+                    if (attackTimer >= attackConfig.ActiveWindowStart * durationMult)
                     {
                         EnterActivePhase();
                     }
@@ -136,19 +149,33 @@ namespace Lootbound.Gameplay.Combat
                 case AttackPhase.Active:
                     PerformHitDetection();
 
-                    if (attackTimer >= attackConfig.ActiveWindowEnd)
+                    if (attackTimer >= attackConfig.ActiveWindowEnd * durationMult)
                     {
                         EnterRecoveryPhase();
                     }
                     break;
 
                 case AttackPhase.Recovery:
-                    if (attackTimer >= attackConfig.TotalDuration)
+                    if (attackTimer >= attackConfig.TotalDuration * durationMult)
                     {
                         EndAttack();
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// Get duration multiplier for attack phases.
+        /// Lower value = faster attacks.
+        /// </summary>
+        private float GetDurationMultiplier()
+        {
+            if (hasEquipmentStats && equipmentStats.DurationMultiplier > 0)
+            {
+                // Clamp to prevent absurdly fast or slow attacks
+                return Mathf.Clamp(equipmentStats.DurationMultiplier, 0.5f, 2f);
+            }
+            return 1f;
         }
 
         private void EnterActivePhase()
@@ -181,14 +208,19 @@ namespace Lootbound.Gameplay.Combat
             Vector3 origin = attackOrigin.position;
             Vector3 direction = attackOrigin.forward;
 
+            // Use equipment stats if available, otherwise fall back to config
+            float damage = GetEffectiveDamage();
+            float range = GetEffectiveRange();
+            float stagger = GetEffectiveStagger();
+
             var results = hitDetector.DetectAndDamage(
                 origin,
                 direction,
                 attackConfig.TraceRadius,
-                attackConfig.Range,
+                range,
                 gameObject,
-                attackConfig.Damage,
-                attackConfig.StaggerForce
+                damage,
+                stagger
             );
 
             foreach (var result in results)
@@ -199,7 +231,7 @@ namespace Lootbound.Gameplay.Combat
             if (debugDraw)
             {
                 // Draw attack sphere cast
-                Debug.DrawRay(origin, direction * attackConfig.Range, Color.yellow, 0.1f);
+                Debug.DrawRay(origin, direction * range, Color.yellow, 0.1f);
             }
         }
 
@@ -223,6 +255,56 @@ namespace Lootbound.Gameplay.Combat
             attackConfig = config;
         }
 
+        /// <summary>
+        /// Set equipment stats to use for damage/range calculations.
+        /// </summary>
+        public void SetEquipmentStats(ResolvedWeaponStats stats)
+        {
+            equipmentStats = stats;
+            hasEquipmentStats = stats.IsValid;
+
+            if (hasEquipmentStats)
+            {
+                LootboundLog.Info(Category, $"Equipment stats applied: {stats}");
+            }
+        }
+
+        /// <summary>
+        /// Clear equipment stats, reverting to config values.
+        /// </summary>
+        public void ClearEquipmentStats()
+        {
+            hasEquipmentStats = false;
+            LootboundLog.Info(Category, "Equipment stats cleared");
+        }
+
+        /// <summary>
+        /// Get effective damage for current attack.
+        /// </summary>
+        public float GetEffectiveDamage()
+        {
+            if (hasEquipmentStats) return equipmentStats.Damage;
+            return attackConfig?.Damage ?? 20f;
+        }
+
+        /// <summary>
+        /// Get effective range for current attack.
+        /// </summary>
+        public float GetEffectiveRange()
+        {
+            if (hasEquipmentStats) return equipmentStats.Range;
+            return attackConfig?.Range ?? 2f;
+        }
+
+        /// <summary>
+        /// Get effective stagger for current attack.
+        /// </summary>
+        public float GetEffectiveStagger()
+        {
+            if (hasEquipmentStats) return equipmentStats.Stagger;
+            return attackConfig?.StaggerForce ?? 0.3f;
+        }
+
         private void OnDrawGizmosSelected()
         {
             if (!debugDraw || attackConfig == null || attackOrigin == null)
@@ -230,9 +312,10 @@ namespace Lootbound.Gameplay.Combat
                 return;
             }
 
+            float range = GetEffectiveRange();
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(attackOrigin.position, attackConfig.TraceRadius);
-            Gizmos.DrawRay(attackOrigin.position, attackOrigin.forward * attackConfig.Range);
+            Gizmos.DrawRay(attackOrigin.position, attackOrigin.forward * range);
         }
     }
 }

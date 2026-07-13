@@ -1,12 +1,14 @@
 using UnityEngine;
 using Lootbound.Gameplay.Interaction;
 using Lootbound.Gameplay.Inventory;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.Gameplay.World
 {
     /// <summary>
     /// Represents an item in the world that can be picked up.
     /// Implements IInteractable for the interaction system.
+    /// Supports both regular items and equipment with preserved identity.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public class ItemWorldPickup : MonoBehaviour, IInteractable
@@ -31,10 +33,33 @@ namespace Lootbound.Gameplay.World
         private bool isPickedUp;
         private bool isInteractionInProgress;
 
+        // For equipment items, preserve the full instance
+        private ItemInstance storedInstance;
+
         // IInteractable implementation
-        public string InteractionPrompt => itemDefinition != null
-            ? $"{itemDefinition.PickupPrompt} {itemDefinition.DisplayName}"
-            : "Pick up";
+        public string InteractionPrompt
+        {
+            get
+            {
+                if (itemDefinition == null) return "Pick up";
+
+                // Use equipment name if available
+                string displayName = storedInstance?.EquipmentData?.CustomName
+                    ?? itemDefinition.DisplayName;
+
+                return $"{itemDefinition.PickupPrompt} {displayName}";
+            }
+        }
+
+        /// <summary>
+        /// Whether this pickup contains equipment with unique identity.
+        /// </summary>
+        public bool HasEquipmentData => storedInstance?.HasEquipmentData ?? false;
+
+        /// <summary>
+        /// The stored item instance (for equipment).
+        /// </summary>
+        public ItemInstance StoredInstance => storedInstance;
 
         public bool CanInteract => !isPickedUp && !isInteractionInProgress && itemDefinition != null;
 
@@ -114,7 +139,26 @@ namespace Lootbound.Gameplay.World
                 return;
             }
 
-            // Try to add item to inventory
+            // Handle equipment items with preserved identity
+            if (storedInstance != null && storedInstance.HasEquipmentData)
+            {
+                // Equipment items: try to add the exact instance
+                if (playerInventory.Inventory.TryAddItem(storedInstance))
+                {
+                    isPickedUp = true;
+                    Debug.Log($"[ItemWorldPickup] Equipment picked up: {storedInstance.EquipmentData.CustomName} [{storedInstance.EquipmentData.InstanceId[..8]}]");
+                    Destroy(gameObject);
+                }
+                else
+                {
+                    // Inventory full - equipment cannot be partially picked up
+                    Debug.Log("[ItemWorldPickup] Inventory full, cannot pick up equipment");
+                    isInteractionInProgress = false;
+                }
+                return;
+            }
+
+            // Handle regular items (stackable)
             int added = playerInventory.AddItem(itemDefinition, quantity);
 
             if (added > 0)
@@ -147,23 +191,74 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Initialize this pickup with an item.
+        /// Initialize this pickup with an item definition.
         /// </summary>
         public void Initialize(ItemDefinition definition, int amount = 1)
         {
             itemDefinition = definition;
             quantity = Mathf.Max(1, amount);
+            storedInstance = null;
             isPickedUp = false;
             isInteractionInProgress = false;
         }
 
         /// <summary>
-        /// Spawn a pickup in the world.
+        /// Initialize this pickup with a full item instance (for equipment).
+        /// </summary>
+        public void Initialize(ItemInstance instance)
+        {
+            if (instance == null || !instance.IsValid)
+            {
+                Debug.LogWarning("[ItemWorldPickup] Cannot initialize with invalid instance");
+                return;
+            }
+
+            itemDefinition = instance.Definition;
+            quantity = instance.Quantity;
+            storedInstance = instance;
+            isPickedUp = false;
+            isInteractionInProgress = false;
+        }
+
+        /// <summary>
+        /// Spawn a pickup in the world with a definition and quantity.
         /// </summary>
         public static ItemWorldPickup SpawnPickup(ItemDefinition definition, Vector3 position, int quantity = 1)
         {
             if (definition == null) return null;
 
+            var pickupObj = CreatePickupObject(definition, position);
+            var pickup = EnsurePickupComponent(pickupObj);
+            pickup.Initialize(definition, quantity);
+            return pickup;
+        }
+
+        /// <summary>
+        /// Spawn a pickup in the world with a full item instance (for equipment).
+        /// Preserves equipment identity (GUID, affixes, history).
+        /// </summary>
+        public static ItemWorldPickup SpawnPickup(ItemInstance instance, Vector3 position)
+        {
+            if (instance == null || !instance.IsValid) return null;
+
+            var definition = instance.Definition;
+            var pickupObj = CreatePickupObject(definition, position);
+            var pickup = EnsurePickupComponent(pickupObj);
+
+            // Initialize with full instance to preserve equipment data
+            pickup.Initialize(instance);
+
+            // Log for debugging equipment drops
+            if (instance.HasEquipmentData)
+            {
+                Debug.Log($"[ItemWorldPickup] Equipment dropped: {instance.EquipmentData.CustomName} [{instance.EquipmentData.InstanceId[..8]}]");
+            }
+
+            return pickup;
+        }
+
+        private static GameObject CreatePickupObject(ItemDefinition definition, Vector3 position)
+        {
             GameObject pickupObj;
 
             // Use the item's world prefab if available
@@ -200,14 +295,16 @@ namespace Lootbound.Gameplay.World
                 Debug.LogWarning("[ItemWorldPickup] 'Interactable' layer not found. Pickup may not be detected.");
             }
 
-            // Add or get the pickup component
+            return pickupObj;
+        }
+
+        private static ItemWorldPickup EnsurePickupComponent(GameObject pickupObj)
+        {
             var pickup = pickupObj.GetComponent<ItemWorldPickup>();
             if (pickup == null)
             {
                 pickup = pickupObj.AddComponent<ItemWorldPickup>();
             }
-
-            pickup.Initialize(definition, quantity);
             return pickup;
         }
 
@@ -223,8 +320,32 @@ namespace Lootbound.Gameplay.World
 
         private void OnDrawGizmosSelected()
         {
-            Gizmos.color = itemDefinition != null ? itemDefinition.GetRarityColor() : Color.yellow;
+            // Use equipment rarity color if available
+            Color gizmoColor = Color.yellow;
+            if (storedInstance?.EquipmentData != null)
+            {
+                gizmoColor = GetRarityColor(storedInstance.EquipmentData.Rarity);
+            }
+            else if (itemDefinition != null)
+            {
+                gizmoColor = itemDefinition.GetRarityColor();
+            }
+
+            Gizmos.color = gizmoColor;
             Gizmos.DrawWireSphere(transform.position, 0.5f);
+        }
+
+        private static Color GetRarityColor(ItemRarity rarity)
+        {
+            return rarity switch
+            {
+                ItemRarity.Common => new Color(0.8f, 0.8f, 0.8f),
+                ItemRarity.Uncommon => new Color(0.2f, 0.8f, 0.2f),
+                ItemRarity.Rare => new Color(0.2f, 0.4f, 1f),
+                ItemRarity.Epic => new Color(0.6f, 0.2f, 0.8f),
+                ItemRarity.Legendary => new Color(1f, 0.6f, 0.1f),
+                _ => Color.white
+            };
         }
 #endif
     }

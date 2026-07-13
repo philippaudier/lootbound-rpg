@@ -3,6 +3,7 @@ using UnityEngine;
 using Lootbound.Core.Logging;
 using Lootbound.Gameplay.Inventory;
 using Lootbound.Gameplay.World;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.Gameplay.Combat
 {
@@ -16,6 +17,10 @@ namespace Lootbound.Gameplay.Combat
 
         [Header("Configuration")]
         [SerializeField] private EnemyConfig config;
+
+        [Header("Equipment")]
+        [Tooltip("Equipment registry for weapon generation.")]
+        [SerializeField] private EquipmentRegistry equipmentRegistry;
 
         [Header("Loot")]
         [Tooltip("Spawn position offset for loot drops.")]
@@ -152,13 +157,22 @@ namespace Lootbound.Gameplay.Combat
 
         private void SpawnLoot()
         {
-            if (config == null || config.LootItems == null || config.LootItems.Length == 0)
-            {
-                return;
-            }
+            if (config == null) return;
+
+            Vector3 spawnPosition = transform.position + lootSpawnOffset;
+
+            // Spawn regular loot items
+            SpawnRegularLoot(spawnPosition);
+
+            // Try to spawn equipment
+            SpawnEquipmentLoot(spawnPosition);
+        }
+
+        private void SpawnRegularLoot(Vector3 spawnPosition)
+        {
+            if (config.LootItems == null || config.LootItems.Length == 0) return;
 
             int quantity = UnityEngine.Random.Range(config.MinLootQuantity, config.MaxLootQuantity + 1);
-            Vector3 spawnPosition = transform.position + lootSpawnOffset;
 
             for (int i = 0; i < quantity; i++)
             {
@@ -176,6 +190,39 @@ namespace Lootbound.Gameplay.Combat
                     ItemWorldPickup.SpawnPickup(item, spawnPosition + offset, 1);
                     LootboundLog.Info(Category, $"Spawned loot: {item.DisplayName}");
                 }
+            }
+        }
+
+        private void SpawnEquipmentLoot(Vector3 spawnPosition)
+        {
+            if (config.WeaponLoot == null || config.WeaponLoot.Length == 0) return;
+
+            // Roll for weapon drop
+            float roll = UnityEngine.Random.value;
+            if (roll > config.WeaponDropChance) return;
+
+            // Pick a random weapon
+            var weaponDef = config.WeaponLoot[UnityEngine.Random.Range(0, config.WeaponLoot.Length)];
+            if (weaponDef == null) return;
+
+            // Generate equipment instance
+            var generator = new EquipmentGenerator(equipmentRegistry);
+            string foundLocation = gameObject.name;
+            var equipmentItem = generator.GenerateWeapon(weaponDef, foundLocation);
+
+            if (equipmentItem != null)
+            {
+                // Offset from regular loot
+                Vector3 offset = new Vector3(
+                    UnityEngine.Random.Range(-0.4f, 0.4f),
+                    0.2f,
+                    UnityEngine.Random.Range(-0.4f, 0.4f)
+                );
+
+                ItemWorldPickup.SpawnPickup(equipmentItem, spawnPosition + offset);
+
+                var data = equipmentItem.EquipmentData;
+                LootboundLog.Info(Category, $"Spawned equipment: {data.CustomName} ({data.Rarity})");
             }
         }
     }

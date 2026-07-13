@@ -1,5 +1,6 @@
 using UnityEngine;
 using Lootbound.Gameplay.Inventory;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.Gameplay.Combat
 {
@@ -64,6 +65,13 @@ namespace Lootbound.Gameplay.Combat
         [Tooltip("Maximum number of items to drop.")]
         [SerializeField] private int maxLootQuantity = 3;
 
+        [Header("Equipment Loot")]
+        [Tooltip("Weapons that can drop when this enemy dies.")]
+        [SerializeField] private WeaponDefinition[] weaponLoot;
+
+        [Tooltip("Chance (0-1) to drop a weapon.")]
+        [SerializeField, Range(0f, 1f)] private float weaponDropChance = 0.15f;
+
         // Health
         public float MaxHealth => maxHealth;
 
@@ -91,6 +99,10 @@ namespace Lootbound.Gameplay.Combat
         public ItemDefinition[] LootItems => lootItems;
         public int MinLootQuantity => minLootQuantity;
         public int MaxLootQuantity => maxLootQuantity;
+
+        // Equipment Loot
+        public WeaponDefinition[] WeaponLoot => weaponLoot;
+        public float WeaponDropChance => weaponDropChance;
 
         /// <summary>
         /// Total duration of a single attack cycle.

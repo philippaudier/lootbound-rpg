@@ -3,12 +3,14 @@ using UnityEngine.UIElements;
 using Lootbound.Gameplay.Inventory;
 using Lootbound.Gameplay.Player;
 using Lootbound.Gameplay.World;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.UI
 {
     /// <summary>
     /// Inventory UI using UI Toolkit.
     /// Displays the player's inventory in a grid layout with item details and drop functionality.
+    /// Supports equipment display with stats, affixes, and comparison.
     /// </summary>
     public class InventoryUI : MonoBehaviour
     {
@@ -17,6 +19,10 @@ namespace Lootbound.UI
         [SerializeField] private PlayerInputReader inputReader;
         [SerializeField] private PlayerCameraController cameraController;
         [SerializeField] private Transform dropPoint;
+
+        [Header("Equipment")]
+        [SerializeField] private PlayerEquipment playerEquipment;
+        [SerializeField] private EquipmentRegistry equipmentRegistry;
 
         [Header("Templates")]
         [SerializeField] private VisualTreeAsset slotTemplate;
@@ -42,6 +48,13 @@ namespace Lootbound.UI
         private Label detailsDescription;
         private Label detailsQuantity;
         private Button dropButton;
+        private Button equipButton;
+
+        // Equipment-specific elements (created dynamically)
+        private VisualElement equipmentStatsContainer;
+        private VisualElement affixesContainer;
+        private VisualElement historyContainer;
+        private VisualElement comparisonContainer;
 
         private VisualElement[] slotElements;
         private int selectedSlotIndex = -1;
@@ -123,6 +136,18 @@ namespace Lootbound.UI
             if (dropButton != null)
             {
                 dropButton.clicked += HandleDropClicked;
+            }
+
+            // Try to find equip button, or create one if it doesn't exist
+            equipButton = root.Q<Button>("equip-button");
+            if (equipButton == null && itemDetails != null)
+            {
+                CreateEquipmentUI();
+            }
+
+            if (equipButton != null)
+            {
+                equipButton.clicked += HandleEquipClicked;
             }
 
             // Hide by default
@@ -251,6 +276,73 @@ namespace Lootbound.UI
             UpdateItemDetails();
         }
 
+        private void CreateEquipmentUI()
+        {
+            if (itemDetails == null) return;
+
+            // Create equipment stats container
+            equipmentStatsContainer = new VisualElement();
+            equipmentStatsContainer.name = "equipment-stats";
+            equipmentStatsContainer.style.marginTop = 8;
+            equipmentStatsContainer.style.marginBottom = 8;
+            equipmentStatsContainer.style.display = DisplayStyle.None;
+
+            // Create affixes container
+            affixesContainer = new VisualElement();
+            affixesContainer.name = "affixes";
+            affixesContainer.style.marginBottom = 8;
+            affixesContainer.style.display = DisplayStyle.None;
+
+            // Create history container
+            historyContainer = new VisualElement();
+            historyContainer.name = "history";
+            historyContainer.style.marginBottom = 8;
+            historyContainer.style.display = DisplayStyle.None;
+
+            // Create comparison container
+            comparisonContainer = new VisualElement();
+            comparisonContainer.name = "comparison";
+            comparisonContainer.style.marginTop = 8;
+            comparisonContainer.style.paddingTop = 8;
+            comparisonContainer.style.borderTopWidth = 1;
+            comparisonContainer.style.borderTopColor = new Color(0.4f, 0.4f, 0.5f, 0.5f);
+            comparisonContainer.style.display = DisplayStyle.None;
+
+            // Create equip button
+            equipButton = new Button();
+            equipButton.name = "equip-button";
+            equipButton.text = "Equip";
+            equipButton.style.height = 32;
+            equipButton.style.marginTop = 4;
+            equipButton.style.marginBottom = 4;
+            equipButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.8f);
+            equipButton.style.borderTopLeftRadius = 4;
+            equipButton.style.borderTopRightRadius = 4;
+            equipButton.style.borderBottomLeftRadius = 4;
+            equipButton.style.borderBottomRightRadius = 4;
+            equipButton.style.color = Color.white;
+            equipButton.style.display = DisplayStyle.None;
+
+            // Insert elements before the drop button
+            int dropIndex = itemDetails.IndexOf(dropButton);
+            if (dropIndex >= 0)
+            {
+                itemDetails.Insert(dropIndex, equipmentStatsContainer);
+                itemDetails.Insert(dropIndex + 1, affixesContainer);
+                itemDetails.Insert(dropIndex + 2, historyContainer);
+                itemDetails.Insert(dropIndex + 3, comparisonContainer);
+                itemDetails.Insert(dropIndex + 4, equipButton);
+            }
+            else
+            {
+                itemDetails.Add(equipmentStatsContainer);
+                itemDetails.Add(affixesContainer);
+                itemDetails.Add(historyContainer);
+                itemDetails.Add(comparisonContainer);
+                itemDetails.Add(equipButton);
+            }
+        }
+
         private void UpdateItemDetails()
         {
             if (itemDetails == null) return;
@@ -258,6 +350,7 @@ namespace Lootbound.UI
             if (selectedSlotIndex < 0 || playerInventory?.Inventory == null)
             {
                 itemDetails.RemoveFromClassList("has-selection");
+                HideEquipmentUI();
                 return;
             }
 
@@ -265,6 +358,7 @@ namespace Lootbound.UI
             if (slot == null || slot.IsEmpty)
             {
                 itemDetails.RemoveFromClassList("has-selection");
+                HideEquipmentUI();
                 return;
             }
 
@@ -280,7 +374,19 @@ namespace Lootbound.UI
 
             if (detailsName != null)
             {
-                detailsName.text = definition.DisplayName;
+                // Use equipment name if available
+                string displayName = item.EquipmentData?.CustomName ?? definition.DisplayName;
+                detailsName.text = displayName;
+
+                // Apply rarity color to name
+                if (item.HasEquipmentData)
+                {
+                    detailsName.style.color = GetRarityColor(item.EquipmentData.Rarity);
+                }
+                else
+                {
+                    detailsName.style.color = Color.white;
+                }
             }
 
             if (detailsDescription != null)
@@ -290,8 +396,265 @@ namespace Lootbound.UI
 
             if (detailsQuantity != null)
             {
-                detailsQuantity.text = item.Quantity > 1 ? $"Quantity: {item.Quantity}" : "";
+                if (item.HasEquipmentData)
+                {
+                    // Show rarity instead of quantity for equipment
+                    detailsQuantity.text = item.EquipmentData.Rarity.ToString();
+                    detailsQuantity.style.color = GetRarityColor(item.EquipmentData.Rarity);
+                }
+                else
+                {
+                    detailsQuantity.text = item.Quantity > 1 ? $"Quantity: {item.Quantity}" : "";
+                    detailsQuantity.style.color = new Color(0.6f, 0.8f, 0.6f);
+                }
             }
+
+            // Handle equipment-specific UI
+            if (item.HasEquipmentData)
+            {
+                UpdateEquipmentDetails(item);
+            }
+            else
+            {
+                HideEquipmentUI();
+            }
+
+            // Update drop button state
+            UpdateDropButtonState(item);
+        }
+
+        private void UpdateEquipmentDetails(ItemInstance item)
+        {
+            var equipData = item.EquipmentData;
+            if (equipData == null) return;
+
+            // Update stats display
+            if (equipmentStatsContainer != null)
+            {
+                equipmentStatsContainer.Clear();
+                equipmentStatsContainer.style.display = DisplayStyle.Flex;
+
+                var stats = equipData.ResolveStats(equipmentRegistry);
+                if (stats.IsValid)
+                {
+                    AddStatLabel(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
+                    AddStatLabel(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
+                    AddStatLabel(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
+                }
+            }
+
+            // Update affixes display
+            if (affixesContainer != null)
+            {
+                affixesContainer.Clear();
+                if (equipData.Affixes.Count > 0)
+                {
+                    affixesContainer.style.display = DisplayStyle.Flex;
+                    foreach (var affix in equipData.Affixes)
+                    {
+                        AddAffixLabel(affixesContainer, affix);
+                    }
+                }
+                else
+                {
+                    affixesContainer.style.display = DisplayStyle.None;
+                }
+            }
+
+            // Update history display
+            if (historyContainer != null)
+            {
+                historyContainer.Clear();
+                historyContainer.style.display = DisplayStyle.Flex;
+
+                var historyLabel = new Label(equipData.History.GetSummary());
+                historyLabel.style.fontSize = 10;
+                historyLabel.style.color = new Color(0.6f, 0.6f, 0.65f);
+                historyLabel.style.whiteSpace = WhiteSpace.Normal;
+                historyContainer.Add(historyLabel);
+            }
+
+            // Update comparison display
+            UpdateComparison(item);
+
+            // Update equip button
+            if (equipButton != null)
+            {
+                equipButton.style.display = DisplayStyle.Flex;
+                bool isEquipped = playerEquipment?.IsSlotEquipped(selectedSlotIndex) ?? false;
+
+                if (isEquipped)
+                {
+                    equipButton.text = "Unequip";
+                    equipButton.style.backgroundColor = new Color(0.5f, 0.3f, 0.2f, 0.8f);
+                }
+                else
+                {
+                    equipButton.text = "Equip";
+                    equipButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.8f);
+                }
+            }
+        }
+
+        private void UpdateComparison(ItemInstance selectedItem)
+        {
+            if (comparisonContainer == null) return;
+
+            // Only show comparison if player has a weapon equipped and selected item is different
+            if (playerEquipment == null || !playerEquipment.HasWeaponEquipped)
+            {
+                comparisonContainer.style.display = DisplayStyle.None;
+                return;
+            }
+
+            // Don't compare with self
+            if (playerEquipment.IsSlotEquipped(selectedSlotIndex))
+            {
+                comparisonContainer.style.display = DisplayStyle.None;
+                return;
+            }
+
+            comparisonContainer.Clear();
+            comparisonContainer.style.display = DisplayStyle.Flex;
+
+            var currentStats = playerEquipment.CurrentStats;
+            var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry) ?? ResolvedWeaponStats.Invalid;
+
+            if (!selectedStats.IsValid)
+            {
+                comparisonContainer.style.display = DisplayStyle.None;
+                return;
+            }
+
+            var headerLabel = new Label("vs Equipped");
+            headerLabel.style.fontSize = 11;
+            headerLabel.style.color = new Color(0.7f, 0.7f, 0.8f);
+            headerLabel.style.marginBottom = 4;
+            comparisonContainer.Add(headerLabel);
+
+            AddComparisonStat(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage);
+            AddComparisonStat(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed);
+            AddComparisonStat(comparisonContainer, "Range", currentStats.Range, selectedStats.Range);
+        }
+
+        private void AddStatLabel(VisualElement container, string statName, string value)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.justifyContent = Justify.SpaceBetween;
+            row.style.marginBottom = 2;
+
+            var nameLabel = new Label(statName);
+            nameLabel.style.fontSize = 11;
+            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+            var valueLabel = new Label(value);
+            valueLabel.style.fontSize = 11;
+            valueLabel.style.color = Color.white;
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            container.Add(row);
+        }
+
+        private void AddAffixLabel(VisualElement container, AffixInstance affix)
+        {
+            var label = new Label();
+            string affixName = affix.GetDisplayName(equipmentRegistry);
+            string affixDesc = affix.GetFormattedDescription(equipmentRegistry);
+            label.text = $"{affixName}: {affixDesc}";
+            label.style.fontSize = 11;
+            label.style.color = new Color(0.5f, 0.8f, 0.5f);
+            label.style.marginBottom = 2;
+            container.Add(label);
+        }
+
+        private void AddComparisonStat(VisualElement container, string statName, float current, float selected)
+        {
+            float diff = selected - current;
+            if (Mathf.Abs(diff) < 0.01f) return; // Skip if no significant difference
+
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.marginBottom = 2;
+
+            var nameLabel = new Label($"{statName}: ");
+            nameLabel.style.fontSize = 10;
+            nameLabel.style.color = new Color(0.6f, 0.6f, 0.7f);
+
+            string diffText = diff > 0 ? $"+{diff:F1}" : $"{diff:F1}";
+            var diffLabel = new Label(diffText);
+            diffLabel.style.fontSize = 10;
+            diffLabel.style.color = diff > 0 ? new Color(0.4f, 0.8f, 0.4f) : new Color(0.8f, 0.4f, 0.4f);
+
+            row.Add(nameLabel);
+            row.Add(diffLabel);
+            container.Add(row);
+        }
+
+        private void HideEquipmentUI()
+        {
+            if (equipmentStatsContainer != null)
+                equipmentStatsContainer.style.display = DisplayStyle.None;
+            if (affixesContainer != null)
+                affixesContainer.style.display = DisplayStyle.None;
+            if (historyContainer != null)
+                historyContainer.style.display = DisplayStyle.None;
+            if (comparisonContainer != null)
+                comparisonContainer.style.display = DisplayStyle.None;
+            if (equipButton != null)
+                equipButton.style.display = DisplayStyle.None;
+        }
+
+        private void UpdateDropButtonState(ItemInstance item)
+        {
+            if (dropButton == null) return;
+
+            bool isEquipped = item.HasEquipmentData && (playerEquipment?.IsSlotEquipped(selectedSlotIndex) ?? false);
+
+            if (isEquipped)
+            {
+                dropButton.SetEnabled(false);
+                dropButton.text = "Equipped";
+            }
+            else
+            {
+                dropButton.SetEnabled(true);
+                dropButton.text = "Drop";
+            }
+        }
+
+        private Color GetRarityColor(ItemRarity rarity)
+        {
+            return rarity switch
+            {
+                ItemRarity.Common => new Color(0.8f, 0.8f, 0.8f),
+                ItemRarity.Uncommon => new Color(0.3f, 0.85f, 0.3f),
+                ItemRarity.Rare => new Color(0.3f, 0.5f, 1f),
+                ItemRarity.Epic => new Color(0.65f, 0.3f, 0.85f),
+                ItemRarity.Legendary => new Color(1f, 0.65f, 0.15f),
+                _ => Color.white
+            };
+        }
+
+        private void HandleEquipClicked()
+        {
+            if (selectedSlotIndex < 0 || playerEquipment == null) return;
+
+            bool isEquipped = playerEquipment.IsSlotEquipped(selectedSlotIndex);
+
+            if (isEquipped)
+            {
+                playerEquipment.TryUnequip();
+            }
+            else
+            {
+                playerEquipment.TryEquip(selectedSlotIndex);
+            }
+
+            // Refresh UI
+            UpdateItemDetails();
+            RefreshAllSlots();
         }
 
         private void HandleDropClicked()
@@ -302,20 +665,34 @@ namespace Lootbound.UI
             if (slot == null || slot.IsEmpty) return;
 
             var item = slot.Item;
-            var definition = item.Definition;
-            int quantity = item.Quantity;
+
+            // Cannot drop equipped items
+            if (item.HasEquipmentData && (playerEquipment?.IsSlotEquipped(selectedSlotIndex) ?? false))
+            {
+                Debug.Log("[InventoryUI] Cannot drop equipped item");
+                return;
+            }
+
             int droppedSlotIndex = selectedSlotIndex;
 
             // Find drop position
             Vector3 dropPosition = GetDropPosition();
 
-            // Remove from inventory
-            playerInventory.Inventory.RemoveFromSlot(selectedSlotIndex);
+            // Remove from inventory (get the actual item, not a copy)
+            var droppedItem = slot.Clear();
+            playerInventory.Inventory.NotifySlotChanged(selectedSlotIndex);
 
-            // Spawn in world
-            ItemWorldPickup.SpawnPickup(definition, dropPosition, quantity);
-
-            Debug.Log($"[InventoryUI] Dropped {quantity}x {definition.DisplayName}");
+            // Spawn in world - use full instance for equipment to preserve identity
+            if (droppedItem.HasEquipmentData)
+            {
+                ItemWorldPickup.SpawnPickup(droppedItem, dropPosition);
+                Debug.Log($"[InventoryUI] Dropped equipment: {droppedItem.EquipmentData.CustomName}");
+            }
+            else
+            {
+                ItemWorldPickup.SpawnPickup(droppedItem.Definition, dropPosition, droppedItem.Quantity);
+                Debug.Log($"[InventoryUI] Dropped {droppedItem.Quantity}x {droppedItem.Definition.DisplayName}");
+            }
 
             // Clear selection and refresh UI
             ClearSelection();
@@ -453,6 +830,9 @@ namespace Lootbound.UI
             var iconElement = slotElement.Q<VisualElement>("slot-icon");
             var quantityLabel = slotElement.Q<Label>("slot-quantity");
 
+            // Check if this slot contains equipped item
+            bool isEquipped = playerEquipment?.IsSlotEquipped(index) ?? false;
+
             if (slot == null || slot.IsEmpty)
             {
                 // Empty slot
@@ -465,6 +845,7 @@ namespace Lootbound.UI
                     quantityLabel.text = "";
                 }
                 slotElement.RemoveFromClassList("slot-filled");
+                slotElement.RemoveFromClassList("slot-equipped");
                 // Reset rarity border color
                 slotElement.style.borderBottomColor = StyleKeyword.Null;
             }
@@ -481,13 +862,39 @@ namespace Lootbound.UI
 
                 if (quantityLabel != null)
                 {
-                    quantityLabel.text = item.Quantity > 1 ? item.Quantity.ToString() : "";
+                    // Show "E" for equipped items, quantity for stacks
+                    if (isEquipped)
+                    {
+                        quantityLabel.text = "E";
+                    }
+                    else
+                    {
+                        quantityLabel.text = item.Quantity > 1 ? item.Quantity.ToString() : "";
+                    }
                 }
 
                 slotElement.AddToClassList("slot-filled");
 
-                // Apply rarity color
-                var rarityColor = definition.GetRarityColor();
+                // Apply equipped class
+                if (isEquipped)
+                {
+                    slotElement.AddToClassList("slot-equipped");
+                }
+                else
+                {
+                    slotElement.RemoveFromClassList("slot-equipped");
+                }
+
+                // Apply rarity color - use equipment rarity if available
+                Color rarityColor;
+                if (item.HasEquipmentData)
+                {
+                    rarityColor = GetRarityColor(item.EquipmentData.Rarity);
+                }
+                else
+                {
+                    rarityColor = definition.GetRarityColor();
+                }
                 slotElement.style.borderBottomColor = rarityColor;
             }
         }

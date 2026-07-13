@@ -60,7 +60,8 @@ namespace Lootbound.Gameplay.Inventory
 
         /// <summary>
         /// Try to add an item to the inventory.
-        /// First tries to stack with existing items, then uses empty slots.
+        /// Equipment items are placed directly (preserving identity).
+        /// Regular items try to stack first, then use empty slots.
         /// </summary>
         /// <param name="item">Item to add.</param>
         /// <returns>True if any amount was added.</returns>
@@ -68,16 +69,32 @@ namespace Lootbound.Gameplay.Inventory
         {
             if (item == null || !item.IsValid || item.IsEmpty) return false;
 
+            // Equipment items must preserve identity - never stack, place directly
+            if (item.HasEquipmentData)
+            {
+                var emptySlot = FindFirstEmptySlot();
+                if (emptySlot == null) return false; // No room for equipment
+
+                // Use the original instance to preserve GUID, affixes, history
+                emptySlot.SetItem(item);
+                NotifySlotChanged(emptySlot.SlotIndex);
+                OnInventoryChanged?.Invoke();
+                return true;
+            }
+
             int remaining = item.Quantity;
             bool anyAdded = false;
 
-            // First pass: try to stack with existing items
+            // First pass: try to stack with existing items (only for stackable, non-equipment)
             if (item.Definition.IsStackable)
             {
                 foreach (var slot in slots)
                 {
                     if (slot.HasItem && slot.Definition == item.Definition && !slot.Item.IsFull)
                     {
+                        // Skip if slot contains equipment (should never happen, but safety check)
+                        if (slot.Item.HasEquipmentData) continue;
+
                         int before = remaining;
                         remaining = slot.TryAdd(new ItemInstance(item.Definition, remaining));
                         if (remaining < before)
@@ -112,17 +129,33 @@ namespace Lootbound.Gameplay.Inventory
         }
 
         /// <summary>
+        /// Try to add an item, returning detailed result.
+        /// </summary>
+        /// <param name="item">Item to add.</param>
+        /// <returns>Result containing requested, added, and overflow quantities.</returns>
+        public AddItemResult TryAddItemWithResult(ItemInstance item)
+        {
+            if (item == null || !item.IsValid || item.IsEmpty)
+                return new AddItemResult(0, 0);
+
+            int requested = item.Quantity;
+            int before = GetItemCount(item.Definition);
+            TryAddItem(item);
+            int after = GetItemCount(item.Definition);
+            int added = after - before;
+
+            return new AddItemResult(requested, added);
+        }
+
+        /// <summary>
         /// Try to add an item, returning the overflow amount.
         /// </summary>
         /// <param name="item">Item to add.</param>
-        /// <returns>Amount that couldn't be added.</returns>
+        /// <returns>Amount that couldn't be added (0 if all added).</returns>
         public int AddItemWithOverflow(ItemInstance item)
         {
-            if (item == null || !item.IsValid || item.IsEmpty) return 0;
-
-            int originalQuantity = item.Quantity;
-            TryAddItem(item);
-            return originalQuantity - GetItemCount(item.Definition);
+            var result = TryAddItemWithResult(item);
+            return result.Overflow;
         }
 
         /// <summary>
@@ -310,7 +343,11 @@ namespace Lootbound.Gameplay.Inventory
             OnInventoryChanged?.Invoke();
         }
 
-        private void NotifySlotChanged(int index)
+        /// <summary>
+        /// Notify listeners that a slot has changed.
+        /// Public to allow external operations to trigger updates.
+        /// </summary>
+        public void NotifySlotChanged(int index)
         {
             OnSlotChanged?.Invoke(index);
         }

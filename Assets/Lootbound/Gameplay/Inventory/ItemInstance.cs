@@ -1,17 +1,20 @@
 using System;
 using UnityEngine;
+using Lootbound.Gameplay.Equipment;
 
 namespace Lootbound.Gameplay.Inventory
 {
     /// <summary>
     /// Runtime instance of an item. Mutable state like quantity lives here.
     /// References an immutable ItemDefinition for static properties.
+    /// Equipment items also contain EquipmentData for unique identity.
     /// </summary>
     [Serializable]
     public class ItemInstance
     {
         [SerializeField] private ItemDefinition definition;
         [SerializeField] private int quantity;
+        [SerializeField] private EquipmentData equipmentData;
 
         /// <summary>
         /// The item definition this instance is based on.
@@ -38,6 +41,21 @@ namespace Lootbound.Gameplay.Inventory
         public bool IsValid => definition != null;
 
         /// <summary>
+        /// Whether this item has equipment data (is a unique equipment piece).
+        /// </summary>
+        public bool HasEquipmentData => equipmentData != null && equipmentData.IsValid;
+
+        /// <summary>
+        /// The equipment data for this item, if any.
+        /// </summary>
+        public EquipmentData EquipmentData => equipmentData;
+
+        /// <summary>
+        /// Whether this equipment is currently equipped.
+        /// </summary>
+        public bool IsEquipped => equipmentData?.IsEquipped ?? false;
+
+        /// <summary>
         /// Whether this stack is full.
         /// </summary>
         public bool IsFull => quantity >= MaxStackSize;
@@ -61,16 +79,40 @@ namespace Lootbound.Gameplay.Inventory
             this.quantity = definition != null
                 ? Mathf.Clamp(quantity, 1, definition.MaxStackSize)
                 : 0;
+            this.equipmentData = null;
+        }
+
+        /// <summary>
+        /// Create a new item instance with equipment data.
+        /// </summary>
+        public ItemInstance(ItemDefinition definition, EquipmentData equipmentData)
+        {
+            this.definition = definition;
+            this.quantity = 1; // Equipment is always quantity 1
+            this.equipmentData = equipmentData;
+        }
+
+        /// <summary>
+        /// Set equipment data on this instance.
+        /// Should only be called once when the equipment is created.
+        /// </summary>
+        public void SetEquipmentData(EquipmentData data)
+        {
+            this.equipmentData = data;
         }
 
         /// <summary>
         /// Add quantity to this stack.
+        /// Equipment items cannot have quantity added.
         /// </summary>
         /// <param name="amount">Amount to add.</param>
         /// <returns>Amount that couldn't be added (overflow).</returns>
         public int Add(int amount)
         {
             if (amount <= 0 || definition == null) return amount;
+
+            // Equipment items cannot be stacked
+            if (HasEquipmentData) return amount;
 
             int canAdd = Mathf.Min(amount, RemainingSpace);
             quantity += canAdd;
@@ -93,6 +135,7 @@ namespace Lootbound.Gameplay.Inventory
 
         /// <summary>
         /// Try to merge another instance into this one.
+        /// Equipment items cannot be merged.
         /// </summary>
         /// <param name="other">Instance to merge from.</param>
         /// <returns>True if any items were transferred.</returns>
@@ -102,6 +145,9 @@ namespace Lootbound.Gameplay.Inventory
             if (definition == null) return false;
             if (other.definition != definition) return false;
             if (IsFull) return false;
+
+            // Equipment items cannot be merged
+            if (HasEquipmentData || other.HasEquipmentData) return false;
 
             int toTransfer = Mathf.Min(other.quantity, RemainingSpace);
             if (toTransfer <= 0) return false;
@@ -113,6 +159,7 @@ namespace Lootbound.Gameplay.Inventory
 
         /// <summary>
         /// Split this stack into two.
+        /// Equipment items cannot be split.
         /// </summary>
         /// <param name="splitAmount">Amount to split off.</param>
         /// <returns>New instance with split amount, or null if split failed.</returns>
@@ -121,21 +168,50 @@ namespace Lootbound.Gameplay.Inventory
             if (definition == null) return null;
             if (splitAmount <= 0 || splitAmount >= quantity) return null;
 
+            // Equipment items cannot be split
+            if (HasEquipmentData) return null;
+
             quantity -= splitAmount;
             return new ItemInstance(definition, splitAmount);
         }
 
         /// <summary>
         /// Create a copy of this instance.
+        /// Equipment data is preserved (same GUID reference).
         /// </summary>
         public ItemInstance Clone()
         {
-            return new ItemInstance(definition, quantity);
+            var clone = new ItemInstance(definition, quantity);
+            if (equipmentData != null)
+            {
+                // Clone preserves the same equipment data (same GUID)
+                clone.equipmentData = equipmentData.Clone();
+            }
+            return clone;
+        }
+
+        /// <summary>
+        /// Create a copy with new equipment identity.
+        /// Only valid for equipment items.
+        /// </summary>
+        public ItemInstance CloneAsNewEquipment()
+        {
+            if (equipmentData == null) return Clone();
+
+            var clone = new ItemInstance(definition, quantity);
+            clone.equipmentData = equipmentData.CloneWithNewId();
+            return clone;
         }
 
         public override string ToString()
         {
             if (definition == null) return "Empty";
+
+            if (HasEquipmentData)
+            {
+                return $"{equipmentData.CustomName} ({equipmentData.Rarity})";
+            }
+
             return $"{definition.DisplayName} x{quantity}";
         }
     }
