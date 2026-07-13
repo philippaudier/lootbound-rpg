@@ -45,6 +45,8 @@ GameObject:
   - component: {fileID: 8125115018539865624}
   - component: {fileID: 1236546182922234479}
   - component: {fileID: 5546983951964009810}
+  - component: {fileID: 478766206942817115}
+  - component: {fileID: 7256213805210606744}
   m_Layer: 0
   m_Name: Camera
   m_TagString: MainCamera
@@ -186,6 +188,39 @@ MonoBehaviour:
   inputReader: {fileID: 3435499054096214388}
   playerBody: {fileID: 111779961373693846}
   cameraTransform: {fileID: 3678459415488717381}
+--- !u!114 &478766206942817115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2961291163349397513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2bf0d3cf5da8ac448a7db11416ab955, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerMeleeWeapon
+  attackConfig: {fileID: 11400000, guid: 8790275046c81b040a78c48da2abb1cd, type: 2}
+  attackOrigin: {fileID: 3678459415488717381}
+  targetLayers:
+    serializedVersion: 2
+    m_Bits: 256
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 1
+  debugDraw: 1
+--- !u!114 &7256213805210606744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2961291163349397513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3cb281be3485b54ab63c1cc6acc51bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerCameraShake
 --- !u!1 &4188306054102627643
 GameObject:
   m_ObjectHideFlags: 0
@@ -326,6 +361,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Interaction.PlayerInteractor
   config: {fileID: 11400000, guid: 56ff8f7684e2cd645915b018aedbd281, type: 2}
   raycastOrigin: {fileID: 3678459415488717381}
+  inputReader: {fileID: 3435499054096214388}
 --- !u!114 &4471596059645939610
 MonoBehaviour:
   m_ObjectHideFlags: 0

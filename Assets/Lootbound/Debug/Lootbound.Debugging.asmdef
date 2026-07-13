@@ -3,6 +3,7 @@
     "rootNamespace": "Lootbound.Debugging",
     "references": [
         "Lootbound.Core",
+        "Lootbound.Gameplay",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

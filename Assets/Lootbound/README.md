@@ -62,6 +62,7 @@ A finished, readable feature is worth more than an extremely generic architectur
 | `11_CharacterControllerSandbox` | Character controller testing sandbox |
 | `12_ProceduralTerrainSandbox` | Procedural terrain testing sandbox |
 | `13_InteractionInventorySandbox` | Interaction and inventory testing sandbox |
+| `14_CombatSandbox` | Combat system testing sandbox |
 
 ### Key Folders
 
@@ -116,14 +117,21 @@ After opening the project for the first time:
 | Secondary Action | Right Click | Left Trigger |
 | Pause / Unlock Cursor | Escape | Start |
 
+### Combat
+| Action | Keyboard | Gamepad |
+|--------|----------|---------|
+| Attack | Left Click | X / Square |
+| Dodge | Left Alt / Left Ctrl / Middle Mouse | Right Shoulder |
+
 ### Debug
 | Action | Key |
 |--------|-----|
 | Toggle Debug Overlay | F3 |
 | Toggle Movement Debug | F4 |
 | Toggle Terrain Debug | F5 |
+| Toggle Combat Debug | F6 |
 
-## Current State: Slice 0.4.1 - Development Scene Menu
+## Current State: Slice 0.5 - Combat V1
 
 ### Implemented
 - Project folder structure
@@ -162,26 +170,39 @@ After opening the project for the first time:
 - **World pickup objects with layer-based detection**
 - **Drop functionality with partial pickup support**
 - **Interaction & Inventory Sandbox scene**
+- **First-person melee combat**
+- **Player attack with phases (windup, active, recovery)**
+- **Volumetric hit detection (SphereCast)**
+- **Player dodge with invulnerability frames**
+- **Player stagger on damage**
+- **Enemy AI with state machine (NavMesh)**
+- **Enemy telegraphed attacks**
+- **Enemy line-of-sight detection**
+- **Damage system (Health, DamageRequest, DamageResult)**
+- **Combat feedback (hitstop, camera shake)**
+- **Combat HUD (health bar, damage flash, death panel)**
+- **Combat debug overlay (F6)**
+- **Combat Sandbox scene**
 
 ### Not Implemented (Future Slices)
-- Combat system
-- Enemies and AI
-- Equipment and gear
-- Loot tables and drops
+- Equipment slots and gear system
+- Loot tables and drop rates
 - Equipment durability
 - Enhancement system
 - Save system
 - Refuge
 - Stamina
-- Dodge/Dash
+- Multiple weapon types
+- Parry/block
+- Lock-on targeting
 
 ## Upcoming Slices
 
 | Slice | Focus |
 |-------|-------|
-| 0.5 | Combat V1 |
-| 0.6 | Equipment & Stats V1 |
-| 0.7 | Simple enemies V1 |
+| 0.6 | Equipment & Loot Identity V1 |
+| 0.7 | Refuge V1 |
+| 0.8 | Durability & Repair V1 |
 
 ## Character Controller
 
@@ -308,6 +329,43 @@ Not implemented in V1:
 - Save/load inventory
 
 See `Docs/INTERACTION_INVENTORY.md` for detailed documentation.
+
+## Combat
+
+### Components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `PlayerHealth` | Player health with IDamageable interface |
+| `PlayerDodge` | Dodge with invulnerability frames |
+| `PlayerMeleeWeapon` | Attack phases and hit detection |
+| `PlayerCombatController` | Coordinates input and combat actions |
+| `PlayerStagger` | Brief knockback when hit |
+| `MeleeHitDetector` | SphereCast detection with wall blocking |
+| `EnemyBrain` | NavMesh-based state machine AI |
+| `EnemyCombat` | Enemy attack hit detection |
+| `EnemyHealth` | Enemy health with loot spawning |
+| `CombatFeedback` | Hitstop effect |
+| `PlayerCameraShake` | Camera shake on hit |
+
+### Configuration
+
+- `MeleeAttackConfig` - Attack timing, damage, range
+- `EnemyConfig` - Enemy stats, behavior, loot
+
+### V1 Limitations
+
+Not implemented in V1:
+- Equipment integration
+- Weapon switching
+- Heavy attacks / combos
+- Parry / block
+- Lock-on
+- Stamina
+- Multiple enemy types
+- Audio / particles
+
+See `Docs/COMBAT.md` for detailed documentation.
 
 ## Technical Notes
 

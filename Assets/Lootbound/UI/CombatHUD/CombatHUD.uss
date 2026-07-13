@@ -1,0 +1,167 @@
+/* Combat HUD Styles */
+
+/* Player Health Bar */
+.health-container {
+    position: absolute;
+    left: 40px;
+    bottom: 40px;
+    width: 300px;
+    height: 32px;
+    flex-direction: column;
+}
+
+.health-bar-background {
+    height: 24px;
+    background-color: rgba(20, 20, 20, 0.8);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(100, 100, 100, 0.4);
+    overflow: hidden;
+}
+
+.health-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    background-color: rgb(180, 60, 60);
+    transition-duration: 0.2s;
+}
+
+.health-bar-fill-low {
+    background-color: rgb(200, 50, 50);
+}
+
+.health-text {
+    font-size: 12px;
+    color: rgba(220, 220, 220, 0.9);
+    -unity-text-align: middle-center;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+/* Damage Flash Overlay */
+.damage-flash {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 0, 0, 0);
+    transition-duration: 0.1s;
+}
+
+.damage-flash-active {
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+/* Death Panel */
+.death-panel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    transition-duration: 1s;
+}
+
+.death-panel-visible {
+    background-color: rgba(0, 0, 0, 0.85);
+}
+
+.death-title {
+    font-size: 64px;
+    color: rgb(200, 60, 60);
+    -unity-font-style: bold;
+    letter-spacing: 8px;
+    margin-bottom: 24px;
+    opacity: 0;
+    transition-duration: 0.5s;
+    transition-delay: 0.5s;
+}
+
+.death-panel-visible .death-title {
+    opacity: 1;
+}
+
+.death-subtitle {
+    font-size: 18px;
+    color: rgba(180, 180, 180, 0.8);
+    letter-spacing: 2px;
+    opacity: 0;
+    transition-duration: 0.5s;
+    transition-delay: 1s;
+}
+
+.death-panel-visible .death-subtitle {
+    opacity: 1;
+}
+
+/* Enemy Health (Debug/Sandbox) */
+.enemy-health-container {
+    position: absolute;
+    left: 50%;
+    top: 60px;
+    width: 200px;
+    margin-left: -100px;
+    height: 20px;
+    flex-direction: column;
+    opacity: 0;
+    transition-duration: 0.2s;
+}
+
+.enemy-health-container-visible {
+    opacity: 1;
+}
+
+.enemy-health-bar-background {
+    height: 16px;
+    background-color: rgba(20, 20, 20, 0.8);
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: rgba(100, 100, 100, 0.4);
+    overflow: hidden;
+}
+
+.enemy-health-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    background-color: rgb(180, 100, 60);
+    transition-duration: 0.15s;
+}
+
+.enemy-health-label {
+    font-size: 10px;
+    color: rgba(200, 200, 200, 0.7);
+    -unity-text-align: middle-center;
+    margin-top: 2px;
+}
+
+/* Crosshair */
+.crosshair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    margin-top: -4px;
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+}
+
+.crosshair-attacking {
+    background-color: rgba(255, 200, 100, 0.8);
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    margin-top: -6px;
+}

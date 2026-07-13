@@ -346,7 +346,9 @@ Lootbound.Gameplay.Player
 Lootbound.Gameplay.World
 Lootbound.Gameplay.Interaction
 Lootbound.Gameplay.Inventory
+Lootbound.Gameplay.Combat
 Lootbound.UI
+Lootbound.UI.Combat
 ```
 
 ## Scene Architecture
@@ -404,6 +406,17 @@ Interaction and inventory test scene containing:
 - Debug overlays
 
 Used for testing interaction detection and inventory operations.
+
+### 14_CombatSandbox
+
+Combat test scene containing:
+- Player prefab with combat components
+- Ground with NavMesh baked
+- Enemy prefab with AI and combat
+- CombatHUD and CombatDebugOverlay
+- Debug overlays (F3, F4, F5, F6)
+
+Used for testing combat mechanics and enemy AI.
 
 ## Interaction System (`Lootbound.Gameplay.Interaction`)
 
@@ -520,6 +533,77 @@ Development scene menu (not final game menu):
 - Scene reload and switching
 - Persists with GameBootstrap
 - Manages cursor and time scale
+
+## Combat System (`Lootbound.Gameplay.Combat`)
+
+### Damage System
+
+Pure C# classes for damage logic:
+
+```csharp
+public readonly struct DamageRequest { ... }
+public readonly struct DamageResult { ... }
+public interface IDamageable { ... }
+public class Health { ... }
+```
+
+Health is a pure C# class (not MonoBehaviour) for testability.
+
+### Player Combat
+
+```
+PlayerCharacter (additions)
+├── PlayerHealth         - IDamageable implementation
+├── PlayerDodge          - Dodge with i-frames
+├── PlayerStagger        - Knockback on damage
+├── PlayerCombatController - Input coordination
+└── Camera
+    ├── PlayerCameraShake - Shake on hit
+    └── PlayerMeleeWeapon - Attack phases and detection
+```
+
+#### MeleeHitDetector
+
+Hit detection using SphereCast:
+- Active only during attack window
+- HashSet prevents double hits
+- Line-of-sight check prevents wall penetration
+
+### Enemy System
+
+```
+Enemy
+├── NavMeshAgent (Unity)
+├── EnemyHealth    - IDamageable with loot spawn
+├── EnemyBrain     - State machine AI
+└── EnemyCombat    - Attack hit detection
+```
+
+#### EnemyBrain States
+
+State machine with clear transitions:
+- Idle → Chase (when target visible)
+- Chase → AttackWindup (when in range)
+- AttackWindup → AttackActive → AttackRecovery → Chase
+- Any → Stagger (when hit during windup)
+- Any → Dead (when health depleted)
+
+### Configuration
+
+ScriptableObjects for tuning:
+- `MeleeAttackConfig` - Attack timing and damage
+- `EnemyConfig` - Enemy stats and behavior
+
+### Combat UI (`Lootbound.UI.Combat`)
+
+Uses UI Toolkit:
+- `CombatHUD.uxml/uss` - Layout and styles
+- `CombatHUDController` - Health, damage flash, death panel
+
+### Combat Debug (`Lootbound.Debugging`)
+
+- `CombatDebugOverlay` - OnGUI overlay (toggle F6)
+- Shows player/enemy state, attack phases, dodge timing
 
 ## Design Principles
 

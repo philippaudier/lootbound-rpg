@@ -146,9 +146,6 @@ namespace Lootbound.Gameplay.World
                 grassWeight *= 0.8f + noise * 0.2f;
             }
 
-            // Dry ground layer - mid elevations and remaining areas
-            float dryWeight = 1f;
-
             // Apply weights with priority
             weights[(int)TerrainLayer.Rock] = rockWeight;
 

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e21ee84d0860a943bd44e4c17b09f6a, type: 3}
+  m_Name: BasicEnemyConfig
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.EnemyConfig
+  maxHealth: 80
+  detectionRange: 12
+  attackRange: 2
+  fieldOfView: 120
+  moveSpeed: 3.5
+  turnSpeed: 180
+  attackDamage: 20
+  attackWindup: 0.8
+  attackActive: 0.3
+  attackRecovery: 0.5
+  attackCooldown: 1.5
+  attackStaggerForce: 0.2
+  staggerDuration: 0.4
+  lootItems: []
+  minLootQuantity: 1
+  maxLootQuantity: 3

@@ -20,6 +20,8 @@ namespace Lootbound.Gameplay.Player
         private InputAction pauseAction;
         private InputAction interactAction;
         private InputAction inventoryAction;
+        private InputAction attackAction;
+        private InputAction dodgeAction;
 
         private Vector2 moveInput;
         private Vector2 lookInput;
@@ -31,6 +33,8 @@ namespace Lootbound.Gameplay.Player
         private bool interactPressedThisFrame;
         private bool interactReleasedThisFrame;
         private bool inventoryPressedThisFrame;
+        private bool attackPressedThisFrame;
+        private bool dodgePressedThisFrame;
 
         private bool inputEnabled = true;
 
@@ -38,6 +42,10 @@ namespace Lootbound.Gameplay.Player
         public event Action OnInteractPressed;
         public event Action OnInteractReleased;
         public event Action OnInventoryToggled;
+
+        // Events for combat system
+        public event Action OnAttackPressed;
+        public event Action OnDodgePressed;
 
         // Public accessors for other components
         public Vector2 MoveInput => inputEnabled ? moveInput : Vector2.zero;
@@ -50,6 +58,8 @@ namespace Lootbound.Gameplay.Player
         public bool InteractPressedThisFrame => inputEnabled && interactPressedThisFrame;
         public bool InteractReleasedThisFrame => inputEnabled && interactReleasedThisFrame;
         public bool InventoryPressedThisFrame => inventoryPressedThisFrame;
+        public bool AttackPressedThisFrame => inputEnabled && attackPressedThisFrame;
+        public bool DodgePressedThisFrame => inputEnabled && dodgePressedThisFrame;
         public bool InputEnabled => inputEnabled;
 
         private void Awake()
@@ -80,6 +90,8 @@ namespace Lootbound.Gameplay.Player
             pauseAction = playerMap.FindAction("Pause");
             interactAction = playerMap.FindAction("Interact");
             inventoryAction = playerMap.FindAction("Inventory");
+            attackAction = playerMap.FindAction("Attack");
+            dodgeAction = playerMap.FindAction("Dodge");
 
             // Subscribe to events
             if (jumpAction != null)
@@ -101,6 +113,16 @@ namespace Lootbound.Gameplay.Player
             if (inventoryAction != null)
             {
                 inventoryAction.performed += OnInventoryPerformed;
+            }
+
+            if (attackAction != null)
+            {
+                attackAction.performed += OnAttackPerformed;
+            }
+
+            if (dodgeAction != null)
+            {
+                dodgeAction.performed += OnDodgePerformed;
             }
         }
 
@@ -136,6 +158,16 @@ namespace Lootbound.Gameplay.Player
             {
                 inventoryAction.performed -= OnInventoryPerformed;
             }
+
+            if (attackAction != null)
+            {
+                attackAction.performed -= OnAttackPerformed;
+            }
+
+            if (dodgeAction != null)
+            {
+                dodgeAction.performed -= OnDodgePerformed;
+            }
         }
 
         private void Update()
@@ -151,6 +183,8 @@ namespace Lootbound.Gameplay.Player
             interactPressedThisFrame = false;
             interactReleasedThisFrame = false;
             inventoryPressedThisFrame = false;
+            attackPressedThisFrame = false;
+            dodgePressedThisFrame = false;
         }
 
         private void ReadInputValues()
@@ -213,6 +247,24 @@ namespace Lootbound.Gameplay.Player
         {
             inventoryPressedThisFrame = true;
             OnInventoryToggled?.Invoke();
+        }
+
+        private void OnAttackPerformed(InputAction.CallbackContext context)
+        {
+            attackPressedThisFrame = true;
+            if (inputEnabled)
+            {
+                OnAttackPressed?.Invoke();
+            }
+        }
+
+        private void OnDodgePerformed(InputAction.CallbackContext context)
+        {
+            dodgePressedThisFrame = true;
+            if (inputEnabled)
+            {
+                OnDodgePressed?.Invoke();
+            }
         }
 
         /// <summary>
