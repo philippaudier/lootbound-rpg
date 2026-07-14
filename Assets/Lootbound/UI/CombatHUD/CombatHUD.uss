@@ -11,6 +11,7 @@
 }
 
 .health-bar-background {
+    position: relative;
     height: 24px;
     background-color: rgba(20, 20, 20, 0.8);
     border-radius: 4px;
@@ -23,7 +24,7 @@
     position: absolute;
     left: 0;
     top: 0;
-    height: 100%;
+    bottom: 0;
     width: 100%;
     background-color: rgb(180, 60, 60);
     transition-duration: 0.2s;
@@ -120,6 +121,7 @@
 }
 
 .enemy-health-bar-background {
+    position: relative;
     height: 16px;
     background-color: rgba(20, 20, 20, 0.8);
     border-radius: 3px;
@@ -132,7 +134,7 @@
     position: absolute;
     left: 0;
     top: 0;
-    height: 100%;
+    bottom: 0;
     width: 100%;
     background-color: rgb(180, 100, 60);
     transition-duration: 0.15s;

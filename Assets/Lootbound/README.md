@@ -131,7 +131,7 @@ After opening the project for the first time:
 | Toggle Terrain Debug | F5 |
 | Toggle Combat Debug | F6 |
 
-## Current State: Slice 0.5 - Combat V1
+## Current State: Slice 0.7.4 - Repair Fragments V1
 
 ### Implemented
 - Project folder structure
@@ -183,11 +183,49 @@ After opening the project for the first time:
 - **Combat HUD (health bar, damage flash, death panel)**
 - **Combat debug overlay (F6)**
 - **Combat Sandbox scene**
+- **Equipment Identity System (Slice 0.6)**
+- **GUID-based unique equipment instances**
+- **Rarity system (Common, Uncommon, Rare)**
+- **Affix system with stat modifiers**
+- **Generated equipment names**
+- **Equipment history tracking**
+- **Equipment equip/unequip from inventory**
+- **Combat integration with resolved stats**
+- **Equipment comparison UI**
+- **Enemy weapon loot drops**
+- **Equipment Condition System (Slice 0.7.1)**
+- **Durability tracking (CurrentDurability, MaxDurability)**
+- **Condition calculation (Excellent, Good, Worn, Fragile, Broken)**
+- **Condition UI display with durability bar**
+- **Condition-based colors and tooltips**
+- **Weapon Wear System (Slice 0.7.2)**
+- **Probabilistic wear on combat hits**
+- **Heavy target additional wear**
+- **Player damage wear trigger**
+- **Attack ID tracking prevents double wear**
+- **Condition change notifications**
+- **WeaponWearConfig ScriptableObject**
+- **Broken Weapons System (Slice 0.7.3)**
+- **BrokenWeaponConfig ScriptableObject**
+- **Severe combat penalties for broken weapons**
+- **Stat resolution: Base → Affixes → Broken penalties**
+- **Stats recalculated when condition changes**
+- **UI broken warning badge**
+- **Stats display with penalty percentages**
+- **Distinctive broken notification**
+- **Weapon visual feedback when broken**
+- **Debug buttons: Break, Restore**
+- **Repair Fragments System (Slice 0.7.4)**
+- **RepairConfig ScriptableObject**
+- **RepairService with preview and atomic transactions**
+- **Repair UI panel in inventory**
+- **Partial and full repair support**
+- **Broken weapon restoration**
+- **Equipment identity preserved through repair**
+- **Repair debug tools (F6)**
 
 ### Not Implemented (Future Slices)
-- Equipment slots and gear system
-- Loot tables and drop rates
-- Equipment durability
+- Repair Station (3D workbench)
 - Enhancement system
 - Save system
 - Refuge
@@ -196,13 +234,27 @@ After opening the project for the first time:
 - Parry/block
 - Lock-on targeting
 
+## Completed Slices
+
+| Slice | Focus |
+|-------|-------|
+| 0.1 | Project Foundation |
+| 0.2 | First-Person Character Controller V1 |
+| 0.3 | Procedural Terrain V1 |
+| 0.4 | Interaction & Inventory V1 |
+| 0.5 | Combat V1 |
+| 0.6 | Equipment & Loot Identity V1 |
+| 0.7.1 | Equipment Condition System V1 |
+| 0.7.2 | Weapon Wear System V1 |
+| 0.7.3 | Broken Weapons V1 |
+| 0.7.4 | Repair Fragments V1 |
+
 ## Upcoming Slices
 
 | Slice | Focus |
 |-------|-------|
-| 0.6 | Equipment & Loot Identity V1 |
-| 0.7 | Refuge V1 |
-| 0.8 | Durability & Repair V1 |
+| 0.7.5 | Repair Station V1 |
+| 0.8 | Refuge V1 |
 
 ## Character Controller
 

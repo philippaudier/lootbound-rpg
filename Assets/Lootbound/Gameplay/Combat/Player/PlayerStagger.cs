@@ -25,6 +25,7 @@ namespace Lootbound.Gameplay.Combat
         [Header("Dependencies")]
         [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private CharacterController characterController;
+        [SerializeField] private PlayerMeleeWeapon meleeWeapon;
 
         private bool isStaggered;
         private float staggerTimer;
@@ -60,6 +61,11 @@ namespace Lootbound.Gameplay.Combat
             if (characterController == null)
             {
                 characterController = GetComponent<CharacterController>();
+            }
+
+            if (meleeWeapon == null)
+            {
+                meleeWeapon = GetComponentInChildren<PlayerMeleeWeapon>();
             }
         }
 
@@ -114,6 +120,13 @@ namespace Lootbound.Gameplay.Combat
         {
             isStaggered = true;
             staggerTimer = staggerDuration;
+
+            // Interrupt any ongoing attack
+            if (meleeWeapon != null && meleeWeapon.IsAttacking)
+            {
+                meleeWeapon.InterruptAttack();
+                LootboundLog.Info(Category, "Attack interrupted by stagger");
+            }
 
             // Calculate knockback - push away from hit direction
             Vector3 knockbackDir = hitDirection;

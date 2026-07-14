@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9d39cdff83f7e744a0a503b3d50b0be, type: 3}
   m_Name: DefaultMeleeAttackConfig
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.MeleeAttackConfig
-  damage: 30
+  damage: 20
   staggerForce: 0.3
   windupDuration: 0.15
   activeWindowStart: 0.15

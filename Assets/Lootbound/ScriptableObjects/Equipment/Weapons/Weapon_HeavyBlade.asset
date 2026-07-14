@@ -12,19 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a80870cc599d45f4c9225990243da560, type: 3}
   m_Name: Weapon_HeavyBlade
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.WeaponDefinition
-  itemId: 
-  displayName: 
-  description: 
-  icon: {fileID: 0}
+  itemId: weapon_heavy_blade
+  displayName: Heavy Blade
+  description: A thick, weighty blade that demands strength to wield. Each swing
+    carries enough force to stagger most foes.
+  icon: {fileID: 21300000, guid: 8857e2d81953ac442be2fbb25705d65d, type: 3}
   rarity: 0
-  worldPrefab: {fileID: 0}
+  worldPrefab: {fileID: 7400859708817412283, guid: 4f908aede7d631a4782ed5d5f4af3208, type: 3}
   isStackable: 0
   maxStackSize: 1
   pickupPrompt: Pick up
   pickupHoldDuration: 0
-  baseDamage: 25
-  baseAttackSpeed: 1
+  baseDamage: 30
+  baseAttackSpeed: 0.75
   baseRange: 2
-  baseStagger: 0.3
+  baseStagger: 0.45
+  baseDurability: 100
   attackConfig: {fileID: 11400000, guid: 8790275046c81b040a78c48da2abb1cd, type: 2}
-  firstPersonPrefab: {fileID: 0}
+  firstPersonPrefab: {fileID: 7400859708817412283, guid: 4f908aede7d631a4782ed5d5f4af3208, type: 3}

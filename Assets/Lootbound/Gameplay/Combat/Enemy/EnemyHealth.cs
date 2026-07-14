@@ -28,6 +28,16 @@ namespace Lootbound.Gameplay.Combat
 
         private Health health;
 
+        // Poise system
+        private float currentPoise;
+        private float poiseRegenTimer;
+        private float staggerImmunityTimer;
+
+        // Knockback system
+        private Vector3 lastHitDirection;
+        private Vector3 knockbackVelocity;
+        private float knockbackTimer;
+
         /// <summary>
         /// Current health value.
         /// </summary>
@@ -47,6 +57,16 @@ namespace Lootbound.Gameplay.Combat
         /// True if the enemy is dead.
         /// </summary>
         public bool IsDead => health?.IsDead ?? false;
+
+        /// <summary>
+        /// Current poise value (0 = will stagger on next hit).
+        /// </summary>
+        public float CurrentPoise => currentPoise;
+
+        /// <summary>
+        /// True if currently immune to stagger.
+        /// </summary>
+        public bool IsStaggerImmune => staggerImmunityTimer > 0f;
 
         /// <summary>
         /// Fired when health changes. Parameters: (current, max).
@@ -76,6 +96,39 @@ namespace Lootbound.Gameplay.Combat
             health.OnHealthChanged += HandleHealthChanged;
             health.OnDamaged += HandleDamaged;
             health.OnDied += HandleDied;
+
+            // Initialize poise
+            currentPoise = config != null ? config.MaxPoise : 30f;
+        }
+
+        private void Update()
+        {
+            if (IsDead || config == null) return;
+
+            // Update stagger immunity timer
+            if (staggerImmunityTimer > 0f)
+            {
+                staggerImmunityTimer -= Time.deltaTime;
+            }
+
+            // Regenerate poise after delay
+            if (poiseRegenTimer > 0f)
+            {
+                poiseRegenTimer -= Time.deltaTime;
+            }
+            else if (currentPoise < config.MaxPoise)
+            {
+                currentPoise = Mathf.Min(currentPoise + config.PoiseRegenRate * Time.deltaTime, config.MaxPoise);
+            }
+
+            // Apply knockback
+            if (knockbackTimer > 0f)
+            {
+                knockbackTimer -= Time.deltaTime;
+                float t = knockbackTimer / config.StaggerDuration;
+                Vector3 frameKnockback = knockbackVelocity * t * Time.deltaTime;
+                transform.position += frameKnockback;
+            }
         }
 
         private void OnDestroy()
@@ -105,14 +158,77 @@ namespace Lootbound.Gameplay.Combat
                 string sourceInfo = request.Source != null ? request.Source.name : "Unknown";
                 LootboundLog.Info(Category, $"{gameObject.name} took {result.DamageDealt} damage from {sourceInfo}. Health: {health.Current}/{health.Max}");
 
-                // Trigger stagger if damage has stagger force
-                if (request.StaggerForce > 0f)
+                // Store hit direction for knockback
+                lastHitDirection = request.HitDirection;
+
+                // Process poise damage and potential stagger
+                if (request.StaggerForce > 0f && config != null)
                 {
-                    OnStagger?.Invoke(request.StaggerForce);
+                    ProcessPoiseDamage(request.StaggerForce);
                 }
             }
 
             return result;
+        }
+
+        private void ProcessPoiseDamage(float staggerForce)
+        {
+            // Reset poise regen timer on any hit
+            poiseRegenTimer = config.PoiseRegenDelay;
+
+            // If immune to stagger, skip poise damage
+            if (IsStaggerImmune)
+            {
+                LootboundLog.Info(Category, $"{gameObject.name} is stagger immune, hit ignored for poise");
+                return;
+            }
+
+            // Apply poise damage based on stagger force
+            // Stagger force of 1.0 = full poise damage, 0.5 = half, etc.
+            float poiseDamage = config.MaxPoise * staggerForce;
+            currentPoise -= poiseDamage;
+
+            LootboundLog.Info(Category, $"{gameObject.name} poise: {currentPoise:F1}/{config.MaxPoise}");
+
+            // Check if poise broken
+            if (currentPoise <= 0f)
+            {
+                // Trigger stagger
+                OnStagger?.Invoke(staggerForce);
+
+                // Apply knockback
+                ApplyKnockback(lastHitDirection);
+
+                // Reset poise and apply immunity
+                currentPoise = config.MaxPoise;
+                staggerImmunityTimer = config.StaggerImmunityDuration;
+
+                LootboundLog.Info(Category, $"{gameObject.name} staggered! Immunity for {config.StaggerImmunityDuration}s");
+            }
+        }
+
+        private void ApplyKnockback(Vector3 direction)
+        {
+            if (config.KnockbackDistance <= 0f || config.StaggerDuration <= 0f)
+            {
+                return;
+            }
+
+            // Calculate knockback velocity to cover the distance over stagger duration
+            // Direction is where the attack came FROM, so we move in that direction (away from attacker)
+            Vector3 knockbackDir = new Vector3(direction.x, 0f, direction.z).normalized;
+            if (knockbackDir.sqrMagnitude < 0.01f)
+            {
+                knockbackDir = -transform.forward; // Fallback: push backwards
+            }
+
+            // Velocity needed to travel knockbackDistance over staggerDuration with linear falloff
+            // With linear falloff (t going from 1 to 0), total distance = velocity * duration / 2
+            // So velocity = 2 * distance / duration
+            knockbackVelocity = knockbackDir * (2f * config.KnockbackDistance / config.StaggerDuration);
+            knockbackTimer = config.StaggerDuration;
+
+            LootboundLog.Info(Category, $"{gameObject.name} knockback applied: {config.KnockbackDistance}m");
         }
 
         /// <summary>
@@ -127,15 +243,29 @@ namespace Lootbound.Gameplay.Combat
                 health.OnHealthChanged += HandleHealthChanged;
                 health.OnDamaged += HandleDamaged;
                 health.OnDied += HandleDied;
+
+                // Reset poise
+                currentPoise = config.MaxPoise;
+                staggerImmunityTimer = 0f;
+                poiseRegenTimer = 0f;
             }
         }
 
         /// <summary>
-        /// Reset health to full.
+        /// Reset health and poise to full.
         /// </summary>
         public void Reset()
         {
             health?.Reset();
+
+            if (config != null)
+            {
+                currentPoise = config.MaxPoise;
+                staggerImmunityTimer = 0f;
+                poiseRegenTimer = 0f;
+                knockbackVelocity = Vector3.zero;
+                knockbackTimer = 0f;
+            }
         }
 
         private void HandleHealthChanged(float current, float max)

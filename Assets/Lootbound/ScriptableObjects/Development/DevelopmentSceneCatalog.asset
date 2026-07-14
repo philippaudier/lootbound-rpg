@@ -29,3 +29,7 @@ MonoBehaviour:
     sceneName: 13_InteractionInventorySandbox
     description: 
     visible: 1
+  - displayName: CombatSandbox
+    sceneName: 14_CombatSandbox
+    description: 
+    visible: 1

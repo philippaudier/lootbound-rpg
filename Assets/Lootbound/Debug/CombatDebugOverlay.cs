@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Lootbound.Gameplay.Combat;
 using Lootbound.Gameplay.Player;
+using Lootbound.Gameplay.Equipment;
+using Lootbound.Gameplay.Inventory;
 
 namespace Lootbound.Debugging
 {
@@ -17,6 +19,12 @@ namespace Lootbound.Debugging
         [SerializeField] private PlayerMeleeWeapon playerWeapon;
         [SerializeField] private PlayerCombatController combatController;
 
+        [Header("Equipment")]
+        [SerializeField] private PlayerEquipment playerEquipment;
+        [SerializeField] private PlayerWeaponWear playerWeaponWear;
+        [SerializeField] private PlayerRepair playerRepair;
+        [SerializeField] private PlayerInventory playerInventory;
+
         [Header("Enemy (Optional)")]
         [SerializeField] private EnemyHealth trackedEnemy;
         [SerializeField] private EnemyBrain trackedEnemyBrain;
@@ -24,10 +32,15 @@ namespace Lootbound.Debugging
         [Header("Settings")]
         [SerializeField] private bool showOnStart = false;
 
+        private GUIStyle buttonStyle;
+
         private bool isVisible;
         private GUIStyle boxStyle;
         private GUIStyle labelStyle;
         private GUIStyle headerStyle;
+        private GUIStyle windowStyle;
+
+        private Rect windowRect = new Rect(Screen.width - 340f, 20f, 320f, 100f);
 
         private void Start()
         {
@@ -66,6 +79,26 @@ namespace Lootbound.Debugging
             {
                 trackedEnemyBrain = FindFirstObjectByType<EnemyBrain>();
             }
+
+            if (playerEquipment == null)
+            {
+                playerEquipment = FindFirstObjectByType<PlayerEquipment>();
+            }
+
+            if (playerWeaponWear == null)
+            {
+                playerWeaponWear = FindFirstObjectByType<PlayerWeaponWear>();
+            }
+
+            if (playerRepair == null)
+            {
+                playerRepair = FindFirstObjectByType<PlayerRepair>();
+            }
+
+            if (playerInventory == null)
+            {
+                playerInventory = FindFirstObjectByType<PlayerInventory>();
+            }
         }
 
         private void Update()
@@ -85,15 +118,15 @@ namespace Lootbound.Debugging
 
             InitializeStyles();
 
-            float panelWidth = 300f;
-            float panelHeight = 400f;
-            float x = Screen.width - panelWidth - 20f;
-            float y = 20f;
+            // Position window on right side of screen
+            windowRect.x = Screen.width - windowRect.width - 20f;
 
-            GUI.Box(new Rect(x - 10f, y - 10f, panelWidth + 20f, panelHeight + 20f), "", boxStyle);
+            // Use GUILayout.Window for auto-sizing
+            windowRect = GUILayout.Window(0, windowRect, DrawDebugWindow, "", windowStyle);
+        }
 
-            GUILayout.BeginArea(new Rect(x, y, panelWidth, panelHeight));
-
+        private void DrawDebugWindow(int windowID)
+        {
             DrawHeader("COMBAT DEBUG (F6)");
             GUILayout.Space(10f);
 
@@ -106,9 +139,10 @@ namespace Lootbound.Debugging
             DrawDodgeSection();
             GUILayout.Space(10f);
 
-            DrawEnemySection();
+            DrawEquipmentSection();
+            GUILayout.Space(10f);
 
-            GUILayout.EndArea();
+            DrawEnemySection();
         }
 
         private void InitializeStyles()
@@ -134,6 +168,18 @@ namespace Lootbound.Debugging
                 fontSize = 14,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(0.9f, 0.8f, 0.6f) }
+            };
+
+            buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 11,
+                padding = new RectOffset(8, 8, 4, 4)
+            };
+
+            windowStyle = new GUIStyle(GUI.skin.window)
+            {
+                normal = { background = MakeTexture(2, 2, new Color(0f, 0f, 0f, 0.85f)) },
+                padding = new RectOffset(15, 15, 10, 10)
             };
         }
 
@@ -221,6 +267,139 @@ namespace Lootbound.Debugging
             {
                 GUILayout.Label("PlayerDodge: Not found", labelStyle);
             }
+        }
+
+        private void DrawEquipmentSection()
+        {
+            DrawHeader("Equipment");
+
+            if (playerEquipment == null)
+            {
+                GUILayout.Label("PlayerEquipment: Not found", labelStyle);
+                return;
+            }
+
+            if (!playerEquipment.HasWeaponEquipped)
+            {
+                GUILayout.Label("No weapon equipped", labelStyle);
+                return;
+            }
+
+            var equipment = playerEquipment.CurrentEquipment;
+            var stats = playerEquipment.CurrentStats;
+
+            DrawLabel("Weapon", equipment.CustomName ?? equipment.DefinitionId);
+            DrawLabel("Condition", equipment.Condition.ToString());
+            DrawLabel("Durability", $"{equipment.CurrentDurability:F0}/{equipment.MaxDurability:F0}");
+
+            if (stats.IsValid)
+            {
+                DrawLabel("Damage", stats.Damage, "F0");
+                DrawLabel("Attack Speed", stats.AttackSpeed, "F2");
+                DrawLabel("Range", stats.Range, "F1");
+            }
+
+            GUILayout.Space(5f);
+
+            // Debug buttons - Wear
+            GUILayout.BeginHorizontal();
+
+            if (playerWeaponWear != null)
+            {
+                if (GUILayout.Button("Apply Wear", buttonStyle))
+                {
+                    playerWeaponWear.ApplyDebugWear();
+                }
+
+                if (GUILayout.Button("Break", buttonStyle))
+                {
+                    playerWeaponWear.ForceBreakWeapon();
+                }
+
+                if (GUILayout.Button("Restore", buttonStyle))
+                {
+                    playerWeaponWear.RestoreWeaponDurability();
+                }
+            }
+
+            GUILayout.EndHorizontal();
+
+            // Draw repair section
+            DrawRepairSection(equipment);
+        }
+
+        private void DrawRepairSection(EquipmentData equipment)
+        {
+            GUILayout.Space(5f);
+            DrawHeader("Repair");
+
+            if (playerRepair == null)
+            {
+                GUILayout.Label("PlayerRepair: Not found", labelStyle);
+                return;
+            }
+
+            // Show repair info
+            int fragments = playerRepair.GetAvailableFragments();
+            DrawLabel("Repair Fragments", fragments.ToString());
+
+            if (equipment != null)
+            {
+                var preview = playerRepair.PreviewRepair(equipment);
+                DrawLabel("Can Repair", preview.CanRepair);
+
+                if (preview.CanRepair)
+                {
+                    DrawLabel("Fragments Needed", $"{preview.FragmentsToConsume} / {preview.FragmentsForFullRepair}");
+                    DrawLabel("After Repair", $"{preview.DurabilityAfterRepair:F0} ({preview.ConditionAfter})");
+                }
+                else if (preview.FailureReason != RepairFailureReason.None)
+                {
+                    DrawLabel("Failure", preview.FailureReason.ToString());
+                }
+            }
+
+            GUILayout.Space(5f);
+
+            // Repair debug buttons
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("+5 Fragments", buttonStyle))
+            {
+                AddDebugFragments(5);
+            }
+
+            if (GUILayout.Button("+20 Fragments", buttonStyle))
+            {
+                AddDebugFragments(20);
+            }
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+
+            if (equipment != null && playerRepair.CanRepair(equipment))
+            {
+                if (GUILayout.Button("Repair", buttonStyle))
+                {
+                    var result = playerRepair.RepairEquipment(equipment);
+                    Debug.Log($"[CombatDebug] Repair result: {result.Success}, used {result.FragmentsConsumed} fragments");
+                }
+            }
+
+            GUILayout.EndHorizontal();
+        }
+
+        private void AddDebugFragments(int count)
+        {
+            if (playerInventory == null || playerRepair?.FragmentDefinition == null)
+            {
+                Debug.LogWarning("[CombatDebug] Cannot add fragments - missing inventory or fragment definition");
+                return;
+            }
+
+            var addResult = playerInventory.Inventory.TryAddItemWithResult(new ItemInstance(playerRepair.FragmentDefinition, count));
+            Debug.Log($"[CombatDebug] Added {addResult.Added} repair fragments (requested {count})");
         }
 
         private void DrawEnemySection()

@@ -44,6 +44,7 @@ GameObject:
   - component: {fileID: 5885837662182969397}
   - component: {fileID: 5899559337729240995}
   - component: {fileID: 4948161267492081516}
+  - component: {fileID: 6128997752083342896}
   m_Layer: 8
   m_Name: Enemy
   m_TagString: Untagged
@@ -103,6 +104,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.EnemyHealth
   config: {fileID: 11400000, guid: 2915dc169b3f12d43a25635b73b1e872, type: 2}
+  equipmentRegistry: {fileID: 11400000, guid: a40bac1b6935b07489fd76cf200fb399, type: 2}
   lootSpawnOffset: {x: 0, y: 0.5, z: 0}
 --- !u!114 &5899559337729240995
 MonoBehaviour:
@@ -138,6 +140,25 @@ MonoBehaviour:
     m_Bits: 64
   attackRadius: 0.3
   debugDraw: 1
+--- !u!114 &6128997752083342896
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7690508598923055212}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b46494b634f583042a02580b2636d65b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.EnemyVisuals
+  hitColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  hitFlashDuration: 0.15
+  deathDuration: 1
+  sinkSpeed: 0.5
+  sinkDelay: 0.3
+  renderers:
+  - {fileID: 6572475104013074018}
 --- !u!1 &8848689561608694027
 GameObject:
   m_ObjectHideFlags: 0

@@ -279,7 +279,8 @@ namespace Lootbound.Gameplay.Player
         }
 
         /// <summary>
-        /// Check if there's enough headroom to stand up
+        /// Check if there's enough headroom to stand up.
+        /// Uses sphere cast from current head to target head position.
         /// </summary>
         public bool HasHeadroom(float targetHeight)
         {
@@ -287,17 +288,28 @@ namespace Lootbound.Gameplay.Player
             if (targetHeight <= currentHeight) return true;
 
             float heightDifference = targetHeight - currentHeight;
-            Vector3 checkStart = transform.position + Vector3.up * currentHeight;
 
-            return !Physics.SphereCast(
+            // Start sphere cast from just inside the current capsule top
+            // This ensures we don't start outside and detect the current capsule
+            float checkRadius = config.ControllerRadius * 0.8f;
+            Vector3 checkStart = transform.position + Vector3.up * (currentHeight - checkRadius * 0.5f);
+
+            // Layer mask: exclude Player (6), PlayerHitbox (9), and Ignore Raycast (2)
+            int excludeLayers = (1 << 6) | (1 << 9) | (1 << 2);
+            int layerMask = ~excludeLayers;
+
+            // Cast upward to check for obstacles
+            bool hasObstacle = Physics.SphereCast(
                 checkStart,
-                config.ControllerRadius * 0.9f,
+                checkRadius,
                 Vector3.up,
                 out _,
-                heightDifference + 0.05f,
-                ~0,
+                heightDifference + checkRadius,
+                layerMask,
                 QueryTriggerInteraction.Ignore
             );
+
+            return !hasObstacle;
         }
 
 #if UNITY_EDITOR

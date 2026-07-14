@@ -239,11 +239,15 @@ namespace Lootbound.Gameplay.Combat
 
         private void UpdateStagger()
         {
-            // Stop during stagger
-            agent.SetDestination(transform.position);
+            // Agent is disabled during stagger to allow knockback physics
 
             if (stateTimer >= config.StaggerDuration)
             {
+                // Re-enable agent before leaving stagger
+                if (!agent.enabled)
+                {
+                    agent.enabled = true;
+                }
                 ChangeState(EnemyState.Chase);
             }
         }
@@ -337,6 +341,8 @@ namespace Lootbound.Gameplay.Combat
             // Stagger can interrupt windup but not active attack
             if (currentState == EnemyState.AttackWindup || currentState == EnemyState.Chase || currentState == EnemyState.Idle)
             {
+                // Disable agent to allow knockback physics
+                agent.enabled = false;
                 ChangeState(EnemyState.Stagger);
             }
         }

@@ -25,8 +25,16 @@ namespace Lootbound.Gameplay.Combat
         [Tooltip("Default camera shake duration.")]
         [SerializeField] private float defaultShakeDuration = 0.1f;
 
+        [Header("Damage Feedback")]
+        [Tooltip("Camera shake intensity when player takes damage.")]
+        [SerializeField] private float damageShakeIntensity = 0.2f;
+
+        [Tooltip("Camera shake duration when player takes damage.")]
+        [SerializeField] private float damageShakeDuration = 0.15f;
+
         [Header("Dependencies")]
         [SerializeField] private PlayerCameraShake cameraShake;
+        [SerializeField] private PlayerHealth playerHealth;
 
         private Coroutine hitstopCoroutine;
         private float originalTimeScale = 1f;
@@ -37,6 +45,34 @@ namespace Lootbound.Gameplay.Combat
             {
                 cameraShake = FindFirstObjectByType<PlayerCameraShake>();
             }
+
+            if (playerHealth == null)
+            {
+                playerHealth = FindFirstObjectByType<PlayerHealth>();
+            }
+        }
+
+        private void OnEnable()
+        {
+            if (playerHealth != null)
+            {
+                playerHealth.OnDamaged += HandlePlayerDamaged;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (playerHealth != null)
+            {
+                playerHealth.OnDamaged -= HandlePlayerDamaged;
+            }
+        }
+
+        private void HandlePlayerDamaged(DamageRequest request)
+        {
+            // Shake camera when player takes damage
+            ShakeCamera(damageShakeIntensity, damageShakeDuration);
+            PlayDamageFlash();
         }
 
         /// <summary>

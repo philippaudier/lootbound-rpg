@@ -242,6 +242,10 @@ GameObject:
   - component: {fileID: 4507215707646922427}
   - component: {fileID: 5308648090781776033}
   - component: {fileID: 4535864293518479657}
+  - component: {fileID: 4126830019317868881}
+  - component: {fileID: 3853507261988733121}
+  - component: {fileID: 1899438849096125805}
+  - component: {fileID: 6556402094574427399}
   m_Layer: 0
   m_Name: PlayerCharacter
   m_TagString: Untagged
@@ -427,8 +431,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerCombatController
   inputReader: {fileID: 3435499054096214388}
   meleeWeapon: {fileID: 478766206942817115}
-  dodge: {fileID: 0}
-  playerHealth: {fileID: 0}
+  dodge: {fileID: 3497194455863290280}
+  playerHealth: {fileID: 1003590245021206126}
   combatBlocked: 0
 --- !u!114 &5308648090781776033
 MonoBehaviour:
@@ -443,10 +447,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.PlayerStagger
   staggerDuration: 0.15
-  knockbackForce: 2
+  knockbackForce: 100
   staggerSpeedMultiplier: 0.3
-  playerHealth: {fileID: 0}
+  playerHealth: {fileID: 1003590245021206126}
   characterController: {fileID: 2172380316175661297}
+  meleeWeapon: {fileID: 478766206942817115}
 --- !u!114 &4535864293518479657
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -461,5 +466,78 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.PlayerEquipment
   playerInventory: {fileID: 4471596059645939610}
   meleeWeapon: {fileID: 478766206942817115}
+  combatController: {fileID: 4507215707646922427}
   equipmentRegistry: {fileID: 11400000, guid: a40bac1b6935b07489fd76cf200fb399, type: 2}
+  playerWeaponWear: {fileID: 3853507261988733121}
+  brokenWeaponConfig: {fileID: 11400000, guid: b6c861361051bac4e85d09aa9355cb91, type: 2}
   weaponViewSocket: {fileID: 0}
+--- !u!114 &4126830019317868881
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46477f95840ec254d9919652653b9062, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.CombatFeedback
+  defaultHitstopDuration: 0.05
+  hitstopTimeScale: 0
+  defaultShakeIntensity: 0.15
+  defaultShakeDuration: 0.1
+  damageShakeIntensity: 0.2
+  damageShakeDuration: 0.15
+  cameraShake: {fileID: 7256213805210606744}
+  playerHealth: {fileID: 1003590245021206126}
+--- !u!114 &3853507261988733121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf54b66b2a5583b48a06f5cdc4300ce8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.PlayerWeaponWear
+  playerEquipment: {fileID: 4535864293518479657}
+  combatController: {fileID: 4507215707646922427}
+  playerHealth: {fileID: 1003590245021206126}
+  wearConfig: {fileID: 11400000, guid: 0cfa79c4a831b1c4f92294861d716aae, type: 2}
+  logWearEvents: 1
+--- !u!114 &1899438849096125805
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 377fa3eb71ce1ae459901b19ce35ead3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.WeaponConditionVisual
+  playerEquipment: {fileID: 4535864293518479657}
+  playerWeaponWear: {fileID: 3853507261988733121}
+  brokenDesaturation: 0.6
+  brokenTint: {r: 0.8, g: 0.3, b: 0.3, a: 1}
+  brokenTintStrength: 0.3
+--- !u!114 &6556402094574427399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6150f770c9654dd4399174455eb44662, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.PlayerRepair
+  repairConfig: {fileID: 11400000, guid: 4bd13d960c8382547973c0503556b102, type: 2}
+  repairFragmentDefinition: {fileID: 11400000, guid: 321514c8707505f438b62909f29c71a6, type: 2}
+  playerInventory: {fileID: 4471596059645939610}
+  playerEquipment: {fileID: 4535864293518479657}

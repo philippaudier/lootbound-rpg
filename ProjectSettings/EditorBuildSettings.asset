@@ -20,6 +20,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Lootbound/Scenes/13_InteractionInventorySandbox.unity
     guid: 234c42f5c7950364faf9f1dc67af5409
+  - enabled: 1
+    path: Assets/Lootbound/Scenes/14_CombatSandbox.unity
+    guid: b1ad32a8b048b5043a19341dd564e2e5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

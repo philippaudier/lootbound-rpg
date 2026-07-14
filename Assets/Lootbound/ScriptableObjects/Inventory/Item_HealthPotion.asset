@@ -12,12 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a9638d4d79f501742bf566dacd9e17b2, type: 3}
   m_Name: Item_HealthPotion
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Inventory.ItemDefinition
-  itemId: health_potion
+  itemId: item_health_potion
   displayName: Health Potion
-  description: Restores health
-  icon: {fileID: -1047000602, guid: 98039c51b5aa3aa4f9093d5026e84d10, type: 3}
+  description: A small vial of restorative liquid. Bitter taste, but it keeps you
+    moving.
+  icon: {fileID: 21300000, guid: a5eb2f44d79e7e24fae7f341cc8cf832, type: 3}
   rarity: 1
-  worldPrefab: {fileID: 0}
+  worldPrefab: {fileID: 548100421360121250, guid: 2765d46e88adf514ba802fc0cf63bcc7, type: 3}
   isStackable: 1
   maxStackSize: 10
   pickupPrompt: Pick up

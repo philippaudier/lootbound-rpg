@@ -164,6 +164,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameConfig: {fileID: 11400000, guid: 4fb8f9036307ce34e8adcf1c5a7a06e7, type: 2}
+  developmentMenuPrefab: {fileID: 7430024505945728696, guid: 48283335920c2d046b06f88a3c00b28f, type: 3}
   loadDefaultSceneOnStart: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

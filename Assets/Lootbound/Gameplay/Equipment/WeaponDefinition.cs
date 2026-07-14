@@ -24,6 +24,10 @@ namespace Lootbound.Gameplay.Equipment
         [Tooltip("Base stagger force (0-1).")]
         [SerializeField, Range(0f, 1f)] private float baseStagger = 0.3f;
 
+        [Header("Durability")]
+        [Tooltip("Base durability for this weapon type.")]
+        [SerializeField] private float baseDurability = 100f;
+
         [Header("Attack Configuration")]
         [Tooltip("Attack timing configuration for this weapon.")]
         [SerializeField] private MeleeAttackConfig attackConfig;
@@ -37,6 +41,7 @@ namespace Lootbound.Gameplay.Equipment
         public float BaseAttackSpeed => baseAttackSpeed;
         public float BaseRange => baseRange;
         public float BaseStagger => baseStagger;
+        public float BaseDurability => baseDurability;
         public MeleeAttackConfig AttackConfig => attackConfig;
         public GameObject FirstPersonPrefab => firstPersonPrefab;
 
@@ -89,6 +94,7 @@ namespace Lootbound.Gameplay.Equipment
             baseDamage = Mathf.Max(1f, baseDamage);
             baseAttackSpeed = Mathf.Max(0.1f, baseAttackSpeed);
             baseRange = Mathf.Max(0.5f, baseRange);
+            baseDurability = Mathf.Max(1f, baseDurability);
 
             // Weapons should not be stackable
             SetNonStackable();

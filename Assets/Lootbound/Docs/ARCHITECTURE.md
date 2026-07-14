@@ -347,6 +347,7 @@ Lootbound.Gameplay.World
 Lootbound.Gameplay.Interaction
 Lootbound.Gameplay.Inventory
 Lootbound.Gameplay.Combat
+Lootbound.Gameplay.Equipment
 Lootbound.UI
 Lootbound.UI.Combat
 ```
@@ -604,6 +605,49 @@ Uses UI Toolkit:
 
 - `CombatDebugOverlay` - OnGUI overlay (toggle F6)
 - Shows player/enemy state, attack phases, dodge timing
+
+## Equipment System (`Lootbound.Gameplay.Equipment`)
+
+### Architecture
+
+```
+Equipment/
+├── Definitions/
+│   ├── WeaponDefinition      - ScriptableObject extending ItemDefinition
+│   ├── AffixDefinition       - ScriptableObject for affix templates
+│   └── EquipmentRegistry     - Registry of all definitions
+├── Instances/
+│   ├── EquipmentData         - Unique instance with GUID, affixes, durability
+│   ├── AffixInstance         - Rolled affix with value
+│   └── EquipmentHistory      - Tracks found location, kills, equips
+├── Condition/
+│   ├── EquipmentCondition    - Enum (Excellent, Good, Worn, Fragile, Broken)
+│   └── EquipmentConditionHelper - Centralized thresholds, colors, tooltips
+├── Stats/
+│   └── ResolvedWeaponStats   - Computed final stats
+├── Generation/
+│   ├── EquipmentGenerator    - Creates instances with random rolls
+│   └── EquipmentNameGenerator- Generates names by rarity
+└── Player/
+    └── PlayerEquipment       - Manages equipped items
+```
+
+### Key Concepts
+
+**Definition vs Instance**: WeaponDefinition (ScriptableObject) is a template. EquipmentData (serializable class) is a unique instance with its own GUID, rolled affixes, history, and durability.
+
+**Stat Resolution**: Base stats from definition + percentage modifiers from affixes = ResolvedWeaponStats.
+
+**Condition System**: Equipment condition is derived from normalized durability:
+- Excellent: 80-100%
+- Good: 60-79%
+- Worn: 35-59%
+- Fragile: 1-34%
+- Broken: 0%
+
+Colors and tooltips are centralized in EquipmentConditionHelper.
+
+See `EQUIPMENT.md` for detailed documentation.
 
 ## Design Principles
 

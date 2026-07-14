@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using Lootbound.Core.Logging;
 using Lootbound.Gameplay.Player;
 
 namespace Lootbound.Gameplay.Interaction
@@ -43,7 +44,6 @@ namespace Lootbound.Gameplay.Interaction
             {
                 inputReader.OnInteractPressed += StartInteraction;
                 inputReader.OnInteractReleased += StopInteraction;
-                Debug.Log("[PlayerInteractor] Subscribed to input events");
             }
         }
 
@@ -166,7 +166,7 @@ namespace Lootbound.Gameplay.Interaction
 
                 if (currentTarget != null)
                 {
-                    Debug.Log($"[PlayerInteractor] Target found: {currentTarget.InteractionPrompt}");
+                    LootboundLog.Verbose("Interaction", $"Target found: {currentTarget.InteractionPrompt}");
                 }
             }
         }

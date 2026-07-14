@@ -51,13 +51,14 @@ namespace Lootbound.Gameplay.Equipment
             string baseName = ExtractBaseName(definition.DisplayName);
             string generatedName = EquipmentNameGenerator.Generate(baseName, rarity, affixes, random);
 
-            // Create equipment data
+            // Create equipment data with durability from definition
             var equipmentData = new EquipmentData(
                 definition.ItemId,
                 generatedName,
                 rarity,
                 affixes,
-                foundLocation ?? "Unknown");
+                foundLocation ?? "Unknown",
+                definition.BaseDurability);
 
             // Create item instance with equipment data
             return new ItemInstance(definition, equipmentData);
@@ -83,13 +84,14 @@ namespace Lootbound.Gameplay.Equipment
             string baseName = ExtractBaseName(definition.DisplayName);
             string generatedName = EquipmentNameGenerator.Generate(baseName, rarity, affixes, random);
 
-            // Create equipment data
+            // Create equipment data with durability from definition
             var equipmentData = new EquipmentData(
                 definition.ItemId,
                 generatedName,
                 rarity,
                 affixes,
-                foundLocation ?? "Unknown");
+                foundLocation ?? "Unknown",
+                definition.BaseDurability);
 
             return new ItemInstance(definition, equipmentData);
         }
@@ -225,7 +227,8 @@ namespace Lootbound.Gameplay.Equipment
                 customName ?? definition.DisplayName,
                 ItemRarity.Common,
                 new List<AffixInstance>(),
-                foundLocation ?? "Starting Equipment");
+                foundLocation ?? "Starting Equipment",
+                definition.BaseDurability);
 
             return new ItemInstance(definition, equipmentData);
         }

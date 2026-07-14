@@ -23,6 +23,8 @@ namespace Lootbound.UI
         [Header("Equipment")]
         [SerializeField] private PlayerEquipment playerEquipment;
         [SerializeField] private EquipmentRegistry equipmentRegistry;
+        [SerializeField] private PlayerRepair playerRepair;
+        [SerializeField] private PlayerWeaponWear playerWeaponWear;
 
         [Header("Templates")]
         [SerializeField] private VisualTreeAsset slotTemplate;
@@ -52,6 +54,9 @@ namespace Lootbound.UI
 
         // Equipment-specific elements (created dynamically)
         private VisualElement equipmentStatsContainer;
+        private VisualElement conditionContainer;
+        private VisualElement repairContainer;
+        private Button repairButton;
         private VisualElement affixesContainer;
         private VisualElement historyContainer;
         private VisualElement comparisonContainer;
@@ -89,7 +94,17 @@ namespace Lootbound.UI
             {
                 playerInventory.Inventory.OnSlotChanged += HandleSlotChanged;
                 playerInventory.Inventory.OnInventoryChanged += HandleInventoryChanged;
-                Debug.Log("[InventoryUI] Subscribed to inventory events");
+            }
+
+            // Subscribe to equipment change events for live UI updates
+            if (playerWeaponWear != null)
+            {
+                playerWeaponWear.OnWearApplied += HandleEquipmentChanged;
+            }
+
+            if (playerRepair != null)
+            {
+                playerRepair.OnRepairCompleted += HandleRepairCompleted;
             }
         }
 
@@ -104,6 +119,16 @@ namespace Lootbound.UI
             {
                 playerInventory.Inventory.OnSlotChanged -= HandleSlotChanged;
                 playerInventory.Inventory.OnInventoryChanged -= HandleInventoryChanged;
+            }
+
+            if (playerWeaponWear != null)
+            {
+                playerWeaponWear.OnWearApplied -= HandleEquipmentChanged;
+            }
+
+            if (playerRepair != null)
+            {
+                playerRepair.OnRepairCompleted -= HandleRepairCompleted;
             }
         }
 
@@ -287,6 +312,27 @@ namespace Lootbound.UI
             equipmentStatsContainer.style.marginBottom = 8;
             equipmentStatsContainer.style.display = DisplayStyle.None;
 
+            // Create condition container (durability bar + condition label)
+            conditionContainer = new VisualElement();
+            conditionContainer.name = "condition";
+            conditionContainer.style.marginBottom = 8;
+            conditionContainer.style.display = DisplayStyle.None;
+
+            // Create repair container
+            repairContainer = new VisualElement();
+            repairContainer.name = "repair";
+            repairContainer.style.marginBottom = 8;
+            repairContainer.style.paddingTop = 8;
+            repairContainer.style.paddingBottom = 8;
+            repairContainer.style.paddingLeft = 8;
+            repairContainer.style.paddingRight = 8;
+            repairContainer.style.backgroundColor = new Color(0.15f, 0.18f, 0.15f, 0.9f);
+            repairContainer.style.borderTopLeftRadius = 4;
+            repairContainer.style.borderTopRightRadius = 4;
+            repairContainer.style.borderBottomLeftRadius = 4;
+            repairContainer.style.borderBottomRightRadius = 4;
+            repairContainer.style.display = DisplayStyle.None;
+
             // Create affixes container
             affixesContainer = new VisualElement();
             affixesContainer.name = "affixes";
@@ -328,14 +374,18 @@ namespace Lootbound.UI
             if (dropIndex >= 0)
             {
                 itemDetails.Insert(dropIndex, equipmentStatsContainer);
-                itemDetails.Insert(dropIndex + 1, affixesContainer);
-                itemDetails.Insert(dropIndex + 2, historyContainer);
-                itemDetails.Insert(dropIndex + 3, comparisonContainer);
-                itemDetails.Insert(dropIndex + 4, equipButton);
+                itemDetails.Insert(dropIndex + 1, conditionContainer);
+                itemDetails.Insert(dropIndex + 2, repairContainer);
+                itemDetails.Insert(dropIndex + 3, affixesContainer);
+                itemDetails.Insert(dropIndex + 4, historyContainer);
+                itemDetails.Insert(dropIndex + 5, comparisonContainer);
+                itemDetails.Insert(dropIndex + 6, equipButton);
             }
             else
             {
                 itemDetails.Add(equipmentStatsContainer);
+                itemDetails.Add(conditionContainer);
+                itemDetails.Add(repairContainer);
                 itemDetails.Add(affixesContainer);
                 itemDetails.Add(historyContainer);
                 itemDetails.Add(comparisonContainer);
@@ -428,20 +478,114 @@ namespace Lootbound.UI
             var equipData = item.EquipmentData;
             if (equipData == null) return;
 
+            bool isBroken = EquipmentConditionHelper.IsBroken(equipData.Condition);
+            var brokenConfig = playerEquipment?.BrokenConfig;
+
             // Update stats display
             if (equipmentStatsContainer != null)
             {
                 equipmentStatsContainer.Clear();
                 equipmentStatsContainer.style.display = DisplayStyle.Flex;
 
-                var stats = equipData.ResolveStats(equipmentRegistry);
+                // Resolve stats with broken penalties if applicable
+                var stats = equipData.ResolveStats(equipmentRegistry, brokenConfig);
                 if (stats.IsValid)
                 {
-                    AddStatLabel(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
-                    AddStatLabel(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
-                    AddStatLabel(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
+                    if (isBroken && brokenConfig != null)
+                    {
+                        // Show stats with penalty indicators
+                        AddStatLabelWithPenalty(equipmentStatsContainer, "Damage", stats.Damage, brokenConfig.GetDamagePenaltyPercent());
+                        AddStatLabelWithPenalty(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed, brokenConfig.GetSpeedPenaltyPercent());
+                        AddStatLabelWithPenalty(equipmentStatsContainer, "Range", stats.Range, brokenConfig.GetRangePenaltyPercent(), "m");
+                    }
+                    else
+                    {
+                        AddStatLabel(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
+                        AddStatLabel(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
+                        AddStatLabel(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
+                    }
                 }
             }
+
+            // Update condition display
+            if (conditionContainer != null)
+            {
+                conditionContainer.Clear();
+                conditionContainer.style.display = DisplayStyle.Flex;
+
+                var condition = equipData.Condition;
+                var conditionColor = EquipmentConditionHelper.GetConditionColor(condition);
+                var conditionTooltip = EquipmentConditionHelper.GetConditionTooltip(condition);
+
+                // Broken warning badge
+                if (isBroken)
+                {
+                    var brokenBadge = new VisualElement();
+                    brokenBadge.style.flexDirection = FlexDirection.Row;
+                    brokenBadge.style.alignItems = Align.Center;
+                    brokenBadge.style.justifyContent = Justify.Center;
+                    brokenBadge.style.backgroundColor = new Color(0.5f, 0.15f, 0.15f, 0.9f);
+                    brokenBadge.style.paddingTop = 4;
+                    brokenBadge.style.paddingBottom = 4;
+                    brokenBadge.style.paddingLeft = 8;
+                    brokenBadge.style.paddingRight = 8;
+                    brokenBadge.style.marginBottom = 6;
+                    brokenBadge.style.borderTopLeftRadius = 4;
+                    brokenBadge.style.borderTopRightRadius = 4;
+                    brokenBadge.style.borderBottomLeftRadius = 4;
+                    brokenBadge.style.borderBottomRightRadius = 4;
+                    brokenBadge.tooltip = "This weapon is broken and suffers severe combat penalties. Find a way to repair it.";
+
+                    var brokenLabel = new Label("BROKEN - Severe Penalties");
+                    brokenLabel.style.fontSize = 11;
+                    brokenLabel.style.color = new Color(1f, 0.7f, 0.7f);
+                    brokenLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+                    brokenBadge.Add(brokenLabel);
+                    conditionContainer.Add(brokenBadge);
+                }
+
+                // Condition row with label and durability text
+                var conditionRow = new VisualElement();
+                conditionRow.style.flexDirection = FlexDirection.Row;
+                conditionRow.style.justifyContent = Justify.SpaceBetween;
+                conditionRow.style.marginBottom = 4;
+                conditionRow.tooltip = conditionTooltip;
+
+                var conditionLabel = new Label("Condition");
+                conditionLabel.style.fontSize = 11;
+                conditionLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                var conditionValue = new Label($"{condition} ({equipData.CurrentDurability:F0}/{equipData.MaxDurability:F0})");
+                conditionValue.style.fontSize = 11;
+                conditionValue.style.color = conditionColor;
+
+                conditionRow.Add(conditionLabel);
+                conditionRow.Add(conditionValue);
+                conditionContainer.Add(conditionRow);
+
+                // Durability bar
+                var barContainer = new VisualElement();
+                barContainer.style.height = 4;
+                barContainer.style.backgroundColor = new Color(0.15f, 0.15f, 0.2f);
+                barContainer.style.borderTopLeftRadius = 2;
+                barContainer.style.borderTopRightRadius = 2;
+                barContainer.style.borderBottomLeftRadius = 2;
+                barContainer.style.borderBottomRightRadius = 2;
+
+                var barFill = new VisualElement();
+                barFill.style.height = Length.Percent(100);
+                barFill.style.width = Length.Percent(equipData.NormalizedDurability * 100f);
+                barFill.style.backgroundColor = conditionColor;
+                barFill.style.borderTopLeftRadius = 2;
+                barFill.style.borderBottomLeftRadius = 2;
+
+                barContainer.Add(barFill);
+                conditionContainer.Add(barContainer);
+            }
+
+            // Update repair panel
+            UpdateRepairPanel(item);
 
             // Update affixes display
             if (affixesContainer != null)
@@ -518,7 +662,8 @@ namespace Lootbound.UI
             comparisonContainer.style.display = DisplayStyle.Flex;
 
             var currentStats = playerEquipment.CurrentStats;
-            var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry) ?? ResolvedWeaponStats.Invalid;
+            var brokenConfig = playerEquipment?.BrokenConfig;
+            var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry, brokenConfig) ?? ResolvedWeaponStats.Invalid;
 
             if (!selectedStats.IsValid)
             {
@@ -557,6 +702,39 @@ namespace Lootbound.UI
             container.Add(row);
         }
 
+        private void AddStatLabelWithPenalty(VisualElement container, string statName, float value, int penaltyPercent, string suffix = "")
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.justifyContent = Justify.SpaceBetween;
+            row.style.marginBottom = 2;
+
+            var nameLabel = new Label(statName);
+            nameLabel.style.fontSize = 11;
+            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+            // Value container with stat and penalty
+            var valueContainer = new VisualElement();
+            valueContainer.style.flexDirection = FlexDirection.Row;
+            valueContainer.style.alignItems = Align.Center;
+
+            string valueText = suffix == "m" ? $"{value:F1}{suffix}" : value.ToString("F0");
+            var valueLabel = new Label(valueText);
+            valueLabel.style.fontSize = 11;
+            valueLabel.style.color = new Color(0.9f, 0.5f, 0.5f); // Red-tinted for penalty
+
+            var penaltyLabel = new Label($" ({penaltyPercent}%)");
+            penaltyLabel.style.fontSize = 10;
+            penaltyLabel.style.color = new Color(0.8f, 0.4f, 0.4f);
+
+            valueContainer.Add(valueLabel);
+            valueContainer.Add(penaltyLabel);
+
+            row.Add(nameLabel);
+            row.Add(valueContainer);
+            container.Add(row);
+        }
+
         private void AddAffixLabel(VisualElement container, AffixInstance affix)
         {
             var label = new Label();
@@ -592,10 +770,201 @@ namespace Lootbound.UI
             container.Add(row);
         }
 
+        private void UpdateRepairPanel(ItemInstance item)
+        {
+            if (repairContainer == null || playerRepair == null) return;
+
+            var equipData = item?.EquipmentData;
+            if (equipData == null)
+            {
+                repairContainer.style.display = DisplayStyle.None;
+                return;
+            }
+
+            // Get repair preview
+            var preview = playerRepair.PreviewRepair(equipData);
+
+            repairContainer.Clear();
+
+            // Only show repair panel if equipment needs repair
+            if (!playerRepair.NeedsRepair(equipData))
+            {
+                repairContainer.style.display = DisplayStyle.None;
+                return;
+            }
+
+            repairContainer.style.display = DisplayStyle.Flex;
+
+            // Header
+            var headerLabel = new Label("Repair");
+            headerLabel.style.fontSize = 12;
+            headerLabel.style.color = new Color(0.7f, 0.85f, 0.7f);
+            headerLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            headerLabel.style.marginBottom = 6;
+            repairContainer.Add(headerLabel);
+
+            // Fragment count row
+            var fragmentRow = new VisualElement();
+            fragmentRow.style.flexDirection = FlexDirection.Row;
+            fragmentRow.style.justifyContent = Justify.SpaceBetween;
+            fragmentRow.style.marginBottom = 4;
+
+            var fragmentLabel = new Label("Repair Fragments");
+            fragmentLabel.style.fontSize = 11;
+            fragmentLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+            var fragmentCount = new Label($"{preview.FragmentsAvailable}");
+            fragmentCount.style.fontSize = 11;
+            fragmentCount.style.color = preview.FragmentsAvailable > 0
+                ? new Color(0.5f, 0.9f, 0.5f)
+                : new Color(0.9f, 0.5f, 0.5f);
+
+            fragmentRow.Add(fragmentLabel);
+            fragmentRow.Add(fragmentCount);
+            repairContainer.Add(fragmentRow);
+
+            // Show preview info if repair is possible
+            if (preview.CanRepair)
+            {
+                // Durability preview row
+                var durabilityRow = new VisualElement();
+                durabilityRow.style.flexDirection = FlexDirection.Row;
+                durabilityRow.style.justifyContent = Justify.SpaceBetween;
+                durabilityRow.style.marginBottom = 4;
+
+                var durLabel = new Label("Durability");
+                durLabel.style.fontSize = 11;
+                durLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                var durValue = new Label($"{preview.CurrentDurability:F0} → {preview.DurabilityAfterRepair:F0}");
+                durValue.style.fontSize = 11;
+                durValue.style.color = new Color(0.5f, 0.9f, 0.5f);
+
+                durabilityRow.Add(durLabel);
+                durabilityRow.Add(durValue);
+                repairContainer.Add(durabilityRow);
+
+                // Condition preview (if changing)
+                if (preview.WillChangeCondition)
+                {
+                    var condRow = new VisualElement();
+                    condRow.style.flexDirection = FlexDirection.Row;
+                    condRow.style.justifyContent = Justify.SpaceBetween;
+                    condRow.style.marginBottom = 4;
+
+                    var condLabel = new Label("Condition");
+                    condLabel.style.fontSize = 11;
+                    condLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                    var condAfterColor = EquipmentConditionHelper.GetConditionColor(preview.ConditionAfter);
+                    var condValue = new Label($"{preview.ConditionBefore} → {preview.ConditionAfter}");
+                    condValue.style.fontSize = 11;
+                    condValue.style.color = condAfterColor;
+
+                    condRow.Add(condLabel);
+                    condRow.Add(condValue);
+                    repairContainer.Add(condRow);
+                }
+
+                // Fragments needed row
+                var neededRow = new VisualElement();
+                neededRow.style.flexDirection = FlexDirection.Row;
+                neededRow.style.justifyContent = Justify.SpaceBetween;
+                neededRow.style.marginBottom = 8;
+
+                var neededLabel = new Label("Fragments to use");
+                neededLabel.style.fontSize = 11;
+                neededLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                string fragmentsText = preview.FragmentsToConsume == preview.FragmentsForFullRepair
+                    ? $"{preview.FragmentsToConsume} (full repair)"
+                    : $"{preview.FragmentsToConsume} / {preview.FragmentsForFullRepair} needed";
+                var neededValue = new Label(fragmentsText);
+                neededValue.style.fontSize = 11;
+                neededValue.style.color = Color.white;
+
+                neededRow.Add(neededLabel);
+                neededRow.Add(neededValue);
+                repairContainer.Add(neededRow);
+
+                // Repair button
+                repairButton = new Button(HandleRepairClicked);
+                repairButton.text = preview.IsFullRepair ? "Full Repair" : "Repair";
+                repairButton.style.height = 28;
+                repairButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.9f);
+                repairButton.style.borderTopLeftRadius = 4;
+                repairButton.style.borderTopRightRadius = 4;
+                repairButton.style.borderBottomLeftRadius = 4;
+                repairButton.style.borderBottomRightRadius = 4;
+                repairButton.style.color = Color.white;
+                repairContainer.Add(repairButton);
+            }
+            else
+            {
+                // Show why repair cannot proceed
+                string reason = GetRepairFailureMessage(preview.FailureReason);
+                var reasonLabel = new Label(reason);
+                reasonLabel.style.fontSize = 11;
+                reasonLabel.style.color = new Color(0.9f, 0.6f, 0.4f);
+                reasonLabel.style.whiteSpace = WhiteSpace.Normal;
+                reasonLabel.style.marginTop = 4;
+                repairContainer.Add(reasonLabel);
+            }
+        }
+
+        private string GetRepairFailureMessage(RepairFailureReason reason)
+        {
+            return reason switch
+            {
+                RepairFailureReason.NoFragmentsAvailable => "No repair fragments available.",
+                RepairFailureReason.InsufficientFragments => "Not enough repair fragments.",
+                RepairFailureReason.AlreadyFullDurability => "Already at full durability.",
+                RepairFailureReason.BrokenRepairNotAllowed => "This equipment cannot be repaired.",
+                RepairFailureReason.InvalidConfig => "Repair system not configured.",
+                _ => "Cannot repair."
+            };
+        }
+
+        private void HandleRepairClicked()
+        {
+            if (selectedSlotIndex < 0 || playerRepair == null || playerInventory?.Inventory == null)
+            {
+                return;
+            }
+
+            var slot = playerInventory.Inventory.GetSlot(selectedSlotIndex);
+            if (slot == null || slot.IsEmpty || !slot.Item.HasEquipmentData)
+            {
+                return;
+            }
+
+            var equipData = slot.Item.EquipmentData;
+            var result = playerRepair.RepairEquipment(equipData);
+
+            if (result.Success)
+            {
+                Debug.Log($"[InventoryUI] Repaired {result.EquipmentName}: " +
+                    $"{result.DurabilityBefore:F0} → {result.DurabilityAfter:F0} " +
+                    $"(used {result.FragmentsConsumed} fragments)");
+
+                // Refresh the UI to show updated condition
+                UpdateItemDetails();
+                RefreshAllSlots();
+            }
+            else
+            {
+                Debug.LogWarning($"[InventoryUI] Repair failed: {result.FailureReason}");
+            }
+        }
+
         private void HideEquipmentUI()
         {
             if (equipmentStatsContainer != null)
                 equipmentStatsContainer.style.display = DisplayStyle.None;
+            if (conditionContainer != null)
+                conditionContainer.style.display = DisplayStyle.None;
+            if (repairContainer != null)
+                repairContainer.style.display = DisplayStyle.None;
             if (affixesContainer != null)
                 affixesContainer.style.display = DisplayStyle.None;
             if (historyContainer != null)
@@ -807,6 +1176,37 @@ namespace Lootbound.UI
         {
             if (!isOpen) return;
             UpdateCapacityLabel();
+            RefreshAllSlots();
+
+            // Refresh item details to update repair panel (fragment count may have changed)
+            if (selectedSlotIndex >= 0)
+            {
+                UpdateItemDetails();
+            }
+        }
+
+        private void HandleEquipmentChanged(WearResult result)
+        {
+            if (!isOpen) return;
+
+            // Refresh the slot and details when equipment durability changes
+            RefreshAllSlots();
+            if (selectedSlotIndex >= 0)
+            {
+                UpdateItemDetails();
+            }
+        }
+
+        private void HandleRepairCompleted(RepairResult result)
+        {
+            if (!isOpen) return;
+
+            // Refresh after repair to show updated durability and fragment count
+            RefreshAllSlots();
+            if (selectedSlotIndex >= 0)
+            {
+                UpdateItemDetails();
+            }
         }
 
         private void RefreshAllSlots()
@@ -838,7 +1238,8 @@ namespace Lootbound.UI
                 // Empty slot
                 if (iconElement != null)
                 {
-                    iconElement.style.backgroundImage = null;
+                    iconElement.style.backgroundImage = StyleKeyword.None;
+                    iconElement.style.display = DisplayStyle.None;
                 }
                 if (quantityLabel != null)
                 {
@@ -855,10 +1256,16 @@ namespace Lootbound.UI
                 var item = slot.Item;
                 var definition = item.Definition;
 
-                if (iconElement != null && definition.Icon != null)
+                if (iconElement != null)
                 {
-                    iconElement.style.backgroundImage = new StyleBackground(definition.Icon);
+                    iconElement.style.display = DisplayStyle.Flex;
+                    if (definition.Icon != null)
+                    {
+                        iconElement.style.backgroundImage = new StyleBackground(definition.Icon);
+                    }
+                    iconElement.MarkDirtyRepaint();
                 }
+                slotElement.MarkDirtyRepaint();
 
                 if (quantityLabel != null)
                 {

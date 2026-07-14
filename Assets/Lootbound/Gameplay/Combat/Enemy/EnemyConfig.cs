@@ -51,9 +51,24 @@ namespace Lootbound.Gameplay.Combat
         [Tooltip("Stagger force applied to targets.")]
         [SerializeField, Range(0f, 1f)] private float attackStaggerForce = 0.2f;
 
-        [Header("Stagger")]
+        [Header("Stagger & Poise")]
         [Tooltip("Duration the enemy is staggered when hit.")]
         [SerializeField] private float staggerDuration = 0.4f;
+
+        [Tooltip("Maximum poise. Enemy staggers when poise reaches 0.")]
+        [SerializeField] private float maxPoise = 30f;
+
+        [Tooltip("Poise regeneration per second (only when not recently hit).")]
+        [SerializeField] private float poiseRegenRate = 20f;
+
+        [Tooltip("Delay before poise starts regenerating after being hit.")]
+        [SerializeField] private float poiseRegenDelay = 1f;
+
+        [Tooltip("Immunity duration after being staggered (prevents stagger-lock).")]
+        [SerializeField] private float staggerImmunityDuration = 1.2f;
+
+        [Tooltip("Knockback distance when staggered.")]
+        [SerializeField] private float knockbackDistance = 1f;
 
         [Header("Loot")]
         [Tooltip("Items that can drop when this enemy dies.")]
@@ -92,8 +107,13 @@ namespace Lootbound.Gameplay.Combat
         public float AttackCooldown => attackCooldown;
         public float AttackStaggerForce => attackStaggerForce;
 
-        // Stagger
+        // Stagger & Poise
         public float StaggerDuration => staggerDuration;
+        public float MaxPoise => maxPoise;
+        public float PoiseRegenRate => poiseRegenRate;
+        public float PoiseRegenDelay => poiseRegenDelay;
+        public float StaggerImmunityDuration => staggerImmunityDuration;
+        public float KnockbackDistance => knockbackDistance;
 
         // Loot
         public ItemDefinition[] LootItems => lootItems;
@@ -123,6 +143,11 @@ namespace Lootbound.Gameplay.Combat
             attackRecovery = Mathf.Max(0f, attackRecovery);
             attackCooldown = Mathf.Max(0f, attackCooldown);
             staggerDuration = Mathf.Max(0f, staggerDuration);
+            maxPoise = Mathf.Max(1f, maxPoise);
+            poiseRegenRate = Mathf.Max(0f, poiseRegenRate);
+            poiseRegenDelay = Mathf.Max(0f, poiseRegenDelay);
+            staggerImmunityDuration = Mathf.Max(0f, staggerImmunityDuration);
+            knockbackDistance = Mathf.Max(0f, knockbackDistance);
             minLootQuantity = Mathf.Max(0, minLootQuantity);
             maxLootQuantity = Mathf.Max(minLootQuantity, maxLootQuantity);
         }

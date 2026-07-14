@@ -16,7 +16,7 @@ MonoBehaviour:
   spherecastRadius: 0.1
   interactableLayer:
     serializedVersion: 2
-    m_Bits: 64
+    m_Bits: 192
   defaultHoldDuration: 0
   promptFadeStartDistance: 2.5
   promptFadeEndDistance: 3

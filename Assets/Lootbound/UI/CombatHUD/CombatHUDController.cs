@@ -55,6 +55,19 @@ namespace Lootbound.UI.Combat
             }
         }
 
+        private void Start()
+        {
+            // Force update after all components are initialized
+            StartCoroutine(DelayedHealthUpdate());
+        }
+
+        private System.Collections.IEnumerator DelayedHealthUpdate()
+        {
+            // Wait one frame to ensure all components are ready
+            yield return null;
+            UpdateHealthDisplay();
+        }
+
         private void OnEnable()
         {
             if (uiDocument == null)
@@ -66,11 +79,29 @@ namespace Lootbound.UI.Combat
             root = uiDocument.rootVisualElement;
             CacheElements();
             SubscribeToEvents();
+
+            // Wait for UI to be fully attached before updating
+            root.RegisterCallback<AttachToPanelEvent>(OnPanelAttached);
+
+            // Also try immediate update in case already attached
+            if (root.panel != null)
+            {
+                UpdateHealthDisplay();
+            }
+        }
+
+        private void OnPanelAttached(AttachToPanelEvent evt)
+        {
+            // Update health display once UI is ready
             UpdateHealthDisplay();
         }
 
         private void OnDisable()
         {
+            if (root != null)
+            {
+                root.UnregisterCallback<AttachToPanelEvent>(OnPanelAttached);
+            }
             UnsubscribeFromEvents();
         }
 
@@ -152,7 +183,8 @@ namespace Lootbound.UI.Combat
             if (healthBarFill != null)
             {
                 float percentage = max > 0 ? current / max : 0f;
-                healthBarFill.style.width = new StyleLength(new Length(percentage * 100f, LengthUnit.Percent));
+                float widthPercent = percentage * 100f;
+                healthBarFill.style.width = Length.Percent(widthPercent);
 
                 // Low health visual
                 if (percentage <= 0.25f)

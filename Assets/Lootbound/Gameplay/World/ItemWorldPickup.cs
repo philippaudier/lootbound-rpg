@@ -259,14 +259,16 @@ namespace Lootbound.Gameplay.World
 
         private static GameObject CreatePickupObject(ItemDefinition definition, Vector3 position)
         {
-            GameObject pickupObj;
+            GameObject pickupObj = null;
 
             // Use the item's world prefab if available
             if (definition.WorldPrefab != null)
             {
                 pickupObj = Instantiate(definition.WorldPrefab, position, Quaternion.identity);
             }
-            else
+
+            // Fallback to placeholder if no prefab or instantiation failed (missing reference)
+            if (pickupObj == null)
             {
                 // Create a simple placeholder
                 pickupObj = GameObject.CreatePrimitive(PrimitiveType.Cube);

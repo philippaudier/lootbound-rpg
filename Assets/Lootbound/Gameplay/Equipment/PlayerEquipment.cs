@@ -20,6 +20,8 @@ namespace Lootbound.Gameplay.Equipment
         [SerializeField] private PlayerMeleeWeapon meleeWeapon;
         [SerializeField] private PlayerCombatController combatController;
         [SerializeField] private EquipmentRegistry equipmentRegistry;
+        [SerializeField] private PlayerWeaponWear playerWeaponWear;
+        [SerializeField] private BrokenWeaponConfig brokenWeaponConfig;
 
         [Header("Weapon View")]
         [SerializeField] private Transform weaponViewSocket;
@@ -31,6 +33,7 @@ namespace Lootbound.Gameplay.Equipment
         private EquipmentData currentEquipment;
         private ResolvedWeaponStats currentStats;
         private GameObject currentWeaponView;
+        private EquipmentCondition previousCondition;
 
         /// <summary>
         /// Currently equipped equipment data.
@@ -67,6 +70,16 @@ namespace Lootbound.Gameplay.Equipment
         /// </summary>
         public event Action OnWeaponUnequipped;
 
+        /// <summary>
+        /// Fired when equipment stats are recalculated (e.g., due to condition change).
+        /// </summary>
+        public event Action<ResolvedWeaponStats> OnStatsChanged;
+
+        /// <summary>
+        /// The broken weapon config used for penalty calculations.
+        /// </summary>
+        public BrokenWeaponConfig BrokenConfig => brokenWeaponConfig;
+
         private void Awake()
         {
             // Auto-find dependencies
@@ -83,6 +96,11 @@ namespace Lootbound.Gameplay.Equipment
             if (combatController == null)
             {
                 combatController = GetComponentInParent<PlayerCombatController>();
+            }
+
+            if (playerWeaponWear == null)
+            {
+                playerWeaponWear = GetComponentInParent<PlayerWeaponWear>();
             }
 
             // Initialize with default stats
@@ -102,6 +120,12 @@ namespace Lootbound.Gameplay.Equipment
             {
                 combatController.OnHitTarget += HandleCombatHit;
             }
+
+            // Subscribe to condition changes for stat recalculation
+            if (playerWeaponWear != null)
+            {
+                playerWeaponWear.OnConditionChanged += HandleConditionChanged;
+            }
         }
 
         private void OnDisable()
@@ -115,6 +139,11 @@ namespace Lootbound.Gameplay.Equipment
             {
                 combatController.OnHitTarget -= HandleCombatHit;
             }
+
+            if (playerWeaponWear != null)
+            {
+                playerWeaponWear.OnConditionChanged -= HandleConditionChanged;
+            }
         }
 
         private void HandleCombatHit(DamageResult result)
@@ -125,6 +154,53 @@ namespace Lootbound.Gameplay.Equipment
                 RecordKill();
                 LootboundLog.Info(Category, $"Kill recorded with {currentEquipment.CustomName}. Total: {currentEquipment.History.EnemiesDefeated}");
             }
+        }
+
+        private void HandleConditionChanged(WearResult result)
+        {
+            if (!HasWeaponEquipped) return;
+
+            // Recalculate stats with broken penalties if applicable
+            RecalculateStats();
+
+            // Log condition change impact
+            if (result.NowBroken)
+            {
+                LootboundLog.Warning(Category, $"{currentEquipment.CustomName} has broken! Combat penalties applied.");
+            }
+        }
+
+        /// <summary>
+        /// Recalculate and reapply stats for the currently equipped weapon.
+        /// Called when condition changes or when manually requested.
+        /// </summary>
+        public void RecalculateStats()
+        {
+            if (!HasWeaponEquipped) return;
+
+            var oldStats = currentStats;
+            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig);
+
+            // Only apply if stats actually changed
+            if (!StatsEqual(oldStats, currentStats))
+            {
+                if (meleeWeapon != null)
+                {
+                    meleeWeapon.SetEquipmentStats(currentStats);
+                }
+
+                LootboundLog.Info(Category, $"Stats recalculated: {currentStats}");
+                OnStatsChanged?.Invoke(currentStats);
+            }
+        }
+
+        private bool StatsEqual(ResolvedWeaponStats a, ResolvedWeaponStats b)
+        {
+            const float epsilon = 0.001f;
+            return Mathf.Abs(a.Damage - b.Damage) < epsilon &&
+                   Mathf.Abs(a.AttackSpeed - b.AttackSpeed) < epsilon &&
+                   Mathf.Abs(a.Range - b.Range) < epsilon &&
+                   Mathf.Abs(a.Stagger - b.Stagger) < epsilon;
         }
 
         /// <summary>
@@ -231,8 +307,11 @@ namespace Lootbound.Gameplay.Equipment
             currentEquipment.IsEquipped = true;
             currentEquipment.RecordEquip();
 
-            // Resolve stats
-            currentStats = currentEquipment.ResolveStats(equipmentRegistry);
+            // Track condition for change detection
+            previousCondition = currentEquipment.Condition;
+
+            // Resolve stats (includes broken penalties if applicable)
+            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig);
 
             // Update combat system
             ApplyStatsToCombat(weaponDef);

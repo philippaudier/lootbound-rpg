@@ -763,6 +763,466 @@ namespace Lootbound.Tests.EditMode
 
         #endregion
 
+        #region Equipment Condition Tests
+
+        [Test]
+        public void EquipmentCondition_At100Percent_IsExcellent()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(1.0f);
+            Assert.AreEqual(EquipmentCondition.Excellent, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At80Percent_IsExcellent()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.80f);
+            Assert.AreEqual(EquipmentCondition.Excellent, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At79Percent_IsGood()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.79f);
+            Assert.AreEqual(EquipmentCondition.Good, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At60Percent_IsGood()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.60f);
+            Assert.AreEqual(EquipmentCondition.Good, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At59Percent_IsWorn()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.59f);
+            Assert.AreEqual(EquipmentCondition.Worn, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At35Percent_IsWorn()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.35f);
+            Assert.AreEqual(EquipmentCondition.Worn, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At34Percent_IsFragile()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.34f);
+            Assert.AreEqual(EquipmentCondition.Fragile, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At1Percent_IsFragile()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0.01f);
+            Assert.AreEqual(EquipmentCondition.Fragile, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_At0Percent_IsBroken()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(0f);
+            Assert.AreEqual(EquipmentCondition.Broken, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_NegativeDurability_IsBroken()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(-0.5f);
+            Assert.AreEqual(EquipmentCondition.Broken, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_FromCurrentAndMax_CalculatesCorrectly()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(50f, 100f);
+            Assert.AreEqual(EquipmentCondition.Worn, condition);
+        }
+
+        [Test]
+        public void EquipmentCondition_ZeroMaxDurability_IsBroken()
+        {
+            var condition = EquipmentConditionHelper.GetCondition(50f, 0f);
+            Assert.AreEqual(EquipmentCondition.Broken, condition);
+        }
+
+        [Test]
+        public void EquipmentConditionHelper_GetConditionColor_ReturnsDistinctColors()
+        {
+            var excellentColor = EquipmentConditionHelper.GetConditionColor(EquipmentCondition.Excellent);
+            var goodColor = EquipmentConditionHelper.GetConditionColor(EquipmentCondition.Good);
+            var wornColor = EquipmentConditionHelper.GetConditionColor(EquipmentCondition.Worn);
+            var fragileColor = EquipmentConditionHelper.GetConditionColor(EquipmentCondition.Fragile);
+            var brokenColor = EquipmentConditionHelper.GetConditionColor(EquipmentCondition.Broken);
+
+            Assert.AreNotEqual(excellentColor, goodColor);
+            Assert.AreNotEqual(goodColor, wornColor);
+            Assert.AreNotEqual(wornColor, fragileColor);
+            Assert.AreNotEqual(fragileColor, brokenColor);
+        }
+
+        [Test]
+        public void EquipmentConditionHelper_GetConditionTooltip_ReturnsNonEmptyStrings()
+        {
+            foreach (EquipmentCondition condition in System.Enum.GetValues(typeof(EquipmentCondition)))
+            {
+                var tooltip = EquipmentConditionHelper.GetConditionTooltip(condition);
+                Assert.IsNotEmpty(tooltip);
+            }
+        }
+
+        [Test]
+        public void EquipmentConditionHelper_CanUseInCombat_TrueForAllConditions()
+        {
+            // All conditions allow combat use (broken weapons have penalties but are still usable)
+            Assert.IsTrue(EquipmentConditionHelper.CanUseInCombat(EquipmentCondition.Excellent));
+            Assert.IsTrue(EquipmentConditionHelper.CanUseInCombat(EquipmentCondition.Good));
+            Assert.IsTrue(EquipmentConditionHelper.CanUseInCombat(EquipmentCondition.Worn));
+            Assert.IsTrue(EquipmentConditionHelper.CanUseInCombat(EquipmentCondition.Fragile));
+            Assert.IsTrue(EquipmentConditionHelper.CanUseInCombat(EquipmentCondition.Broken));
+        }
+
+        [Test]
+        public void EquipmentConditionHelper_IsBroken_DetectsBrokenCondition()
+        {
+            Assert.IsFalse(EquipmentConditionHelper.IsBroken(EquipmentCondition.Excellent));
+            Assert.IsFalse(EquipmentConditionHelper.IsBroken(EquipmentCondition.Good));
+            Assert.IsFalse(EquipmentConditionHelper.IsBroken(EquipmentCondition.Worn));
+            Assert.IsFalse(EquipmentConditionHelper.IsBroken(EquipmentCondition.Fragile));
+            Assert.IsTrue(EquipmentConditionHelper.IsBroken(EquipmentCondition.Broken));
+        }
+
+        #endregion
+
+        #region Equipment Durability Tests
+
+        [Test]
+        public void EquipmentData_NewEquipment_HasFullDurability()
+        {
+            var data = new EquipmentData("weapon1", "Test Blade", ItemRarity.Common, null, "TestLocation", 100f);
+
+            Assert.AreEqual(100f, data.MaxDurability);
+            Assert.AreEqual(100f, data.CurrentDurability);
+            Assert.AreEqual(1f, data.NormalizedDurability);
+            Assert.AreEqual(EquipmentCondition.Excellent, data.Condition);
+        }
+
+        [Test]
+        public void EquipmentData_DefaultDurability_Is100()
+        {
+            var data = new EquipmentData("weapon1", "Test Blade", ItemRarity.Common, null, "TestLocation");
+
+            Assert.AreEqual(100f, data.MaxDurability);
+            Assert.AreEqual(100f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_SetDurability_ClampsToBounds()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+
+            data.SetDurability(150f);
+            Assert.AreEqual(100f, data.CurrentDurability);
+
+            data.SetDurability(-50f);
+            Assert.AreEqual(0f, data.CurrentDurability);
+
+            data.SetDurability(50f);
+            Assert.AreEqual(50f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_ReduceDurability_DecreasesValue()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+
+            data.ReduceDurability(30f);
+            Assert.AreEqual(70f, data.CurrentDurability);
+
+            data.ReduceDurability(50f);
+            Assert.AreEqual(20f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_ReduceDurability_ClampsToZero()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+
+            data.ReduceDurability(200f);
+            Assert.AreEqual(0f, data.CurrentDurability);
+            Assert.AreEqual(EquipmentCondition.Broken, data.Condition);
+        }
+
+        [Test]
+        public void EquipmentData_ReduceDurability_IgnoresNegativeAmount()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+
+            data.ReduceDurability(-20f);
+            Assert.AreEqual(100f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_RestoreDurability_IncreasesValue()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+            data.SetDurability(30f);
+
+            data.RestoreDurability(20f);
+            Assert.AreEqual(50f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_RestoreDurability_ClampsToMax()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+            data.SetDurability(80f);
+
+            data.RestoreDurability(50f);
+            Assert.AreEqual(100f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_RestoreDurability_IgnoresNegativeAmount()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+            data.SetDurability(50f);
+
+            data.RestoreDurability(-20f);
+            Assert.AreEqual(50f, data.CurrentDurability);
+        }
+
+        [Test]
+        public void EquipmentData_NormalizedDurability_CalculatesCorrectly()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 200f);
+            data.SetDurability(100f);
+
+            Assert.AreEqual(0.5f, data.NormalizedDurability, 0.001f);
+        }
+
+        [Test]
+        public void EquipmentData_Condition_UpdatesWithDurability()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+
+            Assert.AreEqual(EquipmentCondition.Excellent, data.Condition);
+
+            data.SetDurability(70f);
+            Assert.AreEqual(EquipmentCondition.Good, data.Condition);
+
+            data.SetDurability(40f);
+            Assert.AreEqual(EquipmentCondition.Worn, data.Condition);
+
+            data.SetDurability(20f);
+            Assert.AreEqual(EquipmentCondition.Fragile, data.Condition);
+
+            data.SetDurability(0f);
+            Assert.AreEqual(EquipmentCondition.Broken, data.Condition);
+        }
+
+        [Test]
+        public void EquipmentData_Clone_PreservesDurability()
+        {
+            var original = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+            original.SetDurability(45f);
+
+            var clone = original.Clone();
+
+            Assert.AreEqual(45f, clone.CurrentDurability);
+            Assert.AreEqual(100f, clone.MaxDurability);
+        }
+
+        [Test]
+        public void EquipmentData_CloneWithNewId_StartsAtFullDurability()
+        {
+            var original = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", 100f);
+            original.SetDurability(45f);
+
+            var clone = original.CloneWithNewId();
+
+            Assert.AreEqual(100f, clone.CurrentDurability);
+            Assert.AreEqual(100f, clone.MaxDurability);
+        }
+
+        [Test]
+        public void EquipmentData_Serialization_PreservesDurability()
+        {
+            var history = new EquipmentHistory("Test");
+            var data = new EquipmentData(
+                "instance-id",
+                "weapon1",
+                "Test",
+                ItemRarity.Common,
+                null,
+                history,
+                45f,
+                100f);
+
+            Assert.AreEqual(45f, data.CurrentDurability);
+            Assert.AreEqual(100f, data.MaxDurability);
+        }
+
+        [Test]
+        public void EquipmentData_MinDurabilityClamp_PreventsNegativeMax()
+        {
+            var data = new EquipmentData("weapon1", "Test", ItemRarity.Common, null, "Location", -50f);
+
+            Assert.AreEqual(1f, data.MaxDurability);
+        }
+
+        #endregion
+
+        #region Broken Weapon Tests
+
+        private BrokenWeaponConfig CreateTestBrokenConfig(
+            float damageMultiplier = 0.30f,
+            float attackSpeedMultiplier = 0.55f,
+            float rangeMultiplier = 0.90f,
+            float staggerMultiplier = 0.20f)
+        {
+            var config = ScriptableObject.CreateInstance<BrokenWeaponConfig>();
+            var type = typeof(BrokenWeaponConfig);
+
+            type.GetField("damageMultiplier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(config, damageMultiplier);
+            type.GetField("attackSpeedMultiplier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(config, attackSpeedMultiplier);
+            type.GetField("rangeMultiplier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(config, rangeMultiplier);
+            type.GetField("staggerMultiplier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(config, staggerMultiplier);
+
+            return config;
+        }
+
+        [Test]
+        public void BrokenWeaponConfig_ApplyPenalties_ReducesStats()
+        {
+            var config = CreateTestBrokenConfig(0.30f, 0.55f, 0.90f, 0.20f);
+
+            var (damage, attackSpeed, range, stagger) = config.ApplyPenalties(100f, 1f, 2f, 0.5f);
+
+            Assert.AreEqual(30f, damage, 0.01f);
+            Assert.AreEqual(0.55f, attackSpeed, 0.01f);
+            Assert.AreEqual(1.8f, range, 0.01f);
+            Assert.AreEqual(0.1f, stagger, 0.01f);
+        }
+
+        [Test]
+        public void BrokenWeaponConfig_GetPenaltyPercent_ReturnsCorrectValues()
+        {
+            var config = CreateTestBrokenConfig(0.30f, 0.55f, 0.90f, 0.20f);
+
+            Assert.AreEqual(-70, config.GetDamagePenaltyPercent());
+            Assert.AreEqual(-45, config.GetSpeedPenaltyPercent());
+            Assert.AreEqual(-10, config.GetRangePenaltyPercent());
+            Assert.AreEqual(-80, config.GetStaggerPenaltyPercent());
+        }
+
+        [Test]
+        public void EquipmentData_ResolveStats_WithBrokenConfig_AppliesPenaltiesWhenBroken()
+        {
+            // Create a mock registry
+            var weaponDef = ScriptableObject.CreateInstance<WeaponDefinition>();
+            SetWeaponDefinitionFields(weaponDef, "test_weapon", "Test Weapon", 100f, 1f, 2f, 0.5f);
+
+            var registry = ScriptableObject.CreateInstance<EquipmentRegistry>();
+            var weaponsList = new System.Collections.Generic.List<WeaponDefinition> { weaponDef };
+            typeof(EquipmentRegistry)
+                .GetField("weaponDefinitions", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(registry, weaponsList);
+            registry.Reinitialize();
+
+            var brokenConfig = CreateTestBrokenConfig(0.30f, 0.55f, 0.90f, 0.20f);
+
+            // Create equipment and make it broken
+            var equipment = new EquipmentData("test_weapon", "Test Blade", ItemRarity.Common, null, "TestLocation", 100f);
+            equipment.SetDurability(0f); // Broken
+
+            // Resolve stats with broken config
+            var stats = equipment.ResolveStats(registry, brokenConfig);
+
+            Assert.IsTrue(stats.IsValid);
+            Assert.AreEqual(30f, stats.Damage, 1f); // 100 * 0.30 = 30
+            Assert.AreEqual(0.55f, stats.AttackSpeed, 0.1f); // 1 * 0.55 = 0.55
+            Assert.AreEqual(1.8f, stats.Range, 0.1f); // 2 * 0.90 = 1.8
+        }
+
+        [Test]
+        public void EquipmentData_ResolveStats_WithBrokenConfig_NoPenaltiesWhenNotBroken()
+        {
+            var weaponDef = ScriptableObject.CreateInstance<WeaponDefinition>();
+            SetWeaponDefinitionFields(weaponDef, "test_weapon", "Test Weapon", 100f, 1f, 2f, 0.5f);
+
+            var registry = ScriptableObject.CreateInstance<EquipmentRegistry>();
+            var weaponsList = new System.Collections.Generic.List<WeaponDefinition> { weaponDef };
+            typeof(EquipmentRegistry)
+                .GetField("weaponDefinitions", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(registry, weaponsList);
+            registry.Reinitialize();
+
+            var brokenConfig = CreateTestBrokenConfig(0.30f, 0.55f, 0.90f, 0.20f);
+
+            // Create equipment at full durability (not broken)
+            var equipment = new EquipmentData("test_weapon", "Test Blade", ItemRarity.Common, null, "TestLocation", 100f);
+
+            var stats = equipment.ResolveStats(registry, brokenConfig);
+
+            Assert.IsTrue(stats.IsValid);
+            Assert.AreEqual(100f, stats.Damage, 1f); // No penalty
+            Assert.AreEqual(1f, stats.AttackSpeed, 0.1f); // No penalty
+            Assert.AreEqual(2f, stats.Range, 0.1f); // No penalty
+        }
+
+        [Test]
+        public void EquipmentData_ResolveStats_WithoutBrokenConfig_NoPenaltiesWhenBroken()
+        {
+            var weaponDef = ScriptableObject.CreateInstance<WeaponDefinition>();
+            SetWeaponDefinitionFields(weaponDef, "test_weapon", "Test Weapon", 100f, 1f, 2f, 0.5f);
+
+            var registry = ScriptableObject.CreateInstance<EquipmentRegistry>();
+            var weaponsList = new System.Collections.Generic.List<WeaponDefinition> { weaponDef };
+            typeof(EquipmentRegistry)
+                .GetField("weaponDefinitions", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(registry, weaponsList);
+            registry.Reinitialize();
+
+            // Create broken equipment
+            var equipment = new EquipmentData("test_weapon", "Test Blade", ItemRarity.Common, null, "TestLocation", 100f);
+            equipment.SetDurability(0f);
+
+            // Resolve without broken config (backward compatibility)
+            var stats = equipment.ResolveStats(registry);
+
+            Assert.IsTrue(stats.IsValid);
+            Assert.AreEqual(100f, stats.Damage, 1f); // No penalty without config
+        }
+
+        private void SetWeaponDefinitionFields(WeaponDefinition def, string id, string displayName, float damage, float attackSpeed, float range, float stagger)
+        {
+            var type = typeof(WeaponDefinition);
+            var baseType = typeof(ItemDefinition);
+
+            baseType.GetField("itemId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, id);
+            baseType.GetField("displayName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, displayName);
+            type.GetField("baseDamage", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, damage);
+            type.GetField("baseAttackSpeed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, attackSpeed);
+            type.GetField("baseRange", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, range);
+            type.GetField("baseStagger", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(def, stagger);
+        }
+
+        #endregion
+
         [TearDown]
         public void TearDown()
         {

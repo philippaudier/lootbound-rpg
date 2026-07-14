@@ -25,6 +25,18 @@ MonoBehaviour:
   attackCooldown: 1.5
   attackStaggerForce: 0.2
   staggerDuration: 0.4
-  lootItems: []
+  maxPoise: 20
+  poiseRegenRate: 15
+  poiseRegenDelay: 1
+  staggerImmunityDuration: 1.2
+  knockbackDistance: 1
+  lootItems:
+  - {fileID: 11400000, guid: eed0a381de7717f49bd3a647eeb264b9, type: 2}
+  - {fileID: 11400000, guid: 321514c8707505f438b62909f29c71a6, type: 2}
   minLootQuantity: 1
   maxLootQuantity: 3
+  weaponLoot:
+  - {fileID: 11400000, guid: 55083b26420edcc4e9a343f234acd7a5, type: 2}
+  - {fileID: 11400000, guid: 68a006f5c393aca41ab898616f2f655c, type: 2}
+  - {fileID: 11400000, guid: 977c6022edfc0414ba8a3a1ae29ae712, type: 2}
+  weaponDropChance: 1
