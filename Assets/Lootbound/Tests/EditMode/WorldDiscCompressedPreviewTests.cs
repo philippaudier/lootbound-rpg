@@ -173,19 +173,25 @@ namespace Lootbound.Tests.EditMode
             var ringConfig = CreateTestRingConfig();
             var disc = new WorldDiscDefinition(LOGICAL_WORLD_RADIUS, 512f, ringConfig);
 
+            // The 512/2000 ratio is not exactly representable in binary floating point,
+            // so the round trip is only exact to a few ulp. The tolerance must scale
+            // with the magnitude of the distance (relative error, not absolute).
             float[] logicalDistances = { 0f, 1f, 100f, 512f, 1250f, LOGICAL_WORLD_RADIUS };
             foreach (float logical in logicalDistances)
             {
                 float preview = disc.LogicalToPreviewDistance(logical);
                 float backToLogical = disc.PreviewToLogicalDistance(preview);
-                Assert.AreEqual(logical, backToLogical, EPSILON,
+                float tolerance = Mathf.Max(EPSILON, logical * 1e-6f);
+                Assert.AreEqual(logical, backToLogical, tolerance,
                     $"Logical→preview→logical round trip should preserve {logical}");
             }
 
             // Endpoints must map onto each other
-            Assert.AreEqual(disc.PreviewTerrainRadius, disc.LogicalToPreviewDistance(disc.WorldRadius), EPSILON,
+            Assert.AreEqual(disc.PreviewTerrainRadius, disc.LogicalToPreviewDistance(disc.WorldRadius),
+                Mathf.Max(EPSILON, disc.PreviewTerrainRadius * 1e-6f),
                 "Full logical radius should map to the preview terrain radius");
-            Assert.AreEqual(disc.WorldRadius, disc.PreviewToLogicalDistance(disc.PreviewTerrainRadius), EPSILON,
+            Assert.AreEqual(disc.WorldRadius, disc.PreviewToLogicalDistance(disc.PreviewTerrainRadius),
+                Mathf.Max(EPSILON, disc.WorldRadius * 1e-6f),
                 "Preview terrain edge should map to the full logical radius");
         }
 
