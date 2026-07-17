@@ -199,6 +199,9 @@ namespace Lootbound.Gameplay.World
 
         /// <summary>
         /// Sample height at world position using bilinear interpolation.
+        /// Reads NormalizedHeightMap - the map actually applied to the Unity
+        /// Terrain via GetTerrainHeightmapData - so the result matches the
+        /// real ground surface (raw HeightMap lives in pre-normalization space).
         /// </summary>
         public float SampleHeightAtWorld(float worldX, float worldZ)
         {
@@ -216,10 +219,10 @@ namespace Lootbound.Gameplay.World
             float tx = fx - x0;
             float tz = fz - z0;
 
-            float h00 = HeightMap[x0, z0];
-            float h10 = HeightMap[x1, z0];
-            float h01 = HeightMap[x0, z1];
-            float h11 = HeightMap[x1, z1];
+            float h00 = NormalizedHeightMap[x0, z0];
+            float h10 = NormalizedHeightMap[x1, z0];
+            float h01 = NormalizedHeightMap[x0, z1];
+            float h11 = NormalizedHeightMap[x1, z1];
 
             float h0 = Mathf.Lerp(h00, h10, tx);
             float h1 = Mathf.Lerp(h01, h11, tx);
