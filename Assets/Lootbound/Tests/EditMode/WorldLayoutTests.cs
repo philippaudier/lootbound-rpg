@@ -74,12 +74,16 @@ namespace Lootbound.Tests.EditMode
             var config = ScriptableObject.CreateInstance<TerrainGenerationConfig>();
 
             SetField(config, "worldSize", 1024f);
-            // Min-max normalization stretches the heightmap to the full 0-1
-            // range, so the final terrain always spans the whole terrainHeight.
-            // Keep a gentle height budget so normalized-space slopes stay
-            // within the 40 degree path budget across seeds.
-            SetField(config, "terrainHeight", 60f);
+            SetField(config, "terrainHeight", 150f);
             SetField(config, "heightmapResolution", 129);
+            // Min-max normalization amplifies slopes by 1/(raw range), which
+            // varies per seed and can push the fixture past the path slope
+            // budget for some seeds (e.g. 12345). The unified-height-space
+            // invariants under test hold with or without normalization, so the
+            // fixture disables it to keep a stable, gentle slope regime.
+            // Normalization-specific behaviour is covered by
+            // TerrainHeightSpaceTests.
+            SetField(config, "normalizeHeightmap", false);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);

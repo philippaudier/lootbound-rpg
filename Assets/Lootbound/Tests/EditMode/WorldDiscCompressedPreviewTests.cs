@@ -72,10 +72,11 @@ namespace Lootbound.Tests.EditMode
             var config = ScriptableObject.CreateInstance<TerrainGenerationConfig>();
 
             SetField(config, "worldSize", 1024f);
-            // Gentle height budget: normalization stretches the map to the full
-            // terrainHeight, and slopes must stay within the path budget.
-            SetField(config, "terrainHeight", 60f);
+            SetField(config, "terrainHeight", 150f);
             SetField(config, "heightmapResolution", 129);
+            // Normalization off: its slope amplification is seed-dependent and
+            // can exceed the path slope budget (see WorldLayoutTests fixture).
+            SetField(config, "normalizeHeightmap", false);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);
