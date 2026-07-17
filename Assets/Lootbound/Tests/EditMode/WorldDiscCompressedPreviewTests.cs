@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using Lootbound.Gameplay.World;
@@ -481,6 +482,155 @@ namespace Lootbound.Tests.EditMode
                 Assert.AreEqual(node1.NormalizedWorldRadius * compressedDisc.CompressionRatio,
                     node2.NormalizedWorldRadius, EPSILON,
                     $"Node {node1.NodeId}: compressed NormalizedWorldRadius should equal 1:1 value scaled by CompressionRatio");
+            }
+        }
+
+        #endregion
+
+        #region Ring Boundary Tests (Compressed Mode)
+
+        // Power-of-two compression (2048 → 512, ratio 0.25) keeps the preview↔logical
+        // conversion bit-exact: a preview distance converted to logical space lands
+        // exactly on the intended normalized radius. This allows asserting the strict
+        // [min, max) boundary rule at the exact threshold, with no tolerance.
+        private const float BOUNDARY_LOGICAL_RADIUS = 2048f;
+        private const float BOUNDARY_PREVIEW_RADIUS = 512f;
+
+        // Offset in normalized space for the "just before" / "just after" cases.
+        // Far above float precision, far below the smallest gap between thresholds (0.05).
+        private const float BOUNDARY_OFFSET = 0.0001f;
+
+        /// <summary>
+        /// All ring thresholds sorted by ascending minimum normalized radius.
+        /// Read from the config (not hardcoded) so the tests follow threshold changes.
+        /// </summary>
+        private List<(WorldRing ring, float min)> GetRingThresholdsAscending(WorldRingConfig ringConfig)
+        {
+            var thresholds = new List<(WorldRing ring, float min)>();
+            foreach (WorldRing ring in System.Enum.GetValues(typeof(WorldRing)))
+            {
+                thresholds.Add((ring, ringConfig.GetMinimumRadius(ring)));
+            }
+            thresholds.Sort((a, b) => a.min.CompareTo(b.min));
+            return thresholds;
+        }
+
+        /// <summary>
+        /// Evaluate a ring starting from a preview-space distance:
+        /// convert to logical space first, then evaluate against the logical WorldRadius.
+        /// </summary>
+        private WorldRing EvaluateRingFromPreviewDistance(WorldDiscDefinition disc, float previewDistance)
+        {
+            float logicalDistance = disc.PreviewToLogicalDistance(previewDistance);
+            return WorldRingEvaluator.EvaluateFromDistance(logicalDistance, disc.WorldRadius, disc.RingConfig).Ring;
+        }
+
+        [Test]
+        public void RingBoundaries_Compressed_JustBeforeThreshold_ReturnsPreviousRing()
+        {
+            var ringConfig = CreateTestRingConfig();
+            var disc = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, BOUNDARY_PREVIEW_RADIUS, ringConfig);
+            var thresholds = GetRingThresholdsAscending(ringConfig);
+
+            // Skip index 0 (Refuge starts at 0; there is no ring before it)
+            for (int i = 1; i < thresholds.Count; i++)
+            {
+                float previewDistance = (thresholds[i].min - BOUNDARY_OFFSET) * disc.PreviewTerrainRadius;
+                WorldRing ring = EvaluateRingFromPreviewDistance(disc, previewDistance);
+
+                Assert.AreEqual(thresholds[i - 1].ring, ring,
+                    $"Just before the {thresholds[i].ring} threshold ({thresholds[i].min}), " +
+                    $"the previous ring {thresholds[i - 1].ring} must still apply (max is exclusive)");
+            }
+        }
+
+        [Test]
+        public void RingBoundaries_Compressed_ExactlyAtThreshold_ReturnsNewRing()
+        {
+            var ringConfig = CreateTestRingConfig();
+            var disc = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, BOUNDARY_PREVIEW_RADIUS, ringConfig);
+            var thresholds = GetRingThresholdsAscending(ringConfig);
+
+            // Includes index 0: exactly at 0 → Refuge
+            for (int i = 0; i < thresholds.Count; i++)
+            {
+                float previewDistance = thresholds[i].min * disc.PreviewTerrainRadius;
+                WorldRing ring = EvaluateRingFromPreviewDistance(disc, previewDistance);
+
+                Assert.AreEqual(thresholds[i].ring, ring,
+                    $"Exactly at the {thresholds[i].ring} threshold ({thresholds[i].min}), " +
+                    $"the new ring must apply (min is inclusive)");
+            }
+        }
+
+        [Test]
+        public void RingBoundaries_Compressed_JustAfterThreshold_ReturnsNewRing()
+        {
+            var ringConfig = CreateTestRingConfig();
+            var disc = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, BOUNDARY_PREVIEW_RADIUS, ringConfig);
+            var thresholds = GetRingThresholdsAscending(ringConfig);
+
+            for (int i = 0; i < thresholds.Count; i++)
+            {
+                float previewDistance = (thresholds[i].min + BOUNDARY_OFFSET) * disc.PreviewTerrainRadius;
+                WorldRing ring = EvaluateRingFromPreviewDistance(disc, previewDistance);
+
+                Assert.AreEqual(thresholds[i].ring, ring,
+                    $"Just after the {thresholds[i].ring} threshold ({thresholds[i].min}), " +
+                    $"the new ring must apply");
+            }
+        }
+
+        [Test]
+        public void RingBoundaries_Compressed_VoidHasNoUpperBound()
+        {
+            var ringConfig = CreateTestRingConfig();
+            var disc = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, BOUNDARY_PREVIEW_RADIUS, ringConfig);
+
+            // Void owns [min, +∞]: beyond the preview edge and even beyond the logical radius
+            WorldRing atLogicalEdge = EvaluateRingFromPreviewDistance(disc, 1.0f * disc.PreviewTerrainRadius);
+            Assert.AreEqual(WorldRing.Void, atLogicalEdge,
+                "Preview terrain edge maps to the logical world edge (normalized 1.0) → Void");
+
+            WorldRing beyondLogicalEdge = EvaluateRingFromPreviewDistance(disc, 1.5f * disc.PreviewTerrainRadius);
+            Assert.AreEqual(WorldRing.Void, beyondLogicalEdge,
+                "Beyond the logical radius (normalized 1.5) is still Void (no upper bound)");
+        }
+
+        [Test]
+        public void RingBoundaries_SameRing_InOneToOneAndCompressedModes()
+        {
+            var ringConfig = CreateTestRingConfig();
+            var compressed = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, BOUNDARY_PREVIEW_RADIUS, ringConfig);
+            var oneToOne = new WorldDiscDefinition(BOUNDARY_LOGICAL_RADIUS, ringConfig);
+            var thresholds = GetRingThresholdsAscending(ringConfig);
+
+            // The logical structure must be identical between modes: the same logical
+            // point yields the same ring whether reached directly (1:1) or through
+            // the preview transform (compressed).
+            float[] offsets = { -BOUNDARY_OFFSET, 0f, BOUNDARY_OFFSET };
+
+            foreach (var threshold in thresholds)
+            {
+                foreach (float offset in offsets)
+                {
+                    float normalized = threshold.min + offset;
+                    if (normalized < 0f) continue; // No position before the Refuge center
+
+                    float logicalDistance = normalized * BOUNDARY_LOGICAL_RADIUS;
+
+                    // 1:1 mode: distances are already logical
+                    WorldRing oneToOneRing = WorldRingEvaluator.EvaluateFromDistance(
+                        logicalDistance, oneToOne.WorldRadius, ringConfig).Ring;
+
+                    // Compressed mode: same logical point seen through the preview transform
+                    float previewDistance = compressed.LogicalToPreviewDistance(logicalDistance);
+                    WorldRing compressedRing = EvaluateRingFromPreviewDistance(compressed, previewDistance);
+
+                    Assert.AreEqual(oneToOneRing, compressedRing,
+                        $"Ring at normalized {normalized} (threshold {threshold.ring} {offset:+0.0000;-0.0000;+0}) " +
+                        "must be identical in 1:1 and compressed modes");
+                }
             }
         }
 
