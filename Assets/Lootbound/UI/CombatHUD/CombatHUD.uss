@@ -24,7 +24,7 @@
     position: absolute;
     left: 0;
     top: 0;
-    bottom: 0;
+    height: 100%;
     width: 100%;
     background-color: rgb(180, 60, 60);
     transition-duration: 0.2s;
@@ -134,7 +134,7 @@
     position: absolute;
     left: 0;
     top: 0;
-    bottom: 0;
+    height: 100%;
     width: 100%;
     background-color: rgb(180, 100, 60);
     transition-duration: 0.15s;

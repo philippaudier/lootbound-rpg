@@ -7,12 +7,13 @@ namespace Lootbound.UI
 {
     /// <summary>
     /// Displays equipment condition change notifications using UI Toolkit.
-    /// Shows when weapon condition degrades due to wear.
+    /// Shows when weapon condition degrades due to wear and when equipment is repaired.
     /// </summary>
     public class ConditionNotificationUI : MonoBehaviour
     {
         [SerializeField] private UIDocument uiDocument;
         [SerializeField] private PlayerWeaponWear playerWeaponWear;
+        [SerializeField] private PlayerRepair playerRepair;
 
         [Header("Settings")]
         [SerializeField] private float notificationDuration = 4f;
@@ -46,6 +47,11 @@ namespace Lootbound.UI
             {
                 playerWeaponWear.OnConditionChanged += HandleConditionChanged;
             }
+
+            if (playerRepair != null)
+            {
+                playerRepair.OnRepairCompleted += HandleRepairCompleted;
+            }
         }
 
         private void OnDisable()
@@ -53,6 +59,11 @@ namespace Lootbound.UI
             if (playerWeaponWear != null)
             {
                 playerWeaponWear.OnConditionChanged -= HandleConditionChanged;
+            }
+
+            if (playerRepair != null)
+            {
+                playerRepair.OnRepairCompleted -= HandleRepairCompleted;
             }
         }
 
@@ -107,6 +118,14 @@ namespace Lootbound.UI
         private void HandleConditionChanged(WearResult result)
         {
             ShowConditionNotification(result);
+        }
+
+        private void HandleRepairCompleted(RepairResult result)
+        {
+            if (result.Success)
+            {
+                ShowRepairNotification(result);
+            }
         }
 
         /// <summary>
@@ -199,12 +218,13 @@ namespace Lootbound.UI
 
         private string GetConditionMessage(EquipmentCondition condition)
         {
+            // Slice 0.7.7: Sobered notification messages
             return condition switch
             {
                 EquipmentCondition.Good => "is showing signs of use",
                 EquipmentCondition.Worn => "has seen many battles",
-                EquipmentCondition.Fragile => "is becoming fragile!",
-                EquipmentCondition.Broken => "HAS BROKEN!",
+                EquipmentCondition.Fragile => "has become fragile",
+                EquipmentCondition.Broken => "has broken",
                 _ => "condition changed"
             };
         }
@@ -212,6 +232,91 @@ namespace Lootbound.UI
         private bool IsBrokenNotification(EquipmentCondition condition)
         {
             return condition == EquipmentCondition.Broken;
+        }
+
+        /// <summary>
+        /// Show a repair completion notification.
+        /// </summary>
+        public void ShowRepairNotification(RepairResult result)
+        {
+            if (notificationContainer == null || !result.Success)
+            {
+                return;
+            }
+
+            // Remove oldest if at max
+            while (activeNotifications.Count >= maxNotifications)
+            {
+                var oldest = activeNotifications.Dequeue();
+                if (oldest.Element.parent == notificationContainer)
+                {
+                    notificationContainer.Remove(oldest.Element);
+                }
+            }
+
+            // Create notification element
+            var notification = CreateRepairNotificationElement(result);
+            notificationContainer.Insert(0, notification);
+
+            // Track for expiration
+            activeNotifications.Enqueue(new NotificationEntry
+            {
+                Element = notification,
+                ExpireTime = Time.time + notificationDuration
+            });
+        }
+
+        private VisualElement CreateRepairNotificationElement(RepairResult result)
+        {
+            var notification = new VisualElement();
+            notification.AddToClassList("condition-notification-item");
+            notification.AddToClassList("condition-notification-repair");
+
+            // Icon placeholder
+            var icon = new VisualElement();
+            icon.AddToClassList("condition-notification-icon");
+            icon.AddToClassList("condition-notification-icon-repair");
+            notification.Add(icon);
+
+            // Text container
+            var textContainer = new VisualElement();
+            textContainer.AddToClassList("condition-notification-text-container");
+
+            // Equipment name
+            var nameLabel = new Label(result.EquipmentName);
+            nameLabel.AddToClassList("condition-notification-name");
+            textContainer.Add(nameLabel);
+
+            // Repair message
+            string message = GetRepairMessage(result);
+            var conditionLabel = new Label(message);
+            conditionLabel.AddToClassList("condition-notification-condition");
+
+            // Apply condition color for the new condition
+            Color conditionColor = EquipmentConditionHelper.GetConditionColor(result.ConditionAfter);
+            conditionLabel.style.color = conditionColor;
+
+            textContainer.Add(conditionLabel);
+
+            notification.Add(textContainer);
+
+            return notification;
+        }
+
+        private string GetRepairMessage(RepairResult result)
+        {
+            // Slice 0.7.7: Sober repair messages
+            if (result.RestoredFromBroken)
+            {
+                return "is usable again";
+            }
+
+            if (result.ConditionAfter == EquipmentCondition.Excellent)
+            {
+                return "restored to full condition";
+            }
+
+            return $"restored to {result.ConditionAfter} condition";
         }
 
         /// <summary>

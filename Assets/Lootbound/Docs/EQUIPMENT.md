@@ -1,6 +1,6 @@
-# Equipment & Loot Identity System (Slice 0.6 + 0.7)
+# Equipment & Loot Identity System (Slice 0.6 + 0.7 + 0.8)
 
-This document describes the equipment and loot identity system implemented in Slice 0.6, with the condition system added in Slice 0.7.1, weapon wear in Slice 0.7.2, broken weapons in Slice 0.7.3, and repair fragments in Slice 0.7.4.
+This document describes the equipment and loot identity system implemented in Slice 0.6, with the condition system added in Slice 0.7.1, weapon wear in Slice 0.7.2, broken weapons in Slice 0.7.3, repair fragments in Slice 0.7.4, repair station in Slice 0.7.5, repair history in Slice 0.7.6, polish/feedback in Slice 0.7.7, and attunement foundation in Slice 0.8.1.
 
 ## Overview
 
@@ -12,9 +12,10 @@ The equipment system provides unique, persistent equipment identity with:
 - Generated names based on rarity
 - History tracking (found location, enemies defeated)
 - **Durability and condition system** (Slice 0.7.1)
+- **Attunement level system** (Slice 0.8.1) - foundation only
 - Equipment/unequipment from inventory
 - Combat integration with resolved stats
-- UI for equipment details, condition, and comparison
+- UI for equipment details, condition, attunement, and comparison
 
 ## Architecture
 
@@ -25,12 +26,17 @@ Equipment/
 │   ├── AffixDefinition       - ScriptableObject for affix templates
 │   └── EquipmentRegistry     - Registry of all definitions
 ├── Instances/
-│   ├── EquipmentData         - Unique instance with GUID, affixes, durability
+│   ├── EquipmentData         - Unique instance with GUID, affixes, durability, attunement
 │   ├── AffixInstance         - Rolled affix with value
-│   └── EquipmentHistory      - Tracks found location, kills, equips
+│   └── EquipmentHistory      - Tracks found location, kills, equips, repairs
 ├── Condition/
 │   ├── EquipmentCondition    - Enum (Excellent, Good, Worn, Fragile, Broken)
 │   └── EquipmentConditionHelper - Centralized thresholds, colors, tooltips
+├── Attunement/
+│   ├── AttunementState       - Enum (Unattuned, Attuned, Maximum)
+│   ├── AttunementLevelChangeResult - Struct for modification results
+│   ├── AttunementFoundationConfig  - ScriptableObject for max level
+│   └── AttunementHelper      - Static helper methods
 ├── Stats/
 │   ├── ResolvedWeaponStats   - Computed final stats
 │   └── AffixModifierType     - Enum for stat modifiers
@@ -84,6 +90,13 @@ public float CurrentDurability { get; }
 public float MaxDurability { get; }
 public float NormalizedDurability { get; }  // 0-1
 public EquipmentCondition Condition { get; }
+
+// Attunement (Slice 0.8.1)
+public int AttunementLevel { get; }           // 0-5
+public int MaximumAttunementLevel { get; }    // Default 5
+public AttunementState AttunementState { get; }
+public bool IsAttuned { get; }                // Level > 0
+public bool IsAtMaximumAttunement { get; }    // Level == Max
 ```
 
 ## Affix System
@@ -1048,7 +1061,7 @@ EditMode tests in `RepairTests.cs`:
 ### V1 Limitations
 
 Not implemented in Slice 0.7.4:
-- Repair Station (3D workbench at refuge) - deferred to Slice 0.7.5
+- ~~Repair Station (3D workbench at refuge)~~ - Implemented in Slice 0.7.5
 - Repair animation/VFX
 - Repair audio
 - Fragment crafting
@@ -1062,8 +1075,9 @@ Not implemented:
 - Multiple affix slots
 - ~~Equipment durability~~ → Implemented in Slice 0.7.1 (foundation only)
 - ~~Equipment repair~~ → Implemented in Slice 0.7.4 (repair fragments)
-- Equipment enhancement
+- ~~Equipment enhancement~~ → Foundation in Slice 0.8.1 (attunement data only)
 - ~~Durability loss from combat~~ → Implemented in Slice 0.7.2
+- Attunement attempt mechanics (bonus stats, chances, costs)
 - Armor equipment
 - Accessory equipment
 - Equipment set bonuses
@@ -1072,12 +1086,109 @@ Not implemented:
 - Equipment favoriting
 - Equipment locking
 
+## Polish & Feedback (Slice 0.7.7)
+
+### Overview
+
+Slice 0.7.7 focuses on polish and feedback for the durability/repair loop, without adding new mechanics. The goal is to make the experience feel emotional rather than administrative.
+
+### Color Palette
+
+Centralized condition colors in `EquipmentConditionHelper`:
+
+| Condition | Hex | Description |
+|-----------|-----|-------------|
+| Excellent | #A8B4B8 | Bluish gray |
+| Good | #7F9A72 | Soft green |
+| Worn | #A58A5E | Ochre |
+| Fragile | #B56F45 | Muted orange |
+| Broken | #8F3F3F | Deep red |
+
+### Notification System
+
+`ConditionNotificationUI` now handles both wear and repair notifications:
+- Sober, non-alarming messages ("has become fragile" vs "IS BECOMING FRAGILE!")
+- Repair notifications ("is usable again", "restored to full condition")
+- Green accent styling for repair notifications
+- Subscribes to `PlayerRepair.OnRepairCompleted`
+
+### Audio System (Placeholder)
+
+`EquipmentAudioFeedback` component provides audio hooks:
+- `conditionDegradeClip` - played when condition degrades
+- `weaponBreakClip` - played when weapon breaks
+- `repairCompleteClip` - played on repair
+- `restoredFromBrokenClip` - played when restoring from broken
+
+If clips are not assigned, logs to console for development tracking.
+
+### Configurable Visual Effects
+
+`ConditionVisualConfig` ScriptableObject for broken visual tuning:
+- `BrokenDesaturation` - grayscale amount (default 0.6)
+- `BrokenTint` - tint color (default red)
+- `BrokenTintStrength` - tint intensity (default 0.3)
+- `TransitionDuration` - for future animated transitions
+
+`WeaponConditionVisual` now accepts optional config reference.
+
+### Repair Station UX
+
+Enhanced `RepairStation.uss`:
+- Panel open/close animations (fade + scale)
+- Repair button active state (scale feedback)
+- Success flash on repair completion
+
+### Metrics Tracking
+
+`WearMetricsTracker` debug component (toggle with F7):
+- Total hits count
+- Wear application count
+- Actual wear rate percentage
+- Total durability lost
+- Condition changes
+- Times broken
+- Repairs performed
+- Durability restored
+
+### Debug Overlays
+
+| Key | Overlay | Purpose |
+|-----|---------|---------|
+| F3 | General Debug | Version, FPS, scene |
+| F6 | Combat Debug | Combat, equipment, repair |
+| F7 | Wear Metrics | Wear/repair statistics |
+
+### Files Added (Slice 0.7.7)
+
+```
+Equipment/Audio/
+└── EquipmentAudioFeedback.cs
+
+Equipment/Debug/
+└── WearMetricsTracker.cs
+
+Equipment/
+└── ConditionVisualConfig.cs
+```
+
+### Files Modified (Slice 0.7.7)
+
+- `EquipmentConditionHelper.cs` - updated color palette
+- `ConditionNotificationUI.cs` - repair notifications, sober messages
+- `ConditionNotification.uss` - repair notification styles
+- `WeaponConditionVisual.cs` - config support
+- `RepairStationUI.cs` - panel animations, success feedback
+- `RepairStation.uss` - animation classes, button states
+
 ## Next Steps
 
 Future slices may add:
-- Equipment repair mechanics
-- Enhancement system with risk/reward
+- Attunement attempt mechanics (chances, costs, pity)
+- Bonus stats from attunement level
 - Armor and accessory slots
 - Additional affix types
 - Equipment sets with bonuses
 - Named/unique equipment
+
+See [ATTUNEMENT.md](ATTUNEMENT.md) for details on the attunement foundation.

@@ -21,6 +21,8 @@ namespace Lootbound.Gameplay.Equipment
         [SerializeField] private bool isEquipped;
         [SerializeField] private float currentDurability;
         [SerializeField] private float maxDurability;
+        [SerializeField] private int attunementLevel;
+        [SerializeField] private int consecutiveAttunementFailures;
 
         /// <summary>
         /// Unique identifier for this specific equipment instance.
@@ -82,6 +84,43 @@ namespace Lootbound.Gameplay.Equipment
         public EquipmentCondition Condition => EquipmentConditionHelper.GetCondition(NormalizedDurability);
 
         /// <summary>
+        /// Current attunement level (0 to MaximumAttunementLevel).
+        /// </summary>
+        public int AttunementLevel => attunementLevel;
+
+        /// <summary>
+        /// Maximum attunement level for this equipment.
+        /// Uses default value since V1 has no per-weapon variation.
+        /// </summary>
+        public int MaximumAttunementLevel => AttunementFoundationConfig.DefaultMaximumAttunementLevel;
+
+        /// <summary>
+        /// Current attunement state derived from level.
+        /// </summary>
+        public AttunementState AttunementState => AttunementHelper.GetState(attunementLevel, MaximumAttunementLevel);
+
+        /// <summary>
+        /// True if equipment has been attuned (level > 0).
+        /// </summary>
+        public bool IsAttuned => attunementLevel > 0;
+
+        /// <summary>
+        /// True if equipment is at maximum attunement level.
+        /// </summary>
+        public bool IsAtMaximumAttunement => attunementLevel >= MaximumAttunementLevel;
+
+        /// <summary>
+        /// Number of consecutive failed attunement attempts on this equipment.
+        /// Used for protection (pity) system.
+        /// </summary>
+        public int ConsecutiveAttunementFailures => consecutiveAttunementFailures;
+
+        /// <summary>
+        /// True if this equipment has accumulated protection from failures.
+        /// </summary>
+        public bool HasAccumulatedResonance => consecutiveAttunementFailures > 0;
+
+        /// <summary>
         /// Create new equipment data with a fresh GUID.
         /// </summary>
         public EquipmentData(
@@ -90,7 +129,8 @@ namespace Lootbound.Gameplay.Equipment
             ItemRarity rarity,
             List<AffixInstance> affixes,
             string foundLocation,
-            float durability = 100f)
+            float durability = 100f,
+            int attunementLevel = 0)
         {
             instanceId = Guid.NewGuid().ToString();
             this.definitionId = definitionId;
@@ -101,6 +141,7 @@ namespace Lootbound.Gameplay.Equipment
             this.isEquipped = false;
             this.maxDurability = Mathf.Max(1f, durability);
             this.currentDurability = this.maxDurability;
+            this.attunementLevel = AttunementHelper.ClampLevel(attunementLevel);
         }
 
         /// <summary>
@@ -114,7 +155,9 @@ namespace Lootbound.Gameplay.Equipment
             List<AffixInstance> affixes,
             EquipmentHistory history,
             float currentDurability = 100f,
-            float maxDurability = 100f)
+            float maxDurability = 100f,
+            int attunementLevel = 0,
+            int consecutiveAttunementFailures = 0)
         {
             this.instanceId = instanceId;
             this.definitionId = definitionId;
@@ -125,6 +168,8 @@ namespace Lootbound.Gameplay.Equipment
             this.isEquipped = false;
             this.maxDurability = Mathf.Max(1f, maxDurability);
             this.currentDurability = Mathf.Clamp(currentDurability, 0f, this.maxDurability);
+            this.consecutiveAttunementFailures = Mathf.Max(0, consecutiveAttunementFailures);
+            this.attunementLevel = AttunementHelper.ClampLevel(attunementLevel);
         }
 
         /// <summary>
@@ -142,11 +187,21 @@ namespace Lootbound.Gameplay.Equipment
         }
 
         /// <summary>
+        /// Get display name with attunement suffix (+N).
+        /// Returns name without suffix if level is 0.
+        /// </summary>
+        public string GetAttunedDisplayName(IEquipmentRegistry registry)
+        {
+            string baseName = GetDisplayName(registry);
+            return AttunementHelper.FormatDisplayName(baseName, attunementLevel);
+        }
+
+        /// <summary>
         /// Resolve weapon stats with affixes applied.
         /// </summary>
         public ResolvedWeaponStats ResolveStats(IEquipmentRegistry registry)
         {
-            return ResolveStats(registry, null);
+            return ResolveStats(registry, null, null);
         }
 
         /// <summary>
@@ -156,6 +211,21 @@ namespace Lootbound.Gameplay.Equipment
         /// <param name="registry">Equipment registry for definitions.</param>
         /// <param name="brokenConfig">Optional config for broken weapon penalties.</param>
         public ResolvedWeaponStats ResolveStats(IEquipmentRegistry registry, BrokenWeaponConfig brokenConfig)
+        {
+            return ResolveStats(registry, brokenConfig, null);
+        }
+
+        /// <summary>
+        /// Resolve weapon stats with affixes, attunement bonuses, and broken penalties applied.
+        /// Resolution order: Base → Affixes → Attunement → Broken penalties → Final clamp.
+        /// </summary>
+        /// <param name="registry">Equipment registry for definitions.</param>
+        /// <param name="brokenConfig">Optional config for broken weapon penalties.</param>
+        /// <param name="attunementConfig">Optional config for attunement stat bonuses.</param>
+        public ResolvedWeaponStats ResolveStats(
+            IEquipmentRegistry registry,
+            BrokenWeaponConfig brokenConfig,
+            AttunementCoreConfig attunementConfig)
         {
             var def = registry?.GetWeaponDefinition(definitionId);
             if (def == null)
@@ -204,7 +274,14 @@ namespace Lootbound.Gameplay.Equipment
             range *= 1f + (rangeBonus / 100f);
             stagger *= 1f + (staggerBonus / 100f);
 
-            // Apply broken penalties after affixes
+            // Apply attunement multipliers after affixes
+            if (attunementConfig != null && attunementLevel > 0)
+            {
+                (damage, attackSpeed, range, stagger) = attunementConfig.ApplyMultipliers(
+                    attunementLevel, damage, attackSpeed, range, stagger);
+            }
+
+            // Apply broken penalties after attunement
             if (Condition == EquipmentCondition.Broken && brokenConfig != null)
             {
                 (damage, attackSpeed, range, stagger) = brokenConfig.ApplyPenalties(
@@ -234,6 +311,16 @@ namespace Lootbound.Gameplay.Equipment
         public void RecordEquip()
         {
             history?.RecordEquip();
+        }
+
+        /// <summary>
+        /// Record a repair operation on this equipment.
+        /// </summary>
+        /// <param name="result">The repair result.</param>
+        /// <param name="location">Where the repair took place.</param>
+        public void RecordRepair(RepairResult result, string location = "Refuge Workbench")
+        {
+            history?.RecordRepair(result, location);
         }
 
         /// <summary>
@@ -270,6 +357,88 @@ namespace Lootbound.Gameplay.Equipment
         }
 
         /// <summary>
+        /// Set attunement level to a specific value.
+        /// Used for debug and future attunement attempt mechanics.
+        /// </summary>
+        /// <param name="newLevel">Target attunement level.</param>
+        /// <param name="maximumLevel">Maximum allowed level (uses default if not specified).</param>
+        /// <returns>Result describing the change.</returns>
+        public AttunementLevelChangeResult SetAttunementLevel(int newLevel, int maximumLevel = -1)
+        {
+            if (maximumLevel <= 0)
+            {
+                maximumLevel = MaximumAttunementLevel;
+            }
+
+            int previousLevel = attunementLevel;
+            var previousState = AttunementState;
+
+            int clampedLevel = AttunementHelper.ClampLevel(newLevel, maximumLevel);
+            bool wasClamped = clampedLevel != newLevel;
+
+            attunementLevel = clampedLevel;
+            var currentState = AttunementState;
+
+            return new AttunementLevelChangeResult(
+                previousLevel,
+                attunementLevel,
+                wasClamped,
+                previousState,
+                currentState);
+        }
+
+        /// <summary>
+        /// Attempt to increase attunement level by 1.
+        /// In V1, this always succeeds if not at maximum.
+        /// </summary>
+        /// <param name="maximumLevel">Maximum allowed level (uses default if not specified).</param>
+        /// <returns>Result describing the attempt outcome.</returns>
+        public AttunementAttemptResult TryIncreaseAttunement(int maximumLevel = -1)
+        {
+            if (maximumLevel <= 0)
+            {
+                maximumLevel = MaximumAttunementLevel;
+            }
+
+            // Already at maximum
+            if (attunementLevel >= maximumLevel)
+            {
+                return AttunementAttemptResult.AlreadyMaximum(attunementLevel, maximumLevel);
+            }
+
+            // Success - increase level by 1
+            int previousLevel = attunementLevel;
+            attunementLevel = Mathf.Min(attunementLevel + 1, maximumLevel);
+
+            return AttunementAttemptResult.Succeeded(previousLevel, attunementLevel, maximumLevel);
+        }
+
+        /// <summary>
+        /// Increment consecutive failure count after a failed attunement attempt.
+        /// </summary>
+        public void IncrementAttunementFailures()
+        {
+            consecutiveAttunementFailures++;
+        }
+
+        /// <summary>
+        /// Reset consecutive failure count after a successful attunement.
+        /// </summary>
+        public void ResetAttunementFailures()
+        {
+            consecutiveAttunementFailures = 0;
+        }
+
+        /// <summary>
+        /// Set consecutive failure count directly (for debug/testing).
+        /// </summary>
+        /// <param name="count">Number of failures to set.</param>
+        public void SetAttunementFailures(int count)
+        {
+            consecutiveAttunementFailures = Mathf.Max(0, count);
+        }
+
+        /// <summary>
         /// Check if this is valid equipment data.
         /// </summary>
         public bool IsValid =>
@@ -278,7 +447,8 @@ namespace Lootbound.Gameplay.Equipment
 
         /// <summary>
         /// Create a deep copy of this equipment data.
-        /// Generates a new instance ID for the copy.
+        /// Preserves GUID, attunement level, and all other state.
+        /// For true duplication use CloneWithNewId.
         /// </summary>
         public EquipmentData Clone()
         {
@@ -288,7 +458,6 @@ namespace Lootbound.Gameplay.Equipment
                 clonedAffixes.Add(new AffixInstance(affix.DefinitionId, affix.RolledValue));
             }
 
-            // Note: Clone keeps the same GUID - for true duplication use CloneWithNewId
             return new EquipmentData(
                 instanceId,
                 definitionId,
@@ -297,11 +466,14 @@ namespace Lootbound.Gameplay.Equipment
                 clonedAffixes,
                 history?.Clone(),
                 currentDurability,
-                maxDurability);
+                maxDurability,
+                attunementLevel,
+                consecutiveAttunementFailures);
         }
 
         /// <summary>
         /// Create a copy with a new instance ID.
+        /// Attunement level and protection reset for new equipment.
         /// </summary>
         public EquipmentData CloneWithNewId()
         {
@@ -311,13 +483,15 @@ namespace Lootbound.Gameplay.Equipment
                 clonedAffixes.Add(new AffixInstance(affix.DefinitionId, affix.RolledValue));
             }
 
+            // New equipment starts at attunement level 0
             return new EquipmentData(
                 definitionId,
                 customName,
                 rarity,
                 clonedAffixes,
                 history?.FoundLocation ?? "Unknown",
-                maxDurability);
+                maxDurability,
+                attunementLevel: 0);
         }
 
         public override string ToString()

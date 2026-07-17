@@ -1,3 +1,4 @@
+using Lootbound.Gameplay.World.Layout;
 using UnityEngine;
 
 namespace Lootbound.Gameplay.World
@@ -94,6 +95,11 @@ namespace Lootbound.Gameplay.World
         /// Total generation time in milliseconds.
         /// </summary>
         public float TotalGenerationTimeMs { get; set; }
+
+        /// <summary>
+        /// World layout context (optional, may be null if layout generation is disabled).
+        /// </summary>
+        public WorldLayoutContext LayoutContext { get; set; }
 
         public TerrainGenerationContext(int seed, int resolution, float worldSize, float terrainHeight)
         {

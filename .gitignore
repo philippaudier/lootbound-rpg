@@ -90,3 +90,21 @@ Thumbs.db
 CLAUDE.local.md
 .claude/CLAUDE.local.md
 .claude/settings.local.json
+
+# Visual Studio solution explorer
+*.slnx
+
+# Unity test results
+[Tt]est[Rr]esults/
+
+# Recovery/temporary folders
+_Recovery/
+Assets/_Recovery/
+
+# Temporary terrain assets
+Assets/New Terrain.asset
+Assets/New Terrain.asset.meta
+
+# Generated images (ChatGPT, etc.)
+Assets/**/ChatGPT*.png
+Assets/**/ChatGPT*.png.meta

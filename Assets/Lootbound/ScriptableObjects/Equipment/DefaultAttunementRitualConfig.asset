@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcf7173a40fb74f4fae7b7c2cb3e26e8, type: 3}
+  m_Name: DefaultAttunementRitualConfig
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.AttunementRitualConfig
+  preparingDuration: 0.2
+  buildingDuration: 0.5
+  resolvingDuration: 0.4
+  showingResultDuration: 0.4
+  ritualStartClip: {fileID: 0}
+  ritualBuildClip: {fileID: 0}
+  successClip: {fileID: 0}
+  failureClip: {fileID: 0}
+  guaranteedSuccessClip: {fileID: 0}
+  masterVolume: 0.7
+  pitchVariation: {x: 0.95, y: 1.05}
+  baseEmissionIntensity: 0.1
+  peakEmissionIntensity: 1.5
+  successFlashIntensity: 2.5
+  emissionColor: {r: 1, g: 0.85, b: 0.5, a: 1}
+  successEmissionColor: {r: 0.8, g: 1, b: 0.8, a: 1}
+  failureEmissionColor: {r: 0.6, g: 0.5, b: 0.5, a: 1}
+  weaponHeightOffset: 0.05
+  weaponFloatAmplitude: 0.02
+  weaponRotationSpeed: 15
+  stonePrefab: {fileID: 284125138086446179, guid: f9843834a1f61c341b4f07fd2056afb6, type: 3}
+  stoneHeightOffset: 0.1
+  stoneFloatAmplitude: 0.03
+  stoneRotationSpeed: 30
+  enableCameraFocus: 1
+  fovReduction: 5
+  cameraTransitionDuration: 0.25
+  enableSuccessShake: 1
+  successShakeIntensity: 0.02
+  successShakeDuration: 0.15
+  enableDebugLogs: 0

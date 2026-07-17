@@ -6,6 +6,7 @@ namespace Lootbound.Gameplay.World
     /// <summary>
     /// Debug overlay for terrain generation.
     /// Shows generation metrics and allows visualizing terrain maps.
+    /// Toggle with F5. Position: Right of Movement panel (F4), auto-sized.
     /// </summary>
     public class TerrainGenerationDebug : MonoBehaviour
     {
@@ -29,12 +30,16 @@ namespace Lootbound.Gameplay.World
         }
 
         private bool isVisible;
-        private GUIStyle boxStyle;
-        private GUIStyle labelStyle;
-        private GUIStyle headerStyle;
         private Texture2D mapTexture;
         private MapVisualization lastRenderedMap;
         private int lastRenderedSeed;
+
+        // Styles matching WearMetrics
+        private GUIStyle boxStyle;
+        private GUIStyle labelStyle;
+        private GUIStyle headerStyle;
+        private GUIStyle subHeaderStyle;
+        private GUIStyle valueStyle;
 
         private void Start()
         {
@@ -78,7 +83,7 @@ namespace Lootbound.Gameplay.World
         {
             if (!isVisible || generator == null) return;
 
-            EnsureStyles();
+            InitializeStyles();
             DrawDebugPanel();
 
             if (showMapPreview && generator.IsGenerated)
@@ -87,68 +92,128 @@ namespace Lootbound.Gameplay.World
             }
         }
 
-        private void EnsureStyles()
+        private void InitializeStyles()
         {
-            if (boxStyle == null)
-            {
-                boxStyle = new GUIStyle(GUI.skin.box)
-                {
-                    padding = new RectOffset(10, 10, 10, 10)
-                };
-            }
+            if (boxStyle != null) return;
 
-            if (labelStyle == null)
+            boxStyle = new GUIStyle(GUI.skin.box)
             {
-                labelStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 12,
-                    normal = { textColor = Color.white }
-                };
-            }
+                normal = { background = MakeTexture(2, 2, new Color(0.1f, 0.1f, 0.12f, 0.92f)) }
+            };
 
-            if (headerStyle == null)
+            labelStyle = new GUIStyle(GUI.skin.label)
             {
-                headerStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold,
-                    normal = { textColor = new Color(0.8f, 0.9f, 1f) }
-                };
-            }
+                fontSize = 11,
+                normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
+            };
+
+            headerStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.9f, 0.8f, 0.6f) }
+            };
+
+            subHeaderStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.6f, 0.6f, 0.65f) }
+            };
+
+            valueStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
+            };
         }
+
+        private Texture2D MakeTexture(int width, int height, Color color)
+        {
+            var pixels = new Color[width * height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = color;
+
+            var texture = new Texture2D(width, height);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
+        }
+
+        private float CalculateContentHeight()
+        {
+            float lineHeight = 18f;
+            float height = 10f; // Top padding
+
+            // Header
+            height += lineHeight + 2f;
+
+            // Status + Seed
+            height += lineHeight * 2;
+
+            if (!generator.IsGenerated)
+            {
+                // Controls hint
+                height += 5f + lineHeight;
+                return height + 10f; // Bottom padding
+            }
+
+            // Terrain section: header + 3 lines
+            height += 5f + lineHeight + lineHeight * 3;
+
+            // Heights section: header + 2 lines
+            height += 5f + lineHeight + lineHeight * 2;
+
+            // Spawn section: header + 2 lines
+            height += 5f + lineHeight + lineHeight * 2;
+
+            // Timing section: header + 2 lines
+            height += 5f + lineHeight + lineHeight * 2;
+
+            // Controls hint
+            height += 5f + lineHeight;
+
+            return height + 10f; // Bottom padding
+        }
+
+        private float lastPanelHeight;
 
         private void DrawDebugPanel()
         {
-            int width = 280;
-            int height = generator.IsGenerated ? 340 : 120;
-            int x = 10;
-            int y = 160; // Below the main debug overlay
+            float width = 280f;
+            float height = CalculateContentHeight();
+            lastPanelHeight = height; // Store for map preview positioning
+            float x = 550f; // Right of Movement panel (280 + 260 + 10 gap)
+            float y = 10f;  // Aligned with System/Movement panels
 
             GUI.Box(new Rect(x, y, width, height), "", boxStyle);
 
-            int lineY = y + 10;
-            int lineHeight = 18;
-            int sectionSpacing = 8;
+            float lineY = y + 10f;
+            float lineHeight = 18f;
+            float labelX = x + 10f;
+            float valueX = x + 140f;
+            float valueWidth = 130f;
 
             // Header
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Terrain Debug (F5)", headerStyle);
-            lineY += lineHeight + sectionSpacing;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "TERRAIN DEBUG (F5)", headerStyle);
+            lineY += lineHeight + 2f;
 
             // Generation status
-            string statusText = generator.IsGenerated
-                ? "<color=green>Generated</color>"
-                : "<color=yellow>Not Generated</color>";
-
-            GUIStyle richStyle = new GUIStyle(labelStyle) { richText = true };
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Status: {statusText}", richStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Status:", labelStyle);
+            string statusText = generator.IsGenerated ? "Generated" : "Not Generated";
+            Color statusColor = generator.IsGenerated ? new Color(0.6f, 0.9f, 0.6f) : new Color(0.9f, 0.9f, 0.5f);
+            var statusStyle = new GUIStyle(valueStyle) { normal = { textColor = statusColor } };
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), statusText, statusStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Current Seed: {generator.CurrentSeed}", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Seed:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), generator.CurrentSeed.ToString(), valueStyle);
             lineY += lineHeight;
 
             if (!generator.IsGenerated)
             {
-                GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Press F5 to toggle", labelStyle);
+                lineY += 5f;
+                GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "1=Off 2=Height 3=Slope 4=Macro", subHeaderStyle);
                 return;
             }
 
@@ -156,63 +221,69 @@ namespace Lootbound.Gameplay.World
             if (ctx == null) return;
 
             // Terrain info
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Terrain", headerStyle);
+            lineY += 5f;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "— Terrain —", subHeaderStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Size: {ctx.WorldSize}m x {ctx.WorldSize}m", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Size:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{ctx.WorldSize}m x {ctx.WorldSize}m", valueStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Resolution: {ctx.Resolution}", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Resolution:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), ctx.Resolution.ToString(), valueStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Max Height: {ctx.TerrainHeight}m", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Max Height:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{ctx.TerrainHeight}m", valueStyle);
             lineY += lineHeight;
 
             // Height stats
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Heights", headerStyle);
+            lineY += 5f;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "— Heights —", subHeaderStyle);
             lineY += lineHeight;
 
             float minWorldHeight = ctx.MinHeight * ctx.TerrainHeight;
             float maxWorldHeight = ctx.MaxHeight * ctx.TerrainHeight;
             float avgWorldHeight = ctx.AverageHeight * ctx.TerrainHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Min: {minWorldHeight:0.0}m  Max: {maxWorldHeight:0.0}m", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Min / Max:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{minWorldHeight:F1}m / {maxWorldHeight:F1}m", valueStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Average: {avgWorldHeight:0.0}m", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Average:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{avgWorldHeight:F1}m", valueStyle);
             lineY += lineHeight;
 
             // Spawn info
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Spawn", headerStyle);
+            lineY += 5f;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "— Spawn —", subHeaderStyle);
             lineY += lineHeight;
 
             Vector3 spawn = ctx.SpawnPosition;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight),
-                $"Pos: ({spawn.x:0.0}, {spawn.y:0.0}, {spawn.z:0.0})", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Position:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"({spawn.x:F0}, {spawn.y:F0}, {spawn.z:F0})", valueStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Slope: {ctx.SpawnSlope:0.1}°", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Slope:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{ctx.SpawnSlope:F1}°", valueStyle);
             lineY += lineHeight;
 
             // Timing
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Generation Time", headerStyle);
+            lineY += 5f;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "— Generation Time —", subHeaderStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight),
-                $"Total: {ctx.TotalGenerationTimeMs}ms", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Total:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{ctx.TotalGenerationTimeMs}ms", valueStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight),
-                $"Height: {ctx.HeightmapGenerationTimeMs}ms  Paint: {ctx.PaintingTimeMs}ms", labelStyle);
+            GUI.Label(new Rect(labelX, lineY, 130f, lineHeight), "Height / Paint:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{ctx.HeightmapGenerationTimeMs}ms / {ctx.PaintingTimeMs}ms", valueStyle);
             lineY += lineHeight;
 
             // Map preview controls
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Maps: 1=Off 2=Height 3=Slope 4=Macro", labelStyle);
+            lineY += 5f;
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "1=Off 2=Height 3=Slope 4=Macro", subHeaderStyle);
         }
 
         private void DrawMapPreview()
@@ -228,11 +299,11 @@ namespace Lootbound.Gameplay.World
 
             if (mapTexture == null) return;
 
-            int x = 300;
-            int y = 160;
+            float x = 550f; // Aligned with terrain panel
+            float y = 10f + lastPanelHeight + 10f; // Below terrain panel
 
             // Draw label
-            GUI.Label(new Rect(x, y - 20, mapPreviewSize, 20), $"Map: {currentMap}", headerStyle);
+            GUI.Label(new Rect(x, y - 18f, mapPreviewSize, 18f), $"Map: {currentMap}", headerStyle);
 
             // Draw texture
             GUI.DrawTexture(new Rect(x, y, mapPreviewSize, mapPreviewSize), mapTexture);

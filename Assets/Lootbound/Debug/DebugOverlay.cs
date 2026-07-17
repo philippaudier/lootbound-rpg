@@ -5,6 +5,10 @@ using Lootbound.Core.Scenes;
 
 namespace Lootbound.Debugging
 {
+    /// <summary>
+    /// System debug overlay showing FPS, scene info, and build status.
+    /// Toggle with F3.
+    /// </summary>
     public class DebugOverlay : MonoBehaviour
     {
         [SerializeField] private bool showOnStart = true;
@@ -12,8 +16,12 @@ namespace Lootbound.Debugging
 
         private bool isVisible;
         private float deltaTime;
+
+        // Styles matching WearMetrics
         private GUIStyle boxStyle;
         private GUIStyle labelStyle;
+        private GUIStyle headerStyle;
+        private GUIStyle subHeaderStyle;
 
         private void Start()
         {
@@ -37,28 +45,50 @@ namespace Lootbound.Debugging
                 return;
             }
 
-            EnsureStyles();
+            InitializeStyles();
             DrawOverlay();
         }
 
-        private void EnsureStyles()
+        private void InitializeStyles()
         {
-            if (boxStyle == null)
-            {
-                boxStyle = new GUIStyle(GUI.skin.box)
-                {
-                    padding = new RectOffset(10, 10, 10, 10)
-                };
-            }
+            if (boxStyle != null) return;
 
-            if (labelStyle == null)
+            boxStyle = new GUIStyle(GUI.skin.box)
             {
-                labelStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 14,
-                    normal = { textColor = Color.white }
-                };
-            }
+                normal = { background = MakeTexture(2, 2, new Color(0.1f, 0.1f, 0.12f, 0.92f)) }
+            };
+
+            labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
+            };
+
+            headerStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.9f, 0.8f, 0.6f) }
+            };
+
+            subHeaderStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.6f, 0.6f, 0.65f) }
+            };
+        }
+
+        private Texture2D MakeTexture(int width, int height, Color color)
+        {
+            var pixels = new Color[width * height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = color;
+
+            var texture = new Texture2D(width, height);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
         }
 
         private void DrawOverlay()
@@ -70,32 +100,49 @@ namespace Lootbound.Debugging
             string unityVersion = Application.unityVersion;
             bool isDevBuild = Debug.isDebugBuild;
 
-            int width = 280;
-            int height = 140;
-            int x = 10;
-            int y = 10;
+            float width = 260f;
+            float height = 155f;
+            float x = 10f;
+            float y = 10f;
 
             GUI.Box(new Rect(x, y, width, height), "", boxStyle);
 
-            int lineY = y + 10;
-            int lineHeight = 20;
+            float lineY = y + 10f;
+            float lineHeight = 18f;
+            float labelX = x + 10f;
+            float valueX = x + 100f;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Lootbound v{gameVersion}", labelStyle);
+            // Header
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), "SYSTEM (F3)", headerStyle);
+            lineY += lineHeight + 2f;
+
+            // Version
+            GUI.Label(new Rect(labelX, lineY, width - 20f, lineHeight), $"Lootbound v{gameVersion}", subHeaderStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"FPS: {fps:0.0}", labelStyle);
+            // FPS
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "FPS:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, 150f, lineHeight), $"{fps:F1}", labelStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Scene: {sceneName}", labelStyle);
+            // Scene
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Scene:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, 150f, lineHeight), sceneName, labelStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Unity: {unityVersion}", labelStyle);
+            // Unity
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Unity:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, 150f, lineHeight), unityVersion, labelStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Bootstrap: {bootstrapStatus}", labelStyle);
+            // Bootstrap
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Bootstrap:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, 150f, lineHeight), bootstrapStatus, labelStyle);
             lineY += lineHeight;
 
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"Dev Build: {(isDevBuild ? "Yes" : "No")}", labelStyle);
+            // Dev Build
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Dev Build:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, 150f, lineHeight), isDevBuild ? "Yes" : "No", labelStyle);
         }
     }
 }

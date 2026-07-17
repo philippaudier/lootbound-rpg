@@ -29,6 +29,11 @@ namespace Lootbound.Gameplay.Inventory
         public event Action<ItemDefinition, int> OnItemAdded;
 
         /// <summary>
+        /// Event fired when an equipment item is added (includes full item instance).
+        /// </summary>
+        public event Action<ItemInstance> OnEquipmentAdded;
+
+        /// <summary>
         /// Event fired when an item is removed.
         /// </summary>
         public event Action<ItemDefinition, int> OnItemRemoved;
@@ -93,6 +98,29 @@ namespace Lootbound.Gameplay.Inventory
 
             int added = AddItem(item.Definition, item.Quantity);
             return added > 0;
+        }
+
+        /// <summary>
+        /// Try to add an equipment item to the inventory, preserving its identity.
+        /// Fires OnEquipmentAdded event on success, OnInventoryFull on failure.
+        /// </summary>
+        /// <param name="item">Equipment item instance to add.</param>
+        /// <returns>True if the item was added.</returns>
+        public bool AddEquipmentItem(ItemInstance item)
+        {
+            if (item == null || !item.IsValid) return false;
+            if (inventory == null) return false;
+
+            if (inventory.TryAddItem(item))
+            {
+                OnEquipmentAdded?.Invoke(item);
+                return true;
+            }
+            else
+            {
+                OnInventoryFull?.Invoke(item.Definition, 1);
+                return false;
+            }
         }
 
         /// <summary>

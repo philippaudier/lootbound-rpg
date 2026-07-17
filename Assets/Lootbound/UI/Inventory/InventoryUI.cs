@@ -55,6 +55,7 @@ namespace Lootbound.UI
         // Equipment-specific elements (created dynamically)
         private VisualElement equipmentStatsContainer;
         private VisualElement conditionContainer;
+        private VisualElement attunementContainer;
         private VisualElement repairContainer;
         private Button repairButton;
         private VisualElement affixesContainer;
@@ -181,8 +182,8 @@ namespace Lootbound.UI
                 inventoryPanel.style.display = DisplayStyle.None;
             }
 
-            // Ensure root can receive pointer events when visible
-            root.pickingMode = PickingMode.Position;
+            // Start with picking disabled - will enable when opened
+            root.pickingMode = PickingMode.Ignore;
         }
 
         private void Start()
@@ -318,6 +319,12 @@ namespace Lootbound.UI
             conditionContainer.style.marginBottom = 8;
             conditionContainer.style.display = DisplayStyle.None;
 
+            // Create attunement container
+            attunementContainer = new VisualElement();
+            attunementContainer.name = "attunement";
+            attunementContainer.style.marginBottom = 8;
+            attunementContainer.style.display = DisplayStyle.None;
+
             // Create repair container
             repairContainer = new VisualElement();
             repairContainer.name = "repair";
@@ -375,16 +382,18 @@ namespace Lootbound.UI
             {
                 itemDetails.Insert(dropIndex, equipmentStatsContainer);
                 itemDetails.Insert(dropIndex + 1, conditionContainer);
-                itemDetails.Insert(dropIndex + 2, repairContainer);
-                itemDetails.Insert(dropIndex + 3, affixesContainer);
-                itemDetails.Insert(dropIndex + 4, historyContainer);
-                itemDetails.Insert(dropIndex + 5, comparisonContainer);
-                itemDetails.Insert(dropIndex + 6, equipButton);
+                itemDetails.Insert(dropIndex + 2, attunementContainer);
+                itemDetails.Insert(dropIndex + 3, repairContainer);
+                itemDetails.Insert(dropIndex + 4, affixesContainer);
+                itemDetails.Insert(dropIndex + 5, historyContainer);
+                itemDetails.Insert(dropIndex + 6, comparisonContainer);
+                itemDetails.Insert(dropIndex + 7, equipButton);
             }
             else
             {
                 itemDetails.Add(equipmentStatsContainer);
                 itemDetails.Add(conditionContainer);
+                itemDetails.Add(attunementContainer);
                 itemDetails.Add(repairContainer);
                 itemDetails.Add(affixesContainer);
                 itemDetails.Add(historyContainer);
@@ -424,8 +433,16 @@ namespace Lootbound.UI
 
             if (detailsName != null)
             {
-                // Use equipment name if available
-                string displayName = item.EquipmentData?.CustomName ?? definition.DisplayName;
+                // Use attuned display name if equipment is attuned, otherwise custom name or definition name
+                string displayName;
+                if (item.HasEquipmentData && item.EquipmentData.IsAttuned)
+                {
+                    displayName = item.EquipmentData.GetAttunedDisplayName(equipmentRegistry);
+                }
+                else
+                {
+                    displayName = item.EquipmentData?.CustomName ?? definition.DisplayName;
+                }
                 detailsName.text = displayName;
 
                 // Apply rarity color to name
@@ -487,8 +504,9 @@ namespace Lootbound.UI
                 equipmentStatsContainer.Clear();
                 equipmentStatsContainer.style.display = DisplayStyle.Flex;
 
-                // Resolve stats with broken penalties if applicable
-                var stats = equipData.ResolveStats(equipmentRegistry, brokenConfig);
+                // Resolve stats with attunement bonuses and broken penalties
+                var attunementConfig = playerEquipment?.AttunementConfig;
+                var stats = equipData.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig);
                 if (stats.IsValid)
                 {
                     if (isBroken && brokenConfig != null)
@@ -584,6 +602,74 @@ namespace Lootbound.UI
                 conditionContainer.Add(barContainer);
             }
 
+            // Update attunement display
+            if (attunementContainer != null)
+            {
+                attunementContainer.Clear();
+                attunementContainer.style.display = DisplayStyle.Flex;
+
+                // Get max level from config if available
+                int maxLevel = playerEquipment?.AttunementConfig != null
+                    ? playerEquipment.AttunementConfig.MaximumLevel
+                    : equipData.MaximumAttunementLevel;
+
+                // Attunement row
+                var attunementRow = new VisualElement();
+                attunementRow.style.flexDirection = FlexDirection.Row;
+                attunementRow.style.justifyContent = Justify.SpaceBetween;
+                attunementRow.style.marginBottom = 4;
+
+                var attunementLabel = new Label("Attunement");
+                attunementLabel.style.fontSize = 11;
+                attunementLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                // Show +N / +Max format
+                var attunementValue = new Label($"+{equipData.AttunementLevel} / +{maxLevel}");
+                attunementValue.style.fontSize = 11;
+                // Color based on attunement state
+                bool isAtMax = equipData.AttunementLevel >= maxLevel;
+                if (isAtMax)
+                {
+                    attunementValue.style.color = new Color(0.9f, 0.75f, 0.4f); // Gold for max
+                }
+                else if (equipData.IsAttuned)
+                {
+                    attunementValue.style.color = new Color(0.5f, 0.7f, 1f); // Blue for attuned
+                }
+                else
+                {
+                    attunementValue.style.color = new Color(0.6f, 0.6f, 0.65f); // Gray for unattuned
+                }
+
+                attunementRow.Add(attunementLabel);
+                attunementRow.Add(attunementValue);
+                attunementContainer.Add(attunementRow);
+
+                // Show damage bonus if attuned and config available
+                if (equipData.IsAttuned && playerEquipment?.AttunementConfig != null)
+                {
+                    float bonusPercent = playerEquipment.AttunementConfig.GetDamageBonusPercent(equipData.AttunementLevel);
+                    if (bonusPercent > 0)
+                    {
+                        var bonusRow = new VisualElement();
+                        bonusRow.style.flexDirection = FlexDirection.Row;
+                        bonusRow.style.justifyContent = Justify.SpaceBetween;
+
+                        var bonusLabel = new Label("Damage Bonus");
+                        bonusLabel.style.fontSize = 11;
+                        bonusLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+                        var bonusValue = new Label($"+{bonusPercent:F0}%");
+                        bonusValue.style.fontSize = 11;
+                        bonusValue.style.color = new Color(0.4f, 0.85f, 0.4f); // Green for bonus
+
+                        bonusRow.Add(bonusLabel);
+                        bonusRow.Add(bonusValue);
+                        attunementContainer.Add(bonusRow);
+                    }
+                }
+            }
+
             // Update repair panel
             UpdateRepairPanel(item);
 
@@ -611,11 +697,50 @@ namespace Lootbound.UI
                 historyContainer.Clear();
                 historyContainer.style.display = DisplayStyle.Flex;
 
+                // Discovery and usage history
                 var historyLabel = new Label(equipData.History.GetSummary());
                 historyLabel.style.fontSize = 10;
                 historyLabel.style.color = new Color(0.6f, 0.6f, 0.65f);
                 historyLabel.style.whiteSpace = WhiteSpace.Normal;
                 historyContainer.Add(historyLabel);
+
+                // Repair history (if any)
+                if (equipData.History.HasBeenRepaired)
+                {
+                    var repairLabel = new Label(equipData.History.GetRepairSummary());
+                    repairLabel.style.fontSize = 10;
+                    repairLabel.style.color = new Color(0.55f, 0.65f, 0.6f);
+                    repairLabel.style.whiteSpace = WhiteSpace.Normal;
+                    repairLabel.style.marginTop = 2;
+                    historyContainer.Add(repairLabel);
+                }
+
+                // Attunement history (if any)
+                if (equipData.History.HasAttunementHistory)
+                {
+                    var attunementLabel = new Label(equipData.History.GetAttunementSummary());
+                    attunementLabel.style.fontSize = 10;
+                    attunementLabel.style.color = new Color(0.6f, 0.55f, 0.7f);
+                    attunementLabel.style.whiteSpace = WhiteSpace.Normal;
+                    attunementLabel.style.marginTop = 2;
+                    historyContainer.Add(attunementLabel);
+
+                    // Show last attempt details if available
+                    var attunement = equipData.History.Attunement;
+                    if (attunement.LastAttemptTimestamp > 0)
+                    {
+                        string lastAttemptSummary = attunement.GetLastAttemptSummary();
+                        if (!string.IsNullOrEmpty(lastAttemptSummary))
+                        {
+                            var lastAttemptLabel = new Label($"Last: {lastAttemptSummary}");
+                            lastAttemptLabel.style.fontSize = 9;
+                            lastAttemptLabel.style.color = new Color(0.55f, 0.5f, 0.6f);
+                            lastAttemptLabel.style.whiteSpace = WhiteSpace.Normal;
+                            lastAttemptLabel.style.marginTop = 1;
+                            historyContainer.Add(lastAttemptLabel);
+                        }
+                    }
+                }
             }
 
             // Update comparison display
@@ -663,7 +788,8 @@ namespace Lootbound.UI
 
             var currentStats = playerEquipment.CurrentStats;
             var brokenConfig = playerEquipment?.BrokenConfig;
-            var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry, brokenConfig) ?? ResolvedWeaponStats.Invalid;
+            var attunementConfig = playerEquipment?.AttunementConfig;
+            var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig) ?? ResolvedWeaponStats.Invalid;
 
             if (!selectedStats.IsValid)
             {
@@ -677,9 +803,47 @@ namespace Lootbound.UI
             headerLabel.style.marginBottom = 4;
             comparisonContainer.Add(headerLabel);
 
+            // Compare attunement levels
+            int equippedAttunement = playerEquipment.CurrentEquipment?.AttunementLevel ?? 0;
+            int selectedAttunement = selectedItem.EquipmentData?.AttunementLevel ?? 0;
+            AddAttunementComparison(comparisonContainer, equippedAttunement, selectedAttunement);
+
             AddComparisonStat(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage);
             AddComparisonStat(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed);
             AddComparisonStat(comparisonContainer, "Range", currentStats.Range, selectedStats.Range);
+        }
+
+        private void AddAttunementComparison(VisualElement container, int equippedLevel, int selectedLevel)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.justifyContent = Justify.SpaceBetween;
+            row.style.marginBottom = 2;
+
+            var nameLabel = new Label("Attunement");
+            nameLabel.style.fontSize = 11;
+            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+
+            var valueLabel = new Label($"+{selectedLevel}");
+            valueLabel.style.fontSize = 11;
+
+            // Color based on comparison
+            if (selectedLevel > equippedLevel)
+            {
+                valueLabel.style.color = new Color(0.5f, 0.9f, 0.5f); // Green for better
+            }
+            else if (selectedLevel < equippedLevel)
+            {
+                valueLabel.style.color = new Color(0.9f, 0.5f, 0.5f); // Red for worse
+            }
+            else
+            {
+                valueLabel.style.color = new Color(0.7f, 0.7f, 0.75f); // Gray for same
+            }
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            container.Add(row);
         }
 
         private void AddStatLabel(VisualElement container, string statName, string value)
@@ -963,6 +1127,8 @@ namespace Lootbound.UI
                 equipmentStatsContainer.style.display = DisplayStyle.None;
             if (conditionContainer != null)
                 conditionContainer.style.display = DisplayStyle.None;
+            if (attunementContainer != null)
+                attunementContainer.style.display = DisplayStyle.None;
             if (repairContainer != null)
                 repairContainer.style.display = DisplayStyle.None;
             if (affixesContainer != null)
@@ -1119,6 +1285,9 @@ namespace Lootbound.UI
             isOpen = true;
             inventoryPanel.style.display = DisplayStyle.Flex;
 
+            // Enable pointer events on this UI
+            root.pickingMode = PickingMode.Position;
+
             // Unlock cursor for UI interaction
             if (cameraController != null)
             {
@@ -1143,6 +1312,9 @@ namespace Lootbound.UI
 
             isOpen = false;
             inventoryPanel.style.display = DisplayStyle.None;
+
+            // Disable pointer events so other UIs can receive them
+            root.pickingMode = PickingMode.Ignore;
 
             // Lock cursor for gameplay
             if (cameraController != null)
@@ -1249,6 +1421,12 @@ namespace Lootbound.UI
                 slotElement.RemoveFromClassList("slot-equipped");
                 // Reset rarity border color
                 slotElement.style.borderBottomColor = StyleKeyword.Null;
+                // Hide attunement badge
+                var attunementBadge = slotElement.Q<Label>("attunement-badge");
+                if (attunementBadge != null)
+                {
+                    attunementBadge.style.display = DisplayStyle.None;
+                }
             }
             else
             {
@@ -1303,6 +1481,66 @@ namespace Lootbound.UI
                     rarityColor = definition.GetRarityColor();
                 }
                 slotElement.style.borderBottomColor = rarityColor;
+
+                // Update attunement badge (only show for attuned equipment)
+                UpdateSlotAttunementBadge(slotElement, item);
+            }
+        }
+
+        private void UpdateSlotAttunementBadge(VisualElement slotElement, ItemInstance item)
+        {
+            const string badgeName = "attunement-badge";
+            var badge = slotElement.Q<Label>(badgeName);
+
+            bool showBadge = item.HasEquipmentData && item.EquipmentData.IsAttuned;
+
+            if (showBadge)
+            {
+                if (badge == null)
+                {
+                    // Create badge
+                    badge = new Label();
+                    badge.name = badgeName;
+                    badge.style.position = Position.Absolute;
+                    badge.style.top = 2;
+                    badge.style.right = 2;
+                    badge.style.fontSize = 9;
+                    badge.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    badge.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.9f);
+                    badge.style.paddingLeft = 3;
+                    badge.style.paddingRight = 3;
+                    badge.style.paddingTop = 1;
+                    badge.style.paddingBottom = 1;
+                    badge.style.borderTopLeftRadius = 2;
+                    badge.style.borderTopRightRadius = 2;
+                    badge.style.borderBottomLeftRadius = 2;
+                    badge.style.borderBottomRightRadius = 2;
+                    slotElement.Add(badge);
+                }
+
+                int level = item.EquipmentData.AttunementLevel;
+                badge.text = $"+{level}";
+
+                // Check max level from config if available
+                int maxLevel = playerEquipment?.AttunementConfig != null
+                    ? playerEquipment.AttunementConfig.MaximumLevel
+                    : item.EquipmentData.MaximumAttunementLevel;
+                bool isAtMax = level >= maxLevel;
+
+                // Color based on level
+                if (isAtMax)
+                {
+                    badge.style.color = new Color(0.9f, 0.75f, 0.4f); // Gold for max
+                }
+                else
+                {
+                    badge.style.color = new Color(0.5f, 0.7f, 1f); // Blue for attuned
+                }
+                badge.style.display = DisplayStyle.Flex;
+            }
+            else if (badge != null)
+            {
+                badge.style.display = DisplayStyle.None;
             }
         }
 

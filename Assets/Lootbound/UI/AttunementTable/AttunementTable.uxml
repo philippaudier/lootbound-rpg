@@ -1,0 +1,96 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="AttunementTable.uss" />
+    <ui:VisualElement name="attunement-table-panel" class="attunement-table-panel" style="display: none;">
+        <!-- Header -->
+        <ui:VisualElement class="table-header">
+            <ui:Label text="Attunement Table" class="table-title" />
+            <ui:Button name="close-button" text="X" class="close-button" />
+        </ui:VisualElement>
+
+        <!-- Content -->
+        <ui:VisualElement class="table-content">
+            <!-- Left: Equipment List -->
+            <ui:VisualElement class="equipment-section">
+                <ui:Label text="Equipment" class="section-title" />
+                <ui:Label name="no-equipment-label" text="No equipment available for attunement" class="no-equipment-label" style="display: none;" />
+                <ui:ScrollView class="equipment-scroll">
+                    <ui:VisualElement name="equipment-list" class="equipment-list" />
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+            <!-- Right: Attunement Preview -->
+            <ui:VisualElement name="attunement-preview" class="preview-section" style="display: none;">
+                <ui:Label text="Attunement Preview" class="section-title" />
+
+                <!-- Equipment Info -->
+                <ui:VisualElement class="preview-info">
+                    <ui:Label name="preview-name" text="Weapon Name" class="preview-name" />
+                    <ui:Label name="preview-rarity" text="Common" class="preview-rarity" />
+                    <ui:VisualElement name="preview-affixes" class="preview-affixes" />
+                    <ui:Label name="preview-condition" text="Excellent" class="preview-condition" />
+                    <ui:Label name="equipment-history" text="Found in..." class="equipment-history" style="display: none;" />
+                </ui:VisualElement>
+
+                <!-- Broken Warning -->
+                <ui:Label name="broken-warning" text="This weapon is Broken. Its Attunement can deepen, but its condition still limits its performance." class="broken-warning" style="display: none;" />
+
+                <!-- Attunement Levels -->
+                <ui:VisualElement class="attunement-section">
+                    <ui:Label text="Current Attunement" class="attunement-label" />
+                    <ui:VisualElement class="level-display">
+                        <ui:Label name="current-level" text="+0" class="level-value level-current" />
+                        <ui:Label name="max-level" text="/ +10" class="level-max" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- On Success Preview -->
+                <ui:VisualElement class="success-preview-section">
+                    <ui:Label text="On Success" class="attunement-label" />
+                    <ui:Label name="next-level" text="+1" class="level-value level-next" />
+                </ui:VisualElement>
+
+                <!-- Success Chance -->
+                <ui:VisualElement class="chance-section">
+                    <ui:Label text="Success Chance" class="chance-label" />
+                    <ui:Label name="success-chance" text="100%" class="chance-value" />
+                </ui:VisualElement>
+
+                <!-- Stats Preview -->
+                <ui:VisualElement name="stat-preview" class="stat-preview-section">
+                    <!-- Stats will be dynamically added here -->
+                </ui:VisualElement>
+
+                <!-- Cost -->
+                <ui:VisualElement class="cost-section">
+                    <ui:Label text="Cost" class="cost-title" />
+                    <ui:VisualElement class="cost-row">
+                        <ui:Label name="stone-cost" text="1" class="cost-value" />
+                        <ui:Label text=" Attunement Stone" class="cost-unit" />
+                    </ui:VisualElement>
+                    <ui:Label name="stones-available" text="Available: 0" class="stones-available" />
+                </ui:VisualElement>
+
+                <!-- Failure Reason -->
+                <ui:Label name="failure-reason" text="" class="failure-reason" style="display: none;" />
+
+                <!-- Actions -->
+                <ui:VisualElement class="action-buttons">
+                    <ui:Button name="attune-button" text="Deepen Attunement - 1 Stone" class="attune-button" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Result Panel (overlay) -->
+        <ui:VisualElement name="result-panel" class="result-panel" style="display: none;">
+            <ui:Label name="result-title" text="Attunement Deepened" class="result-title" />
+            <ui:Label name="result-message" text="Weapon reached +1" class="result-message" />
+            <ui:Label name="result-stats" text="Damage: 24.0 → 25.4" class="result-stats" />
+            <ui:Button name="result-dismiss-button" text="Continue" class="result-dismiss-button" />
+        </ui:VisualElement>
+
+        <!-- Footer -->
+        <ui:VisualElement class="table-footer">
+            <ui:Label text="Press Escape to close" class="footer-hint" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -15,12 +15,14 @@ namespace Lootbound.Gameplay.Equipment
         private const float FragileThreshold = 0.01f;    // 1-34%
         // Below 1% or exactly 0% = Broken
 
-        // Condition colors (sober, not saturated MMO colors)
-        private static readonly Color ExcellentColor = new Color(0.7f, 0.75f, 0.85f);   // Slightly bluish gray
-        private static readonly Color GoodColor = new Color(0.55f, 0.75f, 0.55f);       // Soft green
-        private static readonly Color WornColor = new Color(0.8f, 0.7f, 0.45f);         // Ochre
-        private static readonly Color FragileColor = new Color(0.9f, 0.6f, 0.35f);      // Orange
-        private static readonly Color BrokenColor = new Color(0.65f, 0.25f, 0.25f);     // Deep red
+        // Condition colors - sober, desaturated palette
+        // Slice 0.7.7: Updated to polish palette (Broken brightened for visibility)
+        // Hex references: Excellent #A8B4B8, Good #7F9A72, Worn #A58A5E, Fragile #B56F45, Broken #B85555
+        private static readonly Color ExcellentColor = new Color(0.66f, 0.71f, 0.72f);  // Bluish gray #A8B4B8
+        private static readonly Color GoodColor = new Color(0.50f, 0.60f, 0.45f);       // Soft green #7F9A72
+        private static readonly Color WornColor = new Color(0.65f, 0.54f, 0.37f);       // Ochre #A58A5E
+        private static readonly Color FragileColor = new Color(0.71f, 0.44f, 0.27f);    // Muted orange #B56F45
+        private static readonly Color BrokenColor = new Color(0.72f, 0.33f, 0.33f);     // Visible red #B85555
 
         /// <summary>
         /// Calculate condition from normalized durability (0-1).

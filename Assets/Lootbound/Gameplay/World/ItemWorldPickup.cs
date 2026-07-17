@@ -142,8 +142,8 @@ namespace Lootbound.Gameplay.World
             // Handle equipment items with preserved identity
             if (storedInstance != null && storedInstance.HasEquipmentData)
             {
-                // Equipment items: try to add the exact instance
-                if (playerInventory.Inventory.TryAddItem(storedInstance))
+                // Equipment items: use AddEquipmentItem to fire notification events
+                if (playerInventory.AddEquipmentItem(storedInstance))
                 {
                     isPickedUp = true;
                     Debug.Log($"[ItemWorldPickup] Equipment picked up: {storedInstance.EquipmentData.CustomName} [{storedInstance.EquipmentData.InstanceId[..8]}]");

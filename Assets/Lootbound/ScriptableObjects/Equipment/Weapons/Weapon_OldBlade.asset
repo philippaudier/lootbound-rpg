@@ -18,7 +18,7 @@ MonoBehaviour:
     dull, but it remains dependable.
   icon: {fileID: 21300000, guid: 711ca11bc73c5ad4ab119770d9684f5c, type: 3}
   rarity: 0
-  worldPrefab: {fileID: 0}
+  worldPrefab: {fileID: 4938635231833619316, guid: 5b38a7b8d5f2d7d4f9f0906fe68516d3, type: 3}
   isStackable: 0
   maxStackSize: 1
   pickupPrompt: Pick up
@@ -29,4 +29,4 @@ MonoBehaviour:
   baseStagger: 0.25
   baseDurability: 100
   attackConfig: {fileID: 11400000, guid: 8790275046c81b040a78c48da2abb1cd, type: 2}
-  firstPersonPrefab: {fileID: 0}
+  firstPersonPrefab: {fileID: 4938635231833619316, guid: 5b38a7b8d5f2d7d4f9f0906fe68516d3, type: 3}

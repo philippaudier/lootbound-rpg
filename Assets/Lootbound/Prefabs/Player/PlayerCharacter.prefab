@@ -246,6 +246,9 @@ GameObject:
   - component: {fileID: 3853507261988733121}
   - component: {fileID: 1899438849096125805}
   - component: {fileID: 6556402094574427399}
+  - component: {fileID: 6835192681090029252}
+  - component: {fileID: 4867844344641920722}
+  - component: {fileID: 2249303495745459244}
   m_Layer: 0
   m_Name: PlayerCharacter
   m_TagString: Untagged
@@ -470,6 +473,9 @@ MonoBehaviour:
   equipmentRegistry: {fileID: 11400000, guid: a40bac1b6935b07489fd76cf200fb399, type: 2}
   playerWeaponWear: {fileID: 3853507261988733121}
   brokenWeaponConfig: {fileID: 11400000, guid: b6c861361051bac4e85d09aa9355cb91, type: 2}
+  attunementConfig: {fileID: 11400000, guid: 660cced9561e8ad47b82533de4aa374d, type: 2}
+  attunementCostConfig: {fileID: 11400000, guid: f28031c80a938ed4c91b4074fc52d77f, type: 2}
+  attunementChanceConfig: {fileID: 11400000, guid: 634eba380b780a849a210bb26ad0235a, type: 2}
   weaponViewSocket: {fileID: 0}
 --- !u!114 &4126830019317868881
 MonoBehaviour:
@@ -522,6 +528,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.WeaponConditionVisual
   playerEquipment: {fileID: 4535864293518479657}
   playerWeaponWear: {fileID: 3853507261988733121}
+  config: {fileID: 11400000, guid: 06e7ba19c289b3f4b950d6efca75003c, type: 2}
   brokenDesaturation: 0.6
   brokenTint: {r: 0.8, g: 0.3, b: 0.3, a: 1}
   brokenTintStrength: 0.3
@@ -541,3 +548,138 @@ MonoBehaviour:
   repairFragmentDefinition: {fileID: 11400000, guid: 321514c8707505f438b62909f29c71a6, type: 2}
   playerInventory: {fileID: 4471596059645939610}
   playerEquipment: {fileID: 4535864293518479657}
+--- !u!114 &6835192681090029252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4feb3a3e1567a814caeda859f1fd435d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.EquipmentAudioFeedback
+  playerWeaponWear: {fileID: 3853507261988733121}
+  playerRepair: {fileID: 6556402094574427399}
+  audioSource: {fileID: 2249303495745459244}
+  conditionDegradeClip: {fileID: 0}
+  weaponBreakClip: {fileID: 0}
+  repairCompleteClip: {fileID: 0}
+  restoredFromBrokenClip: {fileID: 0}
+  conditionChangeVolume: 0.6
+  breakVolume: 0.8
+  repairVolume: 0.7
+--- !u!114 &4867844344641920722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af01de01b1e82b349a3f3002d0b108c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Equipment.WearMetricsTracker
+  playerWeaponWear: {fileID: 3853507261988733121}
+  playerRepair: {fileID: 6556402094574427399}
+  playerEquipment: {fileID: 4535864293518479657}
+  showOnStart: 1
+--- !u!82 &2249303495745459244
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4188306054102627643}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

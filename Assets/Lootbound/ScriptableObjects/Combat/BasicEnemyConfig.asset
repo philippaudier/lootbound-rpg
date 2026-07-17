@@ -33,6 +33,7 @@ MonoBehaviour:
   lootItems:
   - {fileID: 11400000, guid: eed0a381de7717f49bd3a647eeb264b9, type: 2}
   - {fileID: 11400000, guid: 321514c8707505f438b62909f29c71a6, type: 2}
+  - {fileID: 11400000, guid: 3e1ba9f9b8b63fb489195cccfff81d37, type: 2}
   minLootQuantity: 1
   maxLootQuantity: 3
   weaponLoot:

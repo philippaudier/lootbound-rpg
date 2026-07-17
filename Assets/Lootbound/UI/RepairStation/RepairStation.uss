@@ -1,0 +1,354 @@
+/* Repair Station Panel */
+
+.repair-station-panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    background-color: rgba(25, 28, 30, 0.97);
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: rgba(80, 85, 90, 0.6);
+    padding: 16px;
+    width: 650px;
+    min-height: 400px;
+    /* Slice 0.7.7: Panel transition */
+    opacity: 1;
+    scale: 1;
+    transition-property: opacity, scale;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+}
+
+/* Panel animation states - Slice 0.7.7 */
+.repair-station-panel-opening {
+    opacity: 0;
+    scale: 0.95;
+}
+
+.repair-station-panel-closing {
+    opacity: 0;
+    scale: 0.98;
+}
+
+/* Header */
+
+.station-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(100, 105, 110, 0.4);
+}
+
+.station-title {
+    color: rgb(220, 225, 230);
+    font-size: 22px;
+    -unity-font-style: bold;
+}
+
+.close-button {
+    width: 28px;
+    height: 28px;
+    background-color: rgba(180, 70, 70, 0.6);
+    border-radius: 4px;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.close-button:hover {
+    background-color: rgba(200, 90, 90, 0.8);
+}
+
+/* Content Layout */
+
+.station-content {
+    flex-direction: row;
+    flex-grow: 1;
+    min-height: 300px;
+}
+
+/* Equipment Section (Left) */
+
+.equipment-section {
+    width: 280px;
+    margin-right: 16px;
+    padding-right: 16px;
+    border-right-width: 1px;
+    border-right-color: rgba(80, 85, 90, 0.4);
+}
+
+.section-title {
+    color: rgb(180, 185, 190);
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-bottom: 12px;
+}
+
+.no-equipment-label {
+    color: rgb(120, 140, 120);
+    font-size: 13px;
+    -unity-font-style: italic;
+    padding: 20px;
+    -unity-text-align: middle-center;
+}
+
+.equipment-scroll {
+    flex-grow: 1;
+}
+
+.equipment-list {
+    flex-direction: column;
+}
+
+/* Equipment Item */
+
+.equipment-item {
+    flex-direction: row;
+    padding: 10px;
+    margin-bottom: 8px;
+    background-color: rgba(45, 48, 52, 0.8);
+    border-radius: 6px;
+    border-width: 2px;
+    border-color: rgba(60, 65, 70, 0.5);
+}
+
+.equipment-item:hover {
+    background-color: rgba(55, 58, 62, 0.9);
+    border-color: rgba(100, 105, 110, 0.7);
+}
+
+.equipment-item.equipment-selected {
+    border-color: rgb(200, 170, 100);
+    border-width: 2px;
+    background-color: rgba(60, 55, 45, 0.8);
+}
+
+.equipment-icon {
+    width: 48px;
+    height: 48px;
+    background-color: rgba(35, 38, 42, 0.8);
+    border-radius: 4px;
+    margin-right: 10px;
+    -unity-background-scale-mode: scale-to-fit;
+    flex-shrink: 0;
+}
+
+.equipment-info {
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.equipment-name {
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+    white-space: normal;
+}
+
+.equipment-condition {
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.equipment-durability-container {
+    height: 4px;
+    background-color: rgba(30, 32, 35, 0.8);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.equipment-durability-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+/* Preview Section (Right) */
+
+.preview-section {
+    flex-grow: 1;
+    padding-left: 8px;
+}
+
+.preview-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: rgba(40, 43, 47, 0.7);
+    border-radius: 6px;
+}
+
+.preview-name {
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.preview-rarity {
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.preview-affixes {
+    margin-top: 8px;
+}
+
+.affix-label {
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+/* Durability Section */
+
+.durability-section {
+    margin-bottom: 12px;
+    padding: 10px;
+    background-color: rgba(35, 38, 42, 0.6);
+    border-radius: 4px;
+}
+
+.durability-label {
+    font-size: 12px;
+    color: rgb(150, 155, 160);
+    margin-bottom: 6px;
+}
+
+.durability-bar {
+    height: 8px;
+    background-color: rgba(25, 28, 30, 0.8);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.durability-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition-duration: 0.3s;
+}
+
+.durability-value {
+    font-size: 14px;
+    color: rgb(200, 205, 210);
+    -unity-font-style: bold;
+}
+
+.condition-label {
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Repair Result Section */
+
+.repair-result-section {
+    margin-bottom: 12px;
+    padding: 10px;
+    background-color: rgba(40, 55, 45, 0.6);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(80, 120, 90, 0.4);
+}
+
+.durability-value-after {
+    font-size: 14px;
+    color: rgb(150, 220, 170);
+    -unity-font-style: bold;
+}
+
+/* Cost Section */
+
+.cost-section {
+    margin-bottom: 16px;
+    padding: 10px;
+    background-color: rgba(45, 42, 35, 0.6);
+    border-radius: 4px;
+}
+
+.cost-title {
+    font-size: 12px;
+    color: rgb(150, 155, 160);
+    margin-bottom: 4px;
+}
+
+.cost-value {
+    font-size: 14px;
+    color: rgb(220, 200, 150);
+    -unity-font-style: bold;
+}
+
+.fragments-available {
+    font-size: 11px;
+    color: rgb(130, 140, 130);
+    margin-top: 4px;
+}
+
+/* Failure Reason */
+
+.failure-reason {
+    padding: 10px;
+    margin-bottom: 12px;
+    background-color: rgba(80, 45, 45, 0.6);
+    border-radius: 4px;
+    color: rgb(220, 150, 150);
+    font-size: 12px;
+    -unity-text-align: middle-center;
+}
+
+/* Action Buttons */
+
+.action-buttons {
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.repair-button {
+    height: 40px;
+    background-color: rgba(70, 130, 90, 0.8);
+    border-radius: 6px;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.repair-button:hover {
+    background-color: rgba(90, 150, 110, 0.9);
+}
+
+.repair-button:disabled {
+    background-color: rgba(60, 65, 70, 0.6);
+    color: rgb(120, 125, 130);
+}
+
+/* Slice 0.7.7: Repair button active state */
+.repair-button:active {
+    background-color: rgba(60, 100, 75, 0.9);
+    scale: 0.98;
+}
+
+/* Slice 0.7.7: Repair success feedback */
+.repair-success-flash {
+    background-color: rgba(100, 180, 130, 0.3);
+    transition-property: background-color;
+    transition-duration: 0.4s;
+}
+
+/* Footer */
+
+.station-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top-width: 1px;
+    border-top-color: rgba(80, 85, 90, 0.4);
+    flex-direction: row;
+    justify-content: center;
+}
+
+.footer-hint {
+    color: rgb(100, 105, 110);
+    font-size: 11px;
+    -unity-font-style: italic;
+}

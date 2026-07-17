@@ -1,4 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="Notifications.uss" />
+    <Style src="ConditionNotification.uss" />
     <ui:VisualElement name="notification-container" class="notification-container" />
+    <ui:VisualElement name="condition-notification-container" class="condition-notification-container" />
 </ui:UXML>

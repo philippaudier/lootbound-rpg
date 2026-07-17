@@ -103,6 +103,23 @@ namespace Lootbound.Core.Scenes
 #if UNITY_EDITOR
         private void OnValidate()
         {
+            // Skip validation during editor startup, compilation, or asset import
+            // Application.CanStreamedLevelBeLoaded() is unreliable at these times
+            if (UnityEditor.EditorApplication.isCompiling ||
+                UnityEditor.EditorApplication.isUpdating)
+            {
+                return;
+            }
+
+            // Also skip during very early startup (before Build Settings are loaded)
+            // This avoids false positives when Unity restores scenes on launch
+            if (!UnityEditor.EditorApplication.isPlaying &&
+                UnityEditor.EditorUtility.scriptCompilationFailed == false &&
+                Time.realtimeSinceStartup < 3f)
+            {
+                return;
+            }
+
             var issues = Validate();
             foreach (var issue in issues)
             {

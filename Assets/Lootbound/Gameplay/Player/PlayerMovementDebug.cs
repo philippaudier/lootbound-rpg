@@ -5,7 +5,7 @@ namespace Lootbound.Gameplay.Player
 {
     /// <summary>
     /// Displays movement debug information using OnGUI.
-    /// Separate from the main DebugOverlay to show player-specific data.
+    /// Toggle with F4. Position: Right of System panel (F3), auto-sized.
     /// </summary>
     public class PlayerMovementDebug : MonoBehaviour
     {
@@ -19,10 +19,14 @@ namespace Lootbound.Gameplay.Player
         [SerializeField] private Key toggleKey = Key.F4;
 
         private bool isVisible;
-        private float deltaTime;
+        private Vector2 scrollPosition;
+
+        // Styles matching WearMetrics
         private GUIStyle boxStyle;
         private GUIStyle labelStyle;
         private GUIStyle headerStyle;
+        private GUIStyle subHeaderStyle;
+        private GUIStyle valueStyle;
 
         private void Start()
         {
@@ -31,8 +35,6 @@ namespace Lootbound.Gameplay.Player
 
         private void Update()
         {
-            deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
-
             if (Keyboard.current != null && Keyboard.current[toggleKey].wasPressedThisFrame)
             {
                 isVisible = !isVisible;
@@ -43,127 +45,171 @@ namespace Lootbound.Gameplay.Player
         {
             if (!isVisible || motor == null) return;
 
-            EnsureStyles();
-            DrawDebugPanel();
+            InitializeStyles();
+
+            float width = 260f;
+            float x = 280f; // Right of System panel (10 + 260 + 10 gap)
+            float y = 10f;  // Aligned with System panel
+            float contentHeight = CalculateContentHeight();
+            float maxHeight = Screen.height - 40f;
+            float panelHeight = Mathf.Min(contentHeight + 15f, maxHeight);
+
+            GUI.Box(new Rect(x, y, width, panelHeight), "", boxStyle);
+
+            Rect viewRect = new Rect(x + 5f, y + 5f, width - 10f, panelHeight - 10f);
+            Rect contentRect = new Rect(0, 0, width - 25f, contentHeight);
+
+            scrollPosition = GUI.BeginScrollView(viewRect, scrollPosition, contentRect);
+            DrawDebugContent(width - 25f);
+            GUI.EndScrollView();
         }
 
-        private void EnsureStyles()
+        private float CalculateContentHeight()
         {
-            if (boxStyle == null)
-            {
-                boxStyle = new GUIStyle(GUI.skin.box)
-                {
-                    padding = new RectOffset(10, 10, 10, 10)
-                };
-            }
-
-            if (labelStyle == null)
-            {
-                labelStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 12,
-                    normal = { textColor = Color.white }
-                };
-            }
-
-            if (headerStyle == null)
-            {
-                headerStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold,
-                    normal = { textColor = new Color(0.8f, 0.9f, 1f) }
-                };
-            }
+            float lineHeight = 16f;
+            float height = 22f; // Header
+            height += lineHeight * 3 + 3f; // Ground section (header + grounded + normal + spacing)
+            height += lineHeight * 3 + 3f; // Velocity section (header + speed + horizontal + spacing)
+            height += lineHeight * 2; // State section (header + movement)
+            if (stanceController != null) height += lineHeight; // Stance line (combined with height)
+            height += 3f;
+            height += lineHeight * 2 + 3f; // Timers section (header + combined coyote/buffer + spacing)
+            if (inputReader != null) height += lineHeight * 2; // Input section (header + move)
+            return height;
         }
 
-        private void DrawDebugPanel()
+        private void InitializeStyles()
         {
-            int width = 260;
-            int height = 400;
-            int x = Screen.width - width - 10;
-            int y = 10;
+            if (boxStyle != null) return;
 
-            GUI.Box(new Rect(x, y, width, height), "", boxStyle);
+            boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                normal = { background = MakeTexture(2, 2, new Color(0.1f, 0.1f, 0.12f, 0.92f)) }
+            };
 
-            int lineY = y + 10;
-            int lineHeight = 18;
-            int sectionSpacing = 8;
+            labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
+            };
+
+            headerStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(0.9f, 0.8f, 0.6f) }
+            };
+
+            subHeaderStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 10,
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.6f, 0.6f, 0.65f) }
+            };
+
+            valueStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
+            };
+        }
+
+        private Texture2D MakeTexture(int width, int height, Color color)
+        {
+            var pixels = new Color[width * height];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = color;
+
+            var texture = new Texture2D(width, height);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
+        }
+
+        private void DrawDebugContent(float width)
+        {
+            float lineY = 0f;
+            float lineHeight = 16f;
+            float labelX = 5f;
+            float valueX = 100f;
+            float valueWidth = width - valueX;
 
             // Header
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Movement Debug (F4)", headerStyle);
-            lineY += lineHeight + sectionSpacing;
+            GUI.Label(new Rect(labelX, lineY, width, 20f), "MOVEMENT (F4)", headerStyle);
+            lineY += 22f;
 
-            // FPS
-            float fps = 1.0f / deltaTime;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), $"FPS: {fps:0.0}", labelStyle);
+            // Ground section
+            GUI.Label(new Rect(labelX, lineY, width, lineHeight), "— Ground —", subHeaderStyle);
             lineY += lineHeight;
 
-            // Ground state
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Ground", headerStyle);
+            string groundedText = motor.IsGrounded ? "Yes" : "No";
+            Color groundedColor = motor.IsGrounded ? new Color(0.6f, 0.9f, 0.6f) : new Color(0.9f, 0.6f, 0.6f);
+            var groundedStyle = new GUIStyle(valueStyle) { normal = { textColor = groundedColor } };
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Grounded:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{groundedText}  Angle: {motor.GroundAngle:F1}°", groundedStyle);
             lineY += lineHeight;
 
-            string groundedText = motor.IsGrounded ? "<color=green>Yes</color>" : "<color=red>No</color>";
-            DrawLabel(x, ref lineY, lineHeight, $"Grounded: {groundedText}");
-            DrawLabel(x, ref lineY, lineHeight, $"Ground Angle: {motor.GroundAngle:0.0}°");
-            DrawLabel(x, ref lineY, lineHeight, $"Ground Normal: {FormatVector3(motor.GroundNormal)}");
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Normal:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), FormatVector3(motor.GroundNormal), valueStyle);
+            lineY += lineHeight + 3f;
 
-            // Velocity
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Velocity", headerStyle);
+            // Velocity section
+            GUI.Label(new Rect(labelX, lineY, width, lineHeight), "— Velocity —", subHeaderStyle);
             lineY += lineHeight;
 
-            DrawLabel(x, ref lineY, lineHeight, $"Speed: {motor.CurrentSpeed:0.00} m/s");
-            DrawLabel(x, ref lineY, lineHeight, $"Horizontal: {FormatVector3(motor.HorizontalVelocity)}");
-            DrawLabel(x, ref lineY, lineHeight, $"Vertical: {motor.VerticalVelocity:0.00} m/s");
-
-            // State
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "State", headerStyle);
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Speed:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{motor.CurrentSpeed:F2} m/s  V: {motor.VerticalVelocity:F2}", valueStyle);
             lineY += lineHeight;
 
-            string sprintText = motor.IsSprinting ? "<color=yellow>Sprinting</color>" : "Walking";
-            DrawLabel(x, ref lineY, lineHeight, $"Movement: {sprintText}");
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Horizontal:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), FormatVector3(motor.HorizontalVelocity), valueStyle);
+            lineY += lineHeight + 3f;
+
+            // State section
+            GUI.Label(new Rect(labelX, lineY, width, lineHeight), "— State —", subHeaderStyle);
+            lineY += lineHeight;
+
+            string sprintText = motor.IsSprinting ? "Sprinting" : "Walking";
+            Color sprintColor = motor.IsSprinting ? new Color(0.9f, 0.9f, 0.5f) : new Color(0.8f, 0.8f, 0.8f);
+            var sprintStyle = new GUIStyle(valueStyle) { normal = { textColor = sprintColor } };
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Movement:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), sprintText, sprintStyle);
+            lineY += lineHeight;
 
             if (stanceController != null)
             {
-                string stanceText = stanceController.IsCrouching ? "<color=cyan>Crouching</color>" : "Standing";
-                DrawLabel(x, ref lineY, lineHeight, $"Stance: {stanceText}");
-                DrawLabel(x, ref lineY, lineHeight, $"Height: {stanceController.CurrentHeight:0.00}m");
+                string stanceText = stanceController.IsCrouching ? "Crouching" : "Standing";
+                Color stanceColor = stanceController.IsCrouching ? new Color(0.5f, 0.9f, 0.9f) : new Color(0.8f, 0.8f, 0.8f);
+                var stanceStyle = new GUIStyle(valueStyle) { normal = { textColor = stanceColor } };
+                GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Stance:", labelStyle);
+                GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{stanceText}  H: {stanceController.CurrentHeight:F2}m", stanceStyle);
+                lineY += lineHeight;
             }
+            lineY += 3f;
 
-            // Timers
-            lineY += sectionSpacing;
-            GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Timers", headerStyle);
+            // Timers section
+            GUI.Label(new Rect(labelX, lineY, width, lineHeight), "— Timers —", subHeaderStyle);
             lineY += lineHeight;
 
-            DrawLabel(x, ref lineY, lineHeight, $"Coyote: {motor.CoyoteTimeRemaining:0.00}s");
-            DrawLabel(x, ref lineY, lineHeight, $"Jump Buffer: {motor.JumpBufferRemaining:0.00}s");
+            GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Coyote:", labelStyle);
+            GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"{motor.CoyoteTimeRemaining:F2}s  Buffer: {motor.JumpBufferRemaining:F2}s", valueStyle);
+            lineY += lineHeight + 3f;
 
-            // Input
+            // Input section
             if (inputReader != null)
             {
-                lineY += sectionSpacing;
-                GUI.Label(new Rect(x + 10, lineY, width - 20, lineHeight), "Input", headerStyle);
+                GUI.Label(new Rect(labelX, lineY, width, lineHeight), "— Input —", subHeaderStyle);
                 lineY += lineHeight;
 
                 Vector2 moveInput = inputReader.GetNormalizedMoveInput();
-                DrawLabel(x, ref lineY, lineHeight, $"Move: ({moveInput.x:0.00}, {moveInput.y:0.00})");
+                GUI.Label(new Rect(labelX, lineY, 90f, lineHeight), "Move:", labelStyle);
+                GUI.Label(new Rect(valueX, lineY, valueWidth, lineHeight), $"({moveInput.x:F2}, {moveInput.y:F2})", valueStyle);
             }
-        }
-
-        private void DrawLabel(int x, ref int lineY, int lineHeight, string text)
-        {
-            // Use richtext for colored labels
-            GUIStyle richStyle = new GUIStyle(labelStyle) { richText = true };
-            GUI.Label(new Rect(x + 10, lineY, 240, lineHeight), text, richStyle);
-            lineY += lineHeight;
         }
 
         private string FormatVector3(Vector3 v)
         {
-            return $"({v.x:0.00}, {v.y:0.00}, {v.z:0.00})";
+            return $"({v.x:F2}, {v.y:F2}, {v.z:F2})";
         }
     }
 }

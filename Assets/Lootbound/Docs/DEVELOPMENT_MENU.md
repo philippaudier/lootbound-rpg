@@ -91,11 +91,12 @@ MonoBehaviour controlling the menu UI:
 
 When Escape is pressed:
 
-1. **Inventory** - If open, closes (handled by InventoryUI)
-2. **Dev Menu** - If open, navigates or closes
-3. **Nothing** - Opens pause view
+1. **Repair Station** - If open, closes
+2. **Inventory** - If open, closes
+3. **Dev Menu** - If open, navigates or closes
+4. **Nothing** - Opens pause view
 
-This priority is coordinated through `PlayerCameraController.OnPauseRequested` event.
+This priority is handled centrally by `DevelopmentMenuController.HandlePauseRequest()`, which subscribes to `PlayerCameraController.OnPauseRequested`.
 
 ## Pause Behavior
 

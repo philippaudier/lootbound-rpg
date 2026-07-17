@@ -226,6 +226,9 @@ namespace Lootbound.Gameplay.Equipment
                 conditionAfter,
                 removed);
 
+            // Record repair in equipment history
+            equipment.RecordRepair(result);
+
             // Raise event
             OnRepairCompleted?.Invoke(result);
 

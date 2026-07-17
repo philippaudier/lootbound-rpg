@@ -18,7 +18,7 @@ MonoBehaviour:
     power. A reliable companion on long expeditions.
   icon: {fileID: 21300000, guid: ac46a68b176525847ad0fdc1a1d1b71b, type: 3}
   rarity: 0
-  worldPrefab: {fileID: 0}
+  worldPrefab: {fileID: 7630079371579989462, guid: 15dfbbf5c026f7c458d763ab21892d2d, type: 3}
   isStackable: 0
   maxStackSize: 1
   pickupPrompt: Pick up
@@ -29,4 +29,4 @@ MonoBehaviour:
   baseStagger: 0.25
   baseDurability: 100
   attackConfig: {fileID: 11400000, guid: 8790275046c81b040a78c48da2abb1cd, type: 2}
-  firstPersonPrefab: {fileID: 0}
+  firstPersonPrefab: {fileID: 7630079371579989462, guid: 15dfbbf5c026f7c458d763ab21892d2d, type: 3}

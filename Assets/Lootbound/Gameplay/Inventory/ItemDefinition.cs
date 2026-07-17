@@ -70,6 +70,14 @@ namespace Lootbound.Gameplay.Inventory
         /// </summary>
         public Color GetRarityColor()
         {
+            return GetColorForRarity(rarity);
+        }
+
+        /// <summary>
+        /// Get color for a specific rarity level.
+        /// </summary>
+        public static Color GetColorForRarity(ItemRarity rarity)
+        {
             return rarity switch
             {
                 ItemRarity.Common => new Color(0.8f, 0.8f, 0.8f),     // Gray

@@ -88,6 +88,12 @@ namespace Lootbound.Gameplay.Combat
         /// </summary>
         public event Action OnDied;
 
+        /// <summary>
+        /// Static event fired when any enemy dies.
+        /// Used by expedition tracking and other global systems.
+        /// </summary>
+        public static event Action<EnemyHealth> OnAnyEnemyDied;
+
         private void Awake()
         {
             float maxHealth = config != null ? config.MaxHealth : 100f;
@@ -283,6 +289,7 @@ namespace Lootbound.Gameplay.Combat
             LootboundLog.Info(Category, $"{gameObject.name} died!");
             SpawnLoot();
             OnDied?.Invoke();
+            OnAnyEnemyDied?.Invoke(this);
         }
 
         private void SpawnLoot()

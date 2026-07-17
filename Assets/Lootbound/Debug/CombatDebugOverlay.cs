@@ -10,6 +10,7 @@ namespace Lootbound.Debugging
     /// <summary>
     /// Debug overlay for combat systems.
     /// Toggle with F6. Uses OnGUI for immediate mode rendering.
+    /// Positioned below System panel (F3), auto-sized.
     /// </summary>
     public class CombatDebugOverlay : MonoBehaviour
     {
@@ -32,15 +33,18 @@ namespace Lootbound.Debugging
         [Header("Settings")]
         [SerializeField] private bool showOnStart = false;
 
-        private GUIStyle buttonStyle;
-
         private bool isVisible;
+
+        // Styles matching WearMetrics
         private GUIStyle boxStyle;
         private GUIStyle labelStyle;
         private GUIStyle headerStyle;
-        private GUIStyle windowStyle;
+        private GUIStyle subHeaderStyle;
+        private GUIStyle buttonStyle;
+        private GUIStyle valueStyle;
 
-        private Rect windowRect = new Rect(Screen.width - 340f, 20f, 320f, 100f);
+        // Scroll position for long content
+        private Vector2 scrollPosition;
 
         private void Start()
         {
@@ -51,54 +55,34 @@ namespace Lootbound.Debugging
         private void AutoFindDependencies()
         {
             if (playerHealth == null)
-            {
                 playerHealth = FindFirstObjectByType<PlayerHealth>();
-            }
 
             if (playerDodge == null)
-            {
                 playerDodge = FindFirstObjectByType<PlayerDodge>();
-            }
 
             if (playerWeapon == null)
-            {
                 playerWeapon = FindFirstObjectByType<PlayerMeleeWeapon>();
-            }
 
             if (combatController == null)
-            {
                 combatController = FindFirstObjectByType<PlayerCombatController>();
-            }
 
             if (trackedEnemy == null)
-            {
                 trackedEnemy = FindFirstObjectByType<EnemyHealth>();
-            }
 
             if (trackedEnemyBrain == null)
-            {
                 trackedEnemyBrain = FindFirstObjectByType<EnemyBrain>();
-            }
 
             if (playerEquipment == null)
-            {
                 playerEquipment = FindFirstObjectByType<PlayerEquipment>();
-            }
 
             if (playerWeaponWear == null)
-            {
                 playerWeaponWear = FindFirstObjectByType<PlayerWeaponWear>();
-            }
 
             if (playerRepair == null)
-            {
                 playerRepair = FindFirstObjectByType<PlayerRepair>();
-            }
 
             if (playerInventory == null)
-            {
                 playerInventory = FindFirstObjectByType<PlayerInventory>();
-            }
         }
 
         private void Update()
@@ -111,75 +95,131 @@ namespace Lootbound.Debugging
 
         private void OnGUI()
         {
-            if (!isVisible)
-            {
-                return;
-            }
+            if (!isVisible) return;
 
             InitializeStyles();
 
-            // Position window on right side of screen
-            windowRect.x = Screen.width - windowRect.width - 20f;
+            float width = 260f;
+            float x = 10f;   // Aligned with System panel
+            float y = 175f;  // Below System panel (10 + 155 + 10 gap)
 
-            // Use GUILayout.Window for auto-sizing
-            windowRect = GUILayout.Window(0, windowRect, DrawDebugWindow, "", windowStyle);
+            // Calculate actual content height
+            float contentHeight = CalculateContentHeight();
+            float maxHeight = Screen.height - 40f;
+            float panelHeight = Mathf.Min(contentHeight + 15f, maxHeight);
+
+            GUI.Box(new Rect(x, y, width, panelHeight), "", boxStyle);
+
+            // Scroll view if content is too tall
+            scrollPosition = GUI.BeginScrollView(
+                new Rect(x, y, width, panelHeight),
+                scrollPosition,
+                new Rect(0, 0, width - 20f, contentHeight),
+                false, contentHeight > panelHeight);
+
+            float lineY = 8f;
+            float lineHeight = 16f;
+            float labelX = 8f;
+            float valueX = 110f;
+            float valueWidth = 150f;
+
+            // Header
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "COMBAT DEBUG (F6)", headerStyle);
+            lineY += lineHeight + 4f;
+
+            // Player Section
+            lineY = DrawPlayerSection(lineY, lineHeight, labelX, valueX, valueWidth, width);
+
+            // Attack Section
+            lineY = DrawAttackSection(lineY, lineHeight, labelX, valueX, valueWidth, width);
+
+            // Dodge Section
+            lineY = DrawDodgeSection(lineY, lineHeight, labelX, valueX, valueWidth, width);
+
+            // Equipment Section
+            lineY = DrawEquipmentSection(lineY, lineHeight, labelX, valueX, valueWidth, width);
+
+            // Enemy Section
+            lineY = DrawEnemySection(lineY, lineHeight, labelX, valueX, valueWidth, width);
+
+            GUI.EndScrollView();
         }
 
-        private void DrawDebugWindow(int windowID)
+        private float CalculateContentHeight()
         {
-            DrawHeader("COMBAT DEBUG (F6)");
-            GUILayout.Space(10f);
+            float lineHeight = 16f;
+            float height = 24f; // Header
 
-            DrawPlayerSection();
-            GUILayout.Space(10f);
+            // Player: header + 1 line + spacing
+            height += lineHeight + lineHeight + 3f;
 
-            DrawAttackSection();
-            GUILayout.Space(10f);
+            // Attack: header + 2 lines + spacing (or 1 if not found)
+            height += lineHeight + (playerWeapon != null ? lineHeight * 2 : lineHeight) + 3f;
 
-            DrawDodgeSection();
-            GUILayout.Space(10f);
+            // Dodge: header + 1 line + spacing
+            height += lineHeight + lineHeight + 3f;
 
-            DrawEquipmentSection();
-            GUILayout.Space(10f);
+            // Equipment
+            if (playerEquipment != null && playerEquipment.HasWeaponEquipped)
+            {
+                // Header + 7 info lines + 3 button rows + repair section + history section
+                height += lineHeight; // header
+                height += lineHeight * 7; // info lines
+                height += 20f * 3 + 8f; // 3 button rows
+                height += lineHeight * 2 + 20f + 8f; // repair section
+                height += lineHeight * 4 + 20f + 8f; // history section (header + 3 lines + buttons)
+            }
+            else
+            {
+                height += lineHeight * 2 + 3f;
+            }
 
-            DrawEnemySection();
+            // Enemy: header + up to 2 lines + spacing
+            height += lineHeight + lineHeight * 2 + 3f;
+
+            return height;
         }
 
         private void InitializeStyles()
         {
-            if (boxStyle != null)
-            {
-                return;
-            }
+            if (boxStyle != null) return;
 
             boxStyle = new GUIStyle(GUI.skin.box)
             {
-                normal = { background = MakeTexture(2, 2, new Color(0f, 0f, 0f, 0.85f)) }
+                normal = { background = MakeTexture(2, 2, new Color(0.1f, 0.1f, 0.12f, 0.92f)) }
             };
 
             labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12,
-                normal = { textColor = Color.white }
+                fontSize = 11,
+                normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
             };
 
             headerStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 14,
+                fontSize = 12,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(0.9f, 0.8f, 0.6f) }
             };
 
-            buttonStyle = new GUIStyle(GUI.skin.button)
+            subHeaderStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 11,
-                padding = new RectOffset(8, 8, 4, 4)
+                fontSize = 10,
+                fontStyle = FontStyle.Italic,
+                normal = { textColor = new Color(0.6f, 0.6f, 0.65f) }
             };
 
-            windowStyle = new GUIStyle(GUI.skin.window)
+            valueStyle = new GUIStyle(GUI.skin.label)
             {
-                normal = { background = MakeTexture(2, 2, new Color(0f, 0f, 0f, 0.85f)) },
-                padding = new RectOffset(15, 15, 10, 10)
+                fontSize = 11,
+                normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
+            };
+
+            buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 10,
+                padding = new RectOffset(4, 4, 2, 2),
+                normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
             };
         }
 
@@ -187,9 +227,7 @@ namespace Lootbound.Debugging
         {
             var pixels = new Color[width * height];
             for (int i = 0; i < pixels.Length; i++)
-            {
                 pixels[i] = color;
-            }
 
             var texture = new Texture2D(width, height);
             texture.SetPixels(pixels);
@@ -197,197 +235,400 @@ namespace Lootbound.Debugging
             return texture;
         }
 
-        private void DrawHeader(string text)
+        private float DrawPlayerSection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width)
         {
-            GUILayout.Label(text, headerStyle);
-        }
-
-        private void DrawLabel(string label, string value)
-        {
-            GUILayout.Label($"{label}: {value}", labelStyle);
-        }
-
-        private void DrawLabel(string label, float value, string format = "F2")
-        {
-            GUILayout.Label($"{label}: {value.ToString(format)}", labelStyle);
-        }
-
-        private void DrawLabel(string label, bool value)
-        {
-            string color = value ? "<color=#90EE90>TRUE</color>" : "<color=#FFB6C1>FALSE</color>";
-            var richStyle = new GUIStyle(labelStyle) { richText = true };
-            GUILayout.Label($"{label}: {color}", richStyle);
-        }
-
-        private void DrawPlayerSection()
-        {
-            DrawHeader("Player");
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Player —", subHeaderStyle);
+            lineY += lineHeight;
 
             if (playerHealth != null)
             {
-                DrawLabel("Health", $"{playerHealth.CurrentHealth:F0} / {playerHealth.MaxHealth:F0}");
-                DrawLabel("Dead", playerHealth.IsDead);
+                GUI.Label(new Rect(labelX, lineY, 50f, lineHeight), "Health:", labelStyle);
+                GUI.Label(new Rect(labelX + 50f, lineY, 100f, lineHeight),
+                    $"{playerHealth.CurrentHealth:F0}/{playerHealth.MaxHealth:F0}", valueStyle);
             }
             else
             {
-                GUILayout.Label("PlayerHealth: Not found", labelStyle);
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "Not found", labelStyle);
             }
+            lineY += lineHeight;
+
+            return lineY + 3f;
         }
 
-        private void DrawAttackSection()
+        private float DrawAttackSection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width)
         {
-            DrawHeader("Attack");
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Attack —", subHeaderStyle);
+            lineY += lineHeight;
 
             if (playerWeapon != null)
             {
-                DrawLabel("Phase", playerWeapon.CurrentPhase.ToString());
-                DrawLabel("Is Attacking", playerWeapon.IsAttacking);
-                DrawLabel("Can Attack", playerWeapon.CanAttack);
-                DrawLabel("Progress", playerWeapon.AttackProgress, "P0");
-                DrawLabel("Hits This Attack", playerWeapon.HitsThisAttack.ToString());
+                // Phase + Attacking on same line
+                GUI.Label(new Rect(labelX, lineY, 45f, lineHeight), "Phase:", labelStyle);
+                GUI.Label(new Rect(labelX + 45f, lineY, 70f, lineHeight), playerWeapon.CurrentPhase.ToString(), valueStyle);
+                GUI.Label(new Rect(labelX + 115f, lineY, 55f, lineHeight), "Atking:", labelStyle);
+                GUI.Label(new Rect(labelX + 165f, lineY, 40f, lineHeight), FormatBool(playerWeapon.IsAttacking), valueStyle);
+                lineY += lineHeight;
+
+                // Progress + Hits on same line
+                GUI.Label(new Rect(labelX, lineY, 50f, lineHeight), "Prog:", labelStyle);
+                GUI.Label(new Rect(labelX + 45f, lineY, 50f, lineHeight), $"{playerWeapon.AttackProgress:P0}", valueStyle);
+                GUI.Label(new Rect(labelX + 115f, lineY, 35f, lineHeight), "Hits:", labelStyle);
+                GUI.Label(new Rect(labelX + 150f, lineY, 30f, lineHeight), playerWeapon.HitsThisAttack.ToString(), valueStyle);
+                lineY += lineHeight;
             }
             else
             {
-                GUILayout.Label("PlayerMeleeWeapon: Not found", labelStyle);
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "Not found", labelStyle);
+                lineY += lineHeight;
             }
+
+            return lineY + 3f;
         }
 
-        private void DrawDodgeSection()
+        private float DrawDodgeSection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width)
         {
-            DrawHeader("Dodge");
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Dodge —", subHeaderStyle);
+            lineY += lineHeight;
 
             if (playerDodge != null)
             {
-                DrawLabel("Is Dodging", playerDodge.IsDodging);
-                DrawLabel("Is Invulnerable", playerDodge.IsInvulnerable);
-                DrawLabel("Can Dodge", playerDodge.CanDodge);
-                DrawLabel("Cooldown", playerDodge.CooldownRemaining, "F2");
+                // Dodging + Invuln on same line
+                GUI.Label(new Rect(labelX, lineY, 50f, lineHeight), "Dodge:", labelStyle);
+                GUI.Label(new Rect(labelX + 50f, lineY, 35f, lineHeight), FormatBool(playerDodge.IsDodging), valueStyle);
+                GUI.Label(new Rect(labelX + 90f, lineY, 45f, lineHeight), "Invul:", labelStyle);
+                GUI.Label(new Rect(labelX + 135f, lineY, 35f, lineHeight), FormatBool(playerDodge.IsInvulnerable), valueStyle);
+                GUI.Label(new Rect(labelX + 175f, lineY, 30f, lineHeight), "CD:", labelStyle);
+                GUI.Label(new Rect(labelX + 200f, lineY, 50f, lineHeight), $"{playerDodge.CooldownRemaining:F1}s", valueStyle);
             }
             else
             {
-                GUILayout.Label("PlayerDodge: Not found", labelStyle);
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "Not found", labelStyle);
             }
+            lineY += lineHeight;
+
+            return lineY + 3f;
         }
 
-        private void DrawEquipmentSection()
+        private float DrawEquipmentSection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width)
         {
-            DrawHeader("Equipment");
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Equipment —", subHeaderStyle);
+            lineY += lineHeight;
 
             if (playerEquipment == null)
             {
-                GUILayout.Label("PlayerEquipment: Not found", labelStyle);
-                return;
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "Not found", labelStyle);
+                return lineY + lineHeight + 3f;
             }
 
             if (!playerEquipment.HasWeaponEquipped)
             {
-                GUILayout.Label("No weapon equipped", labelStyle);
-                return;
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "No weapon", labelStyle);
+                return lineY + lineHeight + 3f;
             }
 
             var equipment = playerEquipment.CurrentEquipment;
             var stats = playerEquipment.CurrentStats;
+            int maxLevel = playerEquipment.AttunementConfig?.MaximumLevel ?? equipment.MaximumAttunementLevel;
+            int availableStones = playerEquipment.GetAvailableAttunementStones();
+            int failures = equipment.ConsecutiveAttunementFailures;
 
-            DrawLabel("Weapon", equipment.CustomName ?? equipment.DefinitionId);
-            DrawLabel("Condition", equipment.Condition.ToString());
-            DrawLabel("Durability", $"{equipment.CurrentDurability:F0}/{equipment.MaxDurability:F0}");
+            // Compact info: Name | Condition | Durability
+            GUI.Label(new Rect(labelX, lineY, 70f, lineHeight), "Weapon:", labelStyle);
+            GUI.Label(new Rect(labelX + 55f, lineY, valueWidth, lineHeight),
+                equipment.CustomName ?? equipment.DefinitionId, valueStyle);
+            lineY += lineHeight;
 
+            // Condition + Durability on same line
+            GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Status:", labelStyle);
+            GUI.Label(new Rect(labelX + 55f, lineY, 80f, lineHeight),
+                $"{equipment.Condition}", valueStyle);
+            GUI.Label(new Rect(labelX + 130f, lineY, 120f, lineHeight),
+                $"({equipment.CurrentDurability:F0}/{equipment.MaxDurability:F0})", valueStyle);
+            lineY += lineHeight;
+
+            // Damage + Speed on same line
             if (stats.IsValid)
             {
-                DrawLabel("Damage", stats.Damage, "F0");
-                DrawLabel("Attack Speed", stats.AttackSpeed, "F2");
-                DrawLabel("Range", stats.Range, "F1");
+                GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Stats:", labelStyle);
+                GUI.Label(new Rect(labelX + 55f, lineY, 80f, lineHeight),
+                    $"Dmg:{stats.Damage:F0}", valueStyle);
+                GUI.Label(new Rect(labelX + 130f, lineY, 80f, lineHeight),
+                    $"Spd:{stats.AttackSpeed:F2}", valueStyle);
+                lineY += lineHeight;
             }
 
-            GUILayout.Space(5f);
+            // Attunement + Bonus on same line
+            GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Attune:", labelStyle);
+            string attuneText = $"+{equipment.AttunementLevel}/+{maxLevel}";
+            if (equipment.IsAttuned && playerEquipment.AttunementConfig != null)
+            {
+                float bonusPercent = playerEquipment.AttunementConfig.GetDamageBonusPercent(equipment.AttunementLevel);
+                attuneText += $" (+{bonusPercent:F0}%)";
+            }
+            GUI.Label(new Rect(labelX + 55f, lineY, 150f, lineHeight), attuneText, valueStyle);
+            lineY += lineHeight;
 
-            // Debug buttons - Wear
-            GUILayout.BeginHorizontal();
+            // Stones + Resonance on same line
+            GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Stones:", labelStyle);
+            GUI.Label(new Rect(labelX + 55f, lineY, 40f, lineHeight), availableStones.ToString(), valueStyle);
+            GUI.Label(new Rect(labelX + 95f, lineY, 55f, lineHeight), "Reson:", labelStyle);
+            var resonanceStyle = new GUIStyle(valueStyle)
+            {
+                normal = { textColor = failures > 0 ? new Color(0.9f, 0.7f, 0.3f) : new Color(0.6f, 0.6f, 0.6f) }
+            };
+            GUI.Label(new Rect(labelX + 145f, lineY, 40f, lineHeight), failures.ToString(), resonanceStyle);
+            lineY += lineHeight;
+
+            // Success chance
+            var preview = playerEquipment.PreviewAttuneEquippedWeapon();
+            if (preview.CanAttempt || equipment.AttunementLevel < maxLevel)
+            {
+                GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Chance:", labelStyle);
+                string chanceText = preview.IsGuaranteed ? "GUARANTEED" : $"{preview.SuccessChance:P0}";
+                var chanceStyle = new GUIStyle(valueStyle)
+                {
+                    normal = { textColor = preview.IsGuaranteed
+                        ? new Color(0.4f, 0.9f, 1f)
+                        : (preview.SuccessChance >= 1f ? new Color(0.5f, 0.9f, 0.5f) : new Color(1f, 0.8f, 0.4f)) }
+                };
+                GUI.Label(new Rect(labelX + 55f, lineY, 120f, lineHeight), chanceText, chanceStyle);
+                lineY += lineHeight;
+            }
+
+            lineY += 2f;
+
+            // Button rows - more compact
+            float btnH = 18f;
+            float btnY = lineY;
+            float btnSpacing = 2f;
+
+            // Row 1: Attune | +Stones | Free+1
+            bool canAttuneWithStone = availableStones >= 1 && equipment.AttunementLevel < maxLevel;
+            GUI.enabled = canAttuneWithStone;
+            if (GUI.Button(new Rect(labelX, btnY, 55f, btnH), "Attune", buttonStyle))
+            {
+                playerEquipment.TryAttuneEquippedWeaponWithStones();
+            }
+            GUI.enabled = true;
+
+            if (GUI.Button(new Rect(labelX + 57f, btnY, 50f, btnH), "+5 St", buttonStyle))
+                AddDebugAttunementStones(5);
+            if (GUI.Button(new Rect(labelX + 109f, btnY, 50f, btnH), "+20 St", buttonStyle))
+                AddDebugAttunementStones(20);
+            if (GUI.Button(new Rect(labelX + 161f, btnY, 50f, btnH), "Free+1", buttonStyle))
+                playerEquipment.TryAttuneEquippedWeapon();
+            if (GUI.Button(new Rect(labelX + 213f, btnY, 45f, btnH), "Reset", buttonStyle))
+                playerEquipment.ResetEquippedWeaponAttunement();
+
+            lineY = btnY + btnH + btnSpacing;
+            btnY = lineY;
+
+            // Row 2: Level presets
+            if (GUI.Button(new Rect(labelX, btnY, 35f, btnH), "+0", buttonStyle))
+                playerEquipment.SetEquippedWeaponAttunement(0);
+            if (GUI.Button(new Rect(labelX + 37f, btnY, 35f, btnH), "+3", buttonStyle))
+                playerEquipment.SetEquippedWeaponAttunement(3);
+            if (GUI.Button(new Rect(labelX + 74f, btnY, 35f, btnH), "+5", buttonStyle))
+                playerEquipment.SetEquippedWeaponAttunement(5);
+            if (GUI.Button(new Rect(labelX + 111f, btnY, 40f, btnH), "+10", buttonStyle))
+                playerEquipment.SetEquippedWeaponAttunement(10);
+            if (GUI.Button(new Rect(labelX + 153f, btnY, 35f, btnH), "Max", buttonStyle))
+                playerEquipment.SetEquippedWeaponAttunement(maxLevel);
+
+            // Force buttons on same row
+            var service = playerEquipment.GetAttunementService();
+            if (service != null && service.HasChanceSystem)
+            {
+                if (GUI.Button(new Rect(labelX + 190f, btnY, 35f, btnH), "Win", buttonStyle))
+                    service.ForceNextOutcome(true);
+                if (GUI.Button(new Rect(labelX + 227f, btnY, 35f, btnH), "Lose", buttonStyle))
+                    service.ForceNextOutcome(false);
+            }
+
+            lineY = btnY + btnH + btnSpacing;
+            btnY = lineY;
+
+            // Row 3: Resonance + Wear
+            if (GUI.Button(new Rect(labelX, btnY, 35f, btnH), "R=0", buttonStyle))
+                equipment.ResetAttunementFailures();
+            if (GUI.Button(new Rect(labelX + 37f, btnY, 35f, btnH), "R+1", buttonStyle))
+                equipment.IncrementAttunementFailures();
+            if (GUI.Button(new Rect(labelX + 74f, btnY, 35f, btnH), "R=5", buttonStyle))
+                equipment.SetAttunementFailures(5);
+            if (GUI.Button(new Rect(labelX + 111f, btnY, 35f, btnH), "R=6", buttonStyle))
+                equipment.SetAttunementFailures(6);
 
             if (playerWeaponWear != null)
             {
-                if (GUILayout.Button("Apply Wear", buttonStyle))
-                {
+                if (GUI.Button(new Rect(labelX + 153f, btnY, 50f, btnH), "Wear", buttonStyle))
                     playerWeaponWear.ApplyDebugWear();
-                }
-
-                if (GUILayout.Button("Break", buttonStyle))
-                {
+                if (GUI.Button(new Rect(labelX + 205f, btnY, 50f, btnH), "Break", buttonStyle))
                     playerWeaponWear.ForceBreakWeapon();
-                }
-
-                if (GUILayout.Button("Restore", buttonStyle))
-                {
-                    playerWeaponWear.RestoreWeaponDurability();
-                }
             }
 
-            GUILayout.EndHorizontal();
+            lineY = btnY + btnH + 4f;
 
-            // Draw repair section
-            DrawRepairSection(equipment);
+            // Repair section
+            lineY = DrawRepairSection(lineY, lineHeight, labelX, valueX, valueWidth, width, equipment);
+
+            // History section
+            lineY = DrawHistorySection(lineY, lineHeight, labelX, valueX, valueWidth, width, equipment);
+
+            return lineY;
         }
 
-        private void DrawRepairSection(EquipmentData equipment)
+        private float DrawRepairSection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width, EquipmentData equipment)
         {
-            GUILayout.Space(5f);
-            DrawHeader("Repair");
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Repair —", subHeaderStyle);
+            lineY += lineHeight;
 
             if (playerRepair == null)
             {
-                GUILayout.Label("PlayerRepair: Not found", labelStyle);
-                return;
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "Not found", labelStyle);
+                return lineY + lineHeight + 3f;
             }
 
-            // Show repair info
             int fragments = playerRepair.GetAvailableFragments();
-            DrawLabel("Repair Fragments", fragments.ToString());
+            GUI.Label(new Rect(labelX, lineY, 55f, lineHeight), "Frags:", labelStyle);
+            GUI.Label(new Rect(labelX + 55f, lineY, 40f, lineHeight), fragments.ToString(), valueStyle);
 
             if (equipment != null)
             {
                 var preview = playerRepair.PreviewRepair(equipment);
-                DrawLabel("Can Repair", preview.CanRepair);
-
                 if (preview.CanRepair)
                 {
-                    DrawLabel("Fragments Needed", $"{preview.FragmentsToConsume} / {preview.FragmentsForFullRepair}");
-                    DrawLabel("After Repair", $"{preview.DurabilityAfterRepair:F0} ({preview.ConditionAfter})");
-                }
-                else if (preview.FailureReason != RepairFailureReason.None)
-                {
-                    DrawLabel("Failure", preview.FailureReason.ToString());
+                    GUI.Label(new Rect(labelX + 100f, lineY, 150f, lineHeight),
+                        $"Need: {preview.FragmentsToConsume}/{preview.FragmentsForFullRepair}", valueStyle);
                 }
             }
+            lineY += lineHeight + 2f;
 
-            GUILayout.Space(5f);
+            // Repair buttons - compact
+            float btnH = 18f;
+            float btnY = lineY;
 
-            // Repair debug buttons
-            GUILayout.BeginHorizontal();
-
-            if (GUILayout.Button("+5 Fragments", buttonStyle))
-            {
+            if (GUI.Button(new Rect(labelX, btnY, 50f, btnH), "+5", buttonStyle))
                 AddDebugFragments(5);
-            }
-
-            if (GUILayout.Button("+20 Fragments", buttonStyle))
-            {
+            if (GUI.Button(new Rect(labelX + 52f, btnY, 50f, btnH), "+20", buttonStyle))
                 AddDebugFragments(20);
-            }
-
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
 
             if (equipment != null && playerRepair.CanRepair(equipment))
             {
-                if (GUILayout.Button("Repair", buttonStyle))
-                {
-                    var result = playerRepair.RepairEquipment(equipment);
-                    Debug.Log($"[CombatDebug] Repair result: {result.Success}, used {result.FragmentsConsumed} fragments");
-                }
+                if (GUI.Button(new Rect(labelX + 104f, btnY, 55f, btnH), "Repair", buttonStyle))
+                    playerRepair.RepairEquipment(equipment);
             }
 
-            GUILayout.EndHorizontal();
+            if (playerWeaponWear != null)
+            {
+                if (GUI.Button(new Rect(labelX + 161f, btnY, 55f, btnH), "Restore", buttonStyle))
+                    playerWeaponWear.RestoreWeaponDurability();
+            }
+
+            lineY = btnY + btnH + 4f;
+
+            return lineY;
+        }
+
+        private float DrawHistorySection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width, EquipmentData equipment)
+        {
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Attunement History —", subHeaderStyle);
+            lineY += lineHeight;
+
+            if (equipment == null)
+            {
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "No equipment", labelStyle);
+                return lineY + lineHeight + 3f;
+            }
+
+            var history = equipment.History?.Attunement;
+            if (history == null)
+            {
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "No history", labelStyle);
+                return lineY + lineHeight + 3f;
+            }
+
+            // Attempts + Successes + Failures on same line
+            GUI.Label(new Rect(labelX, lineY, 35f, lineHeight), "Att:", labelStyle);
+            GUI.Label(new Rect(labelX + 35f, lineY, 25f, lineHeight), history.TotalAttempts.ToString(), valueStyle);
+            GUI.Label(new Rect(labelX + 65f, lineY, 30f, lineHeight), "Suc:", labelStyle);
+            GUI.Label(new Rect(labelX + 95f, lineY, 25f, lineHeight), history.SuccessfulAttempts.ToString(), valueStyle);
+            GUI.Label(new Rect(labelX + 125f, lineY, 30f, lineHeight), "Fail:", labelStyle);
+            GUI.Label(new Rect(labelX + 155f, lineY, 25f, lineHeight), history.FailedAttempts.ToString(), valueStyle);
+            lineY += lineHeight;
+
+            // Stones + Highest + Longest Streak
+            GUI.Label(new Rect(labelX, lineY, 50f, lineHeight), "Stones:", labelStyle);
+            GUI.Label(new Rect(labelX + 45f, lineY, 25f, lineHeight), history.TotalStonesConsumed.ToString(), valueStyle);
+            GUI.Label(new Rect(labelX + 80f, lineY, 35f, lineHeight), "High:", labelStyle);
+            GUI.Label(new Rect(labelX + 115f, lineY, 25f, lineHeight), $"+{history.HighestAttunementLevelReached}", valueStyle);
+            GUI.Label(new Rect(labelX + 150f, lineY, 45f, lineHeight), "LStrk:", labelStyle);
+            GUI.Label(new Rect(labelX + 190f, lineY, 20f, lineHeight), history.LongestFailureStreak.ToString(), valueStyle);
+            lineY += lineHeight;
+
+            // Last attempt info
+            if (history.LastAttemptTimestamp > 0)
+            {
+                string lastResult = history.LastAttemptSucceeded
+                    ? (history.LastAttemptWasGuaranteed ? "Guaranteed" : "Success")
+                    : "Failed";
+                GUI.Label(new Rect(labelX, lineY, 35f, lineHeight), "Last:", labelStyle);
+                GUI.Label(new Rect(labelX + 35f, lineY, 70f, lineHeight), lastResult, valueStyle);
+                GUI.Label(new Rect(labelX + 110f, lineY, 100f, lineHeight), $"+{history.LastAttemptPreviousLevel}→+{history.LastAttemptResultingLevel}", valueStyle);
+                lineY += lineHeight;
+            }
+
+            // Debug buttons
+            float btnH = 18f;
+            float btnY = lineY;
+
+            if (GUI.Button(new Rect(labelX, btnY, 55f, btnH), "Reset", buttonStyle))
+            {
+                history.Reset();
+            }
+
+            lineY = btnY + btnH + 4f;
+
+            return lineY;
+        }
+
+        private float DrawEnemySection(float lineY, float lineHeight, float labelX, float valueX, float valueWidth, float width)
+        {
+            GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "— Enemy —", subHeaderStyle);
+            lineY += lineHeight;
+
+            if (trackedEnemy != null)
+            {
+                // Health + Dead on same line
+                GUI.Label(new Rect(labelX, lineY, 45f, lineHeight), "HP:", labelStyle);
+                GUI.Label(new Rect(labelX + 40f, lineY, 90f, lineHeight),
+                    $"{trackedEnemy.CurrentHealth:F0}/{trackedEnemy.MaxHealth:F0}", valueStyle);
+                GUI.Label(new Rect(labelX + 135f, lineY, 40f, lineHeight), "Dead:", labelStyle);
+                GUI.Label(new Rect(labelX + 175f, lineY, 30f, lineHeight), FormatBool(trackedEnemy.IsDead), valueStyle);
+                lineY += lineHeight;
+            }
+
+            if (trackedEnemyBrain != null)
+            {
+                // State + Distance on same line
+                GUI.Label(new Rect(labelX, lineY, 40f, lineHeight), "State:", labelStyle);
+                GUI.Label(new Rect(labelX + 40f, lineY, 70f, lineHeight), trackedEnemyBrain.CurrentState.ToString(), valueStyle);
+                GUI.Label(new Rect(labelX + 115f, lineY, 40f, lineHeight), "Dist:", labelStyle);
+                GUI.Label(new Rect(labelX + 155f, lineY, 50f, lineHeight), $"{trackedEnemyBrain.DistanceToTarget:F1}m", valueStyle);
+                lineY += lineHeight;
+            }
+
+            if (trackedEnemy == null && trackedEnemyBrain == null)
+            {
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight), "No enemy tracked", labelStyle);
+                lineY += lineHeight;
+            }
+
+            return lineY + 3f;
+        }
+
+        private string FormatBool(bool value)
+        {
+            return value ? "Yes" : "No";
         }
 
         private void AddDebugFragments(int count)
@@ -399,46 +640,31 @@ namespace Lootbound.Debugging
             }
 
             var addResult = playerInventory.Inventory.TryAddItemWithResult(new ItemInstance(playerRepair.FragmentDefinition, count));
-            Debug.Log($"[CombatDebug] Added {addResult.Added} repair fragments (requested {count})");
+            Debug.Log($"[CombatDebug] Added {addResult.Added} repair fragments");
         }
 
-        private void DrawEnemySection()
+        private void AddDebugAttunementStones(int count)
         {
-            DrawHeader("Enemy");
-
-            if (trackedEnemy != null)
+            if (playerInventory == null || playerEquipment?.AttunementStoneDefinition == null)
             {
-                DrawLabel("Health", $"{trackedEnemy.CurrentHealth:F0} / {trackedEnemy.MaxHealth:F0}");
-                DrawLabel("Dead", trackedEnemy.IsDead);
+                Debug.LogWarning("[CombatDebug] Cannot add stones - missing inventory or stone definition");
+                return;
             }
 
-            if (trackedEnemyBrain != null)
-            {
-                DrawLabel("State", trackedEnemyBrain.CurrentState.ToString());
-                DrawLabel("Distance", trackedEnemyBrain.DistanceToTarget, "F1");
-            }
-
-            if (trackedEnemy == null && trackedEnemyBrain == null)
-            {
-                GUILayout.Label("No enemy tracked", labelStyle);
-            }
+            var addResult = playerInventory.Inventory.TryAddItemWithResult(new ItemInstance(playerEquipment.AttunementStoneDefinition, count));
+            Debug.Log($"[CombatDebug] Added {addResult.Added} attunement stones");
         }
 
         private void OnDrawGizmos()
         {
-            if (!isVisible)
-            {
-                return;
-            }
+            if (!isVisible) return;
 
-            // Draw attack range
             if (playerWeapon != null)
             {
                 Gizmos.color = playerWeapon.IsAttacking ? Color.yellow : Color.gray;
-                Gizmos.DrawWireSphere(playerWeapon.transform.position, 2f); // Approximate range
+                Gizmos.DrawWireSphere(playerWeapon.transform.position, 2f);
             }
 
-            // Draw dodge direction if dodging
             if (playerDodge != null && playerDodge.IsDodging)
             {
                 Gizmos.color = playerDodge.IsInvulnerable ? Color.cyan : Color.blue;

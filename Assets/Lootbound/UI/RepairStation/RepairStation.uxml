@@ -1,0 +1,71 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="RepairStation.uss" />
+    <ui:VisualElement name="repair-station-panel" class="repair-station-panel" style="display: none;">
+        <!-- Header -->
+        <ui:VisualElement class="station-header">
+            <ui:Label text="Repair Station" class="station-title" />
+            <ui:Button name="close-button" text="X" class="close-button" />
+        </ui:VisualElement>
+
+        <!-- Content -->
+        <ui:VisualElement class="station-content">
+            <!-- Left: Equipment List -->
+            <ui:VisualElement class="equipment-section">
+                <ui:Label text="Equipment to Repair" class="section-title" />
+                <ui:Label name="no-equipment-label" text="All equipment is in good condition" class="no-equipment-label" style="display: none;" />
+                <ui:ScrollView class="equipment-scroll">
+                    <ui:VisualElement name="equipment-list" class="equipment-list" />
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+            <!-- Right: Repair Preview -->
+            <ui:VisualElement name="repair-preview" class="preview-section" style="display: none;">
+                <ui:Label text="Repair Preview" class="section-title" />
+
+                <!-- Equipment Info -->
+                <ui:VisualElement class="preview-info">
+                    <ui:Label name="preview-name" text="Weapon Name" class="preview-name" />
+                    <ui:Label name="preview-rarity" text="Common" class="preview-rarity" />
+                    <ui:VisualElement name="preview-affixes" class="preview-affixes" />
+                </ui:VisualElement>
+
+                <!-- Current State -->
+                <ui:VisualElement class="durability-section">
+                    <ui:Label text="Current" class="durability-label" />
+                    <ui:VisualElement class="durability-bar">
+                        <ui:VisualElement name="durability-bar-fill" class="durability-bar-fill" />
+                    </ui:VisualElement>
+                    <ui:Label name="current-durability" text="37 / 100" class="durability-value" />
+                    <ui:Label name="condition-before" text="Fragile" class="condition-label" />
+                </ui:VisualElement>
+
+                <!-- After Repair -->
+                <ui:VisualElement class="repair-result-section">
+                    <ui:Label text="After Repair" class="durability-label" />
+                    <ui:Label name="after-durability" text="100 / 100" class="durability-value-after" />
+                    <ui:Label name="condition-after" text="Excellent" class="condition-label" />
+                </ui:VisualElement>
+
+                <!-- Cost -->
+                <ui:VisualElement class="cost-section">
+                    <ui:Label text="Cost" class="cost-title" />
+                    <ui:Label name="repair-cost" text="4 Repair Fragments" class="cost-value" />
+                    <ui:Label name="fragments-available" text="Available: 7" class="fragments-available" />
+                </ui:VisualElement>
+
+                <!-- Failure Reason -->
+                <ui:Label name="failure-reason" text="" class="failure-reason" style="display: none;" />
+
+                <!-- Actions -->
+                <ui:VisualElement class="action-buttons">
+                    <ui:Button name="repair-button" text="Repair" class="repair-button" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Footer -->
+        <ui:VisualElement class="station-footer">
+            <ui:Label text="Press Escape to close" class="footer-hint" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

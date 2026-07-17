@@ -40,6 +40,7 @@ namespace Lootbound.UI
 
         // Dynamic references (resolved after scene load)
         private InventoryUI inventoryUI;
+        private RepairStationUI repairStationUI;
         private PlayerCameraController cameraController;
 
         // Scene button tracking
@@ -228,6 +229,7 @@ namespace Lootbound.UI
 
             // Resolve dynamic references for the new scene
             inventoryUI = FindFirstObjectByType<InventoryUI>();
+            repairStationUI = FindFirstObjectByType<RepairStationUI>();
             cameraController = FindFirstObjectByType<PlayerCameraController>();
 
             if (cameraController != null)
@@ -251,7 +253,13 @@ namespace Lootbound.UI
 
         private void HandlePauseRequest()
         {
-            // Priority: inventory > dev menu
+            // Priority: repair station > inventory > dev menu > pause
+            if (repairStationUI != null && repairStationUI.IsOpen)
+            {
+                repairStationUI.Close();
+                return;
+            }
+
             if (inventoryUI != null && inventoryUI.IsOpen)
             {
                 inventoryUI.Close();
@@ -407,8 +415,17 @@ namespace Lootbound.UI
 
         private void UnlockCursor()
         {
-            UnityEngine.Cursor.lockState = CursorLockMode.None;
-            UnityEngine.Cursor.visible = true;
+            // Use PlayerCameraController if available for consistent state
+            if (cameraController != null)
+            {
+                cameraController.UnlockCursor();
+            }
+            else
+            {
+                // Fallback for boot scene or missing reference
+                UnityEngine.Cursor.lockState = CursorLockMode.None;
+                UnityEngine.Cursor.visible = true;
+            }
         }
 
         private void LockCursor()
@@ -416,8 +433,17 @@ namespace Lootbound.UI
             // Only lock cursor if we're in a gameplay scene
             if (!isFromBoot)
             {
-                UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-                UnityEngine.Cursor.visible = false;
+                // Use PlayerCameraController if available for consistent state
+                if (cameraController != null)
+                {
+                    cameraController.LockCursor();
+                }
+                else
+                {
+                    // Fallback
+                    UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+                    UnityEngine.Cursor.visible = false;
+                }
             }
         }
 

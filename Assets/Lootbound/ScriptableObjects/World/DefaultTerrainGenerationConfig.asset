@@ -13,20 +13,20 @@ MonoBehaviour:
   m_Name: DefaultTerrainGenerationConfig
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.TerrainGenerationConfig
   defaultSeed: 42
-  worldSize: 1024
-  terrainHeight: 260
+  worldSize: 4096
+  terrainHeight: 200
   heightmapResolution: 513
-  alphamapResolution: 512
-  macroScale: 900
-  macroOctaves: 4
-  macroPersistence: 0.5
+  alphamapResolution: 513
+  macroScale: 600
+  macroOctaves: 3
+  macroPersistence: 0.4
   macroLacunarity: 2
-  ridgeScale: 350
-  ridgeStrength: 0.25
-  valleyScale: 400
-  valleyStrength: 0.3
-  detailScale: 60
-  detailStrength: 0.08
+  ridgeScale: 400
+  ridgeStrength: 0.15
+  valleyScale: 500
+  valleyStrength: 0.2
+  detailScale: 80
+  detailStrength: 0.05
   heightRemap:
     serializedVersion: 2
     m_Curve:
@@ -53,11 +53,13 @@ MonoBehaviour:
     m_RotationOrder: 4
   globalHeightStrength: 1
   normalizeHeightmap: 1
-  spawnSafeRadius: 24
-  spawnBlendRadius: 55
-  spawnTargetHeight: 0.25
+  spawnSafeRadius: 30
+  spawnBlendRadius: 70
+  spawnTargetHeight: 0.5
   maxSpawnSlope: 10
   lowlandThreshold: 0.3
   highlandThreshold: 0.65
   steepSlopeThreshold: 35
+  layoutConfig: {fileID: 11400000, guid: b0a12e1407653a04696e2b48de38ace6, type: 2}
+  ringConfig: {fileID: 11400000, guid: 9f80ba39e5992df48b6254a1ad198428, type: 2}
   generateOnStart: 1

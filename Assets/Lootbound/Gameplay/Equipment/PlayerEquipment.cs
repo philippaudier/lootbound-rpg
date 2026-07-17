@@ -22,6 +22,9 @@ namespace Lootbound.Gameplay.Equipment
         [SerializeField] private EquipmentRegistry equipmentRegistry;
         [SerializeField] private PlayerWeaponWear playerWeaponWear;
         [SerializeField] private BrokenWeaponConfig brokenWeaponConfig;
+        [SerializeField] private AttunementCoreConfig attunementConfig;
+        [SerializeField] private AttunementCostConfig attunementCostConfig;
+        [SerializeField] private AttunementChanceConfig attunementChanceConfig;
 
         [Header("Weapon View")]
         [SerializeField] private Transform weaponViewSocket;
@@ -34,6 +37,9 @@ namespace Lootbound.Gameplay.Equipment
         private ResolvedWeaponStats currentStats;
         private GameObject currentWeaponView;
         private EquipmentCondition previousCondition;
+
+        // Attunement service (lazy initialized)
+        private AttunementService attunementService;
 
         /// <summary>
         /// Currently equipped equipment data.
@@ -79,6 +85,50 @@ namespace Lootbound.Gameplay.Equipment
         /// The broken weapon config used for penalty calculations.
         /// </summary>
         public BrokenWeaponConfig BrokenConfig => brokenWeaponConfig;
+
+        /// <summary>
+        /// The attunement config used for stat bonus calculations.
+        /// </summary>
+        public AttunementCoreConfig AttunementConfig => attunementConfig;
+
+        /// <summary>
+        /// The attunement cost config used for stone consumption.
+        /// </summary>
+        public AttunementCostConfig AttunementCostConfig => attunementCostConfig;
+
+        /// <summary>
+        /// The attunement chance config used for success probability and protection.
+        /// </summary>
+        public AttunementChanceConfig AttunementChanceConfig => attunementChanceConfig;
+
+        /// <summary>
+        /// Get the attunement service for stone-based attunement.
+        /// Creates the service lazily on first access.
+        /// </summary>
+        public AttunementService GetAttunementService()
+        {
+            if (attunementService == null && playerInventory?.Inventory != null)
+            {
+                attunementService = new AttunementService(
+                    attunementCostConfig,
+                    attunementConfig,
+                    playerInventory.Inventory,
+                    attunementChanceConfig);
+
+                // Subscribe to attunement completions to recalculate stats
+                attunementService.OnAttunementCompleted += HandleAttunementCompleted;
+            }
+
+            return attunementService;
+        }
+
+        private void HandleAttunementCompleted(AttunementAttemptResult result)
+        {
+            if (result.Success)
+            {
+                RecalculateStats();
+            }
+        }
 
         private void Awake()
         {
@@ -144,6 +194,11 @@ namespace Lootbound.Gameplay.Equipment
             {
                 playerWeaponWear.OnConditionChanged -= HandleConditionChanged;
             }
+
+            if (attunementService != null)
+            {
+                attunementService.OnAttunementCompleted -= HandleAttunementCompleted;
+            }
         }
 
         private void HandleCombatHit(DamageResult result)
@@ -172,14 +227,14 @@ namespace Lootbound.Gameplay.Equipment
 
         /// <summary>
         /// Recalculate and reapply stats for the currently equipped weapon.
-        /// Called when condition changes or when manually requested.
+        /// Called when condition changes, attunement changes, or when manually requested.
         /// </summary>
         public void RecalculateStats()
         {
             if (!HasWeaponEquipped) return;
 
             var oldStats = currentStats;
-            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig);
+            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig, attunementConfig);
 
             // Only apply if stats actually changed
             if (!StatsEqual(oldStats, currentStats))
@@ -310,8 +365,8 @@ namespace Lootbound.Gameplay.Equipment
             // Track condition for change detection
             previousCondition = currentEquipment.Condition;
 
-            // Resolve stats (includes broken penalties if applicable)
-            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig);
+            // Resolve stats (includes attunement bonuses and broken penalties if applicable)
+            currentStats = currentEquipment.ResolveStats(equipmentRegistry, brokenWeaponConfig, attunementConfig);
 
             // Update combat system
             ApplyStatsToCombat(weaponDef);
@@ -438,5 +493,118 @@ namespace Lootbound.Gameplay.Equipment
                 }
             }
         }
+
+        /// <summary>
+        /// Attempt to attune the currently equipped weapon.
+        /// Used for debug and future attunement table integration.
+        /// </summary>
+        /// <returns>Result of the attunement attempt, or null if no weapon equipped.</returns>
+        public AttunementAttemptResult? TryAttuneEquippedWeapon()
+        {
+            if (!HasWeaponEquipped)
+            {
+                LootboundLog.Warning(Category, "Cannot attune: no weapon equipped");
+                return null;
+            }
+
+            int maxLevel = attunementConfig != null ? attunementConfig.MaximumLevel : currentEquipment.MaximumAttunementLevel;
+            var result = currentEquipment.TryIncreaseAttunement(maxLevel);
+
+            if (result.Success)
+            {
+                // Recalculate stats with new attunement bonus
+                RecalculateStats();
+                LootboundLog.Info(Category, $"Attunement successful: +{result.PreviousLevel} → +{result.CurrentLevel}");
+            }
+            else if (result.WasAtMaximum)
+            {
+                LootboundLog.Info(Category, $"Attunement refused: already at maximum (+{result.CurrentLevel})");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Reset attunement level of the equipped weapon to 0.
+        /// Used for debug.
+        /// </summary>
+        public void ResetEquippedWeaponAttunement()
+        {
+            if (!HasWeaponEquipped) return;
+
+            currentEquipment.SetAttunementLevel(0);
+            RecalculateStats();
+            LootboundLog.Info(Category, "Attunement reset to +0");
+        }
+
+        /// <summary>
+        /// Set attunement level of the equipped weapon to a specific value.
+        /// Used for debug.
+        /// </summary>
+        public void SetEquippedWeaponAttunement(int level)
+        {
+            if (!HasWeaponEquipped) return;
+
+            int maxLevel = attunementConfig != null ? attunementConfig.MaximumLevel : currentEquipment.MaximumAttunementLevel;
+            currentEquipment.SetAttunementLevel(level, maxLevel);
+            RecalculateStats();
+            LootboundLog.Info(Category, $"Attunement set to +{currentEquipment.AttunementLevel}");
+        }
+
+        /// <summary>
+        /// Attempt to attune the equipped weapon by consuming stones.
+        /// </summary>
+        /// <returns>Result of the attempt, or null if no weapon equipped.</returns>
+        public AttunementAttemptResult? TryAttuneEquippedWeaponWithStones()
+        {
+            if (!HasWeaponEquipped)
+            {
+                LootboundLog.Warning(Category, "Cannot attune: no weapon equipped");
+                return null;
+            }
+
+            var service = GetAttunementService();
+            if (service == null)
+            {
+                LootboundLog.Warning(Category, "Cannot attune: service not available");
+                return null;
+            }
+
+            return service.TryAttune(currentEquipment);
+        }
+
+        /// <summary>
+        /// Preview an attunement attempt for the equipped weapon.
+        /// </summary>
+        /// <returns>Preview of the attempt, or a failed preview if no weapon equipped.</returns>
+        public AttunementAttemptPreview PreviewAttuneEquippedWeapon()
+        {
+            if (!HasWeaponEquipped)
+            {
+                return AttunementAttemptPreview.CannotAttempt(AttunementFailureReason.InvalidEquipment);
+            }
+
+            var service = GetAttunementService();
+            if (service == null)
+            {
+                return AttunementAttemptPreview.CannotAttempt(AttunementFailureReason.InvalidConfiguration);
+            }
+
+            return service.PreviewAttempt(currentEquipment);
+        }
+
+        /// <summary>
+        /// Get the number of attunement stones available in inventory.
+        /// </summary>
+        public int GetAvailableAttunementStones()
+        {
+            var service = GetAttunementService();
+            return service?.GetAvailableStones() ?? 0;
+        }
+
+        /// <summary>
+        /// Get the attunement stone definition from the cost config.
+        /// </summary>
+        public ItemDefinition AttunementStoneDefinition => attunementCostConfig?.AttunementStoneDefinition;
     }
 }

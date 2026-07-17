@@ -6,6 +6,7 @@ namespace Lootbound.Gameplay.Equipment
     /// <summary>
     /// Applies visual feedback to the first-person weapon based on equipment condition.
     /// Uses MaterialPropertyBlock to avoid material instantiation.
+    /// Slice 0.7.7: Supports ConditionVisualConfig for centralized tuning.
     /// </summary>
     public class WeaponConditionVisual : MonoBehaviour
     {
@@ -15,7 +16,11 @@ namespace Lootbound.Gameplay.Equipment
         [SerializeField] private PlayerEquipment playerEquipment;
         [SerializeField] private PlayerWeaponWear playerWeaponWear;
 
-        [Header("Broken Effect")]
+        [Header("Configuration")]
+        [Tooltip("Optional config asset. If assigned, overrides local values.")]
+        [SerializeField] private ConditionVisualConfig config;
+
+        [Header("Broken Effect (used if no config)")]
         [Tooltip("Desaturation amount when broken (0 = normal, 1 = grayscale)")]
         [SerializeField, Range(0f, 1f)]
         private float brokenDesaturation = 0.6f;
@@ -196,10 +201,15 @@ namespace Lootbound.Gameplay.Equipment
 
         private Color CalculateBrokenColor(Color originalColor)
         {
-            // Calculate grayscale (luminance)
+            // Use config if available, otherwise use local values
+            if (config != null)
+            {
+                return config.CalculateBrokenColor(originalColor);
+            }
+
+            // Fallback to local values
             float gray = originalColor.r * 0.299f + originalColor.g * 0.587f + originalColor.b * 0.114f;
 
-            // Interpolate between original and grayscale
             Color desaturated = new Color(
                 Mathf.Lerp(originalColor.r, gray, brokenDesaturation),
                 Mathf.Lerp(originalColor.g, gray, brokenDesaturation),
@@ -207,7 +217,6 @@ namespace Lootbound.Gameplay.Equipment
                 originalColor.a
             );
 
-            // Apply tint
             Color tinted = Color.Lerp(desaturated, brokenTint, brokenTintStrength);
             tinted.a = originalColor.a;
 

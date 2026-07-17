@@ -57,7 +57,7 @@ namespace Lootbound.Gameplay.Player
         public bool InteractHeld => inputEnabled && interactHeld;
         public bool InteractPressedThisFrame => inputEnabled && interactPressedThisFrame;
         public bool InteractReleasedThisFrame => inputEnabled && interactReleasedThisFrame;
-        public bool InventoryPressedThisFrame => inventoryPressedThisFrame;
+        public bool InventoryPressedThisFrame => inputEnabled && inventoryPressedThisFrame;
         public bool AttackPressedThisFrame => inputEnabled && attackPressedThisFrame;
         public bool DodgePressedThisFrame => inputEnabled && dodgePressedThisFrame;
         public bool InputEnabled => inputEnabled;
@@ -246,7 +246,10 @@ namespace Lootbound.Gameplay.Player
         private void OnInventoryPerformed(InputAction.CallbackContext context)
         {
             inventoryPressedThisFrame = true;
-            OnInventoryToggled?.Invoke();
+            if (inputEnabled)
+            {
+                OnInventoryToggled?.Invoke();
+            }
         }
 
         private void OnAttackPerformed(InputAction.CallbackContext context)

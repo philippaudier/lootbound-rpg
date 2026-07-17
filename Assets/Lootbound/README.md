@@ -131,7 +131,7 @@ After opening the project for the first time:
 | Toggle Terrain Debug | F5 |
 | Toggle Combat Debug | F6 |
 
-## Current State: Slice 0.7.4 - Repair Fragments V1
+## Current State: Slice 0.8.1 - Attunement Data Foundation V1
 
 ### Implemented
 - Project folder structure
@@ -223,10 +223,22 @@ After opening the project for the first time:
 - **Broken weapon restoration**
 - **Equipment identity preserved through repair**
 - **Repair debug tools (F6)**
+- **Repair Station System (Slice 0.7.5)**
+- **RepairStation world object (IInteractable)**
+- **Dedicated Repair Station UI (UI Toolkit)**
+- **Equipment list with repair preview**
+- **Input and cursor management during repair**
+- **Attunement Data Foundation (Slice 0.8.1)**
+- **AttunementLevel field on EquipmentData (0-5)**
+- **AttunementState enum (Unattuned, Attuned, Maximum)**
+- **Display name with suffix ("Traveler Blade +3")**
+- **AttunementFoundationConfig ScriptableObject**
+- **UI: Slot badge, details panel, comparison**
+- **Debug tools for attunement (F6)**
+- **Attunement preserved through all operations**
 
 ### Not Implemented (Future Slices)
-- Repair Station (3D workbench)
-- Enhancement system
+- Attunement attempt mechanics (bonus stats, chances, costs)
 - Save system
 - Refuge
 - Stamina
@@ -248,13 +260,15 @@ After opening the project for the first time:
 | 0.7.2 | Weapon Wear System V1 |
 | 0.7.3 | Broken Weapons V1 |
 | 0.7.4 | Repair Fragments V1 |
+| 0.7.5 | Repair Station V1 |
+| 0.8.1 | Attunement Data Foundation V1 |
 
 ## Upcoming Slices
 
 | Slice | Focus |
 |-------|-------|
-| 0.7.5 | Repair Station V1 |
-| 0.8 | Refuge V1 |
+| 0.8.2 | Attunement Attempt Mechanics (if needed) |
+| 0.9 | Refuge V1 |
 
 ## Character Controller
 
