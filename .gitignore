@@ -108,3 +108,6 @@ Assets/New Terrain.asset.meta
 # Generated images (ChatGPT, etc.)
 Assets/**/ChatGPT*.png
 Assets/**/ChatGPT*.png.meta
+
+# Large art assets (use Git LFS if needed later)
+Assets/Lootbound/Art/Models/
