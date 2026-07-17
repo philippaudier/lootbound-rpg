@@ -1,3 +1,4 @@
+using Lootbound.Gameplay.World.Layout;
 using UnityEngine;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
@@ -98,28 +99,75 @@ namespace Lootbound.Gameplay.World
             // Configure terrain data
             ConfigureTerrainData();
 
-            // Step 1: Generate heightmap
+            // Step 0: Create terrain sampler (before heightmap)
+            var sampler = new TerrainNoiseSampler(seed, config);
+
+            // Step 1: Generate initial heightmap for spawn planning
             Stopwatch stepWatch = Stopwatch.StartNew();
-            TerrainHeightGenerator.Generate(context, config);
+            TerrainHeightGenerator.Generate(context, config, sampler.GetOffsets());
             stepWatch.Stop();
             context.HeightmapGenerationTimeMs = stepWatch.ElapsedMilliseconds;
 
-            // Step 2: Plan spawn
+            // Step 2: Find refuge origin FIRST (before layout)
             TerrainSpawnPlanner.PlanSpawn(context, config);
 
-            // Step 3: Apply heightmap to terrain
+            // Step 3: Generate world layout (terrain-aware) if config is provided
+            if (config.LayoutConfig != null && config.RingConfig != null)
+            {
+                stepWatch.Restart();
+
+                // Create WorldDiscDefinition with logical world radius
+                // For now, use terrain size as the world radius (can be different for streaming later)
+                float worldDiscRadius = config.WorldSize * 0.5f;
+                var worldDiscDefinition = new WorldDiscDefinition(worldDiscRadius, config.RingConfig);
+
+                var layoutResult = WorldLayoutGenerator.Generate(seed, worldDiscDefinition, sampler, config.LayoutConfig);
+                stepWatch.Stop();
+
+                if (!layoutResult.Success)
+                {
+                    Debug.LogError($"[ProceduralTerrainGenerator] Layout generation failed: {layoutResult.Error}");
+                    // Continue without layout - terrain will still be generated
+                }
+                else
+                {
+                    context.LayoutContext = layoutResult.Layout;
+                    Debug.Log($"[ProceduralTerrainGenerator] Layout generated with {layoutResult.Layout.NodesOrdered.Count} nodes, " +
+                              $"{layoutResult.Layout.EdgesOrdered.Count} edges, {layoutResult.Layout.RadialPaths.Count} radial paths " +
+                              $"(attempt {layoutResult.Layout.GenerationAttempt + 1})");
+
+                    // Update spawn position to use layout's refuge position
+                    context.SpawnPosition = layoutResult.Layout.RefugePosition;
+
+                    // Step 4: Apply layout-aware flattening
+                    TerrainHeightGenerator.ApplyLayoutFlattening(context, config, layoutResult.Layout);
+                }
+            }
+
+            // Step 5: Apply heightmap to terrain
             stepWatch.Restart();
             ApplyHeightmapToTerrain();
             stepWatch.Stop();
             context.TerrainApplicationTimeMs = stepWatch.ElapsedMilliseconds;
 
-            // Step 4: Paint terrain
+            // Step 6: Validate layout against final terrain (if layout exists)
+            if (context.LayoutContext != null)
+            {
+                var terrainValidation = WorldLayoutValidator.ValidateAgainstTerrain(
+                    context.LayoutContext, context, config.LayoutConfig.PrimaryPathMaxSlope);
+                if (!terrainValidation.IsValid)
+                {
+                    Debug.LogWarning($"[ProceduralTerrainGenerator] Post-correction validation warning: {terrainValidation.Error}");
+                }
+            }
+
+            // Step 7: Paint terrain
             stepWatch.Restart();
             PaintTerrain();
             stepWatch.Stop();
             context.PaintingTimeMs = stepWatch.ElapsedMilliseconds;
 
-            // Step 5: Position player
+            // Step 8: Position player
             PositionPlayer();
 
             totalWatch.Stop();
@@ -281,7 +329,27 @@ namespace Lootbound.Gameplay.World
                 return;
             }
 
-            Vector3 startPos = TerrainSpawnPlanner.GetPlayerStartPosition(context, playerHeight);
+            // Get spawn XZ from context
+            Vector3 spawnXZ = context.SpawnPosition;
+
+            // Sample ACTUAL terrain height from Unity Terrain (not context heightmap)
+            // This ensures player is positioned on the real terrain surface after all modifications
+            float actualTerrainHeight = terrain.SampleHeight(new Vector3(spawnXZ.x, 0, spawnXZ.z));
+
+            // Add terrain's world position Y offset (usually 0, but be safe)
+            actualTerrainHeight += terrain.transform.position.y;
+
+            // Place player above terrain surface
+            float safeHeight = actualTerrainHeight + playerHeight * 0.5f + 0.5f;
+            Vector3 startPos = new Vector3(spawnXZ.x, safeHeight, spawnXZ.z);
+
+            // Disable CharacterController temporarily to allow teleport
+            CharacterController cc = playerTransform.GetComponent<CharacterController>();
+            if (cc != null)
+            {
+                cc.enabled = false;
+            }
+
             playerTransform.position = startPos;
 
             // Reset rotation to face a random direction based on seed
@@ -289,15 +357,16 @@ namespace Lootbound.Gameplay.World
             float yRotation = (float)(rotRandom.NextDouble() * 360f);
             playerTransform.rotation = Quaternion.Euler(0, yRotation, 0);
 
-            // Reset velocity if player has a character controller
-            CharacterController cc = playerTransform.GetComponent<CharacterController>();
+            // Re-enable CharacterController
             if (cc != null)
             {
-                // CharacterController doesn't have velocity - it's handled by FirstPersonMotor
-                // The motor will naturally reset on next frame
+                cc.enabled = true;
             }
 
-            Debug.Log($"[ProceduralTerrainGenerator] Player positioned at {startPos}");
+            // Update context spawn position with actual height for consistency
+            context.SpawnPosition = new Vector3(spawnXZ.x, actualTerrainHeight, spawnXZ.z);
+
+            Debug.Log($"[ProceduralTerrainGenerator] Player positioned at {startPos} (terrain height: {actualTerrainHeight:F2})");
         }
 
 #if UNITY_EDITOR

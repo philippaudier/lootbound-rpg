@@ -1,3 +1,4 @@
+using Lootbound.Gameplay.World.Layout;
 using UnityEngine;
 
 namespace Lootbound.Gameplay.World
@@ -103,6 +104,13 @@ namespace Lootbound.Gameplay.World
         [Tooltip("Slope angle threshold for steep surfaces in degrees")]
         [SerializeField] private float steepSlopeThreshold = 35f;
 
+        [Header("World Layout")]
+        [Tooltip("Configuration for world layout generation (optional)")]
+        [SerializeField] private WorldLayoutConfig layoutConfig;
+
+        [Tooltip("Configuration for world ring thresholds")]
+        [SerializeField] private WorldRingConfig ringConfig;
+
         [Header("Generation Settings")]
         [Tooltip("Generate terrain when entering Play Mode")]
         [SerializeField] private bool generateOnStart = true;
@@ -142,6 +150,9 @@ namespace Lootbound.Gameplay.World
         public float SteepSlopeThreshold => steepSlopeThreshold;
 
         public bool GenerateOnStart => generateOnStart;
+
+        public WorldLayoutConfig LayoutConfig => layoutConfig;
+        public WorldRingConfig RingConfig => ringConfig;
 
         /// <summary>
         /// Validate configuration values.

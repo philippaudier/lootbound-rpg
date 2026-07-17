@@ -3,45 +3,33 @@ using UnityEngine;
 namespace Lootbound.Gameplay.World
 {
     /// <summary>
-    /// Generates the terrain heightmap using layered noise.
+    /// Generates the terrain heightmap using TerrainNoiseCore.
     /// Uses deterministic noise based on seed for reproducible results.
     /// </summary>
     public static class TerrainHeightGenerator
     {
-        // Offset constants for different noise channels to ensure they don't correlate
-        private const int MACRO_OFFSET = 0;
-        private const int RIDGE_OFFSET = 31415;
-        private const int VALLEY_OFFSET = 27182;
-        private const int DETAIL_OFFSET = 14142;
-        private const int WARP_OFFSET_X = 17320;
-        private const int WARP_OFFSET_Z = 22360;
-
         /// <summary>
         /// Generate the complete heightmap for the terrain.
         /// </summary>
         public static void Generate(TerrainGenerationContext context, TerrainGenerationConfig config)
         {
+            var offsets = new TerrainNoiseCore.NoiseOffsets(context.Seed);
+            Generate(context, config, offsets);
+        }
+
+        /// <summary>
+        /// Generate the complete heightmap using pre-computed noise offsets.
+        /// This ensures the heightmap matches what the sampler produced.
+        /// </summary>
+        public static void Generate(TerrainGenerationContext context, TerrainGenerationConfig config, TerrainNoiseCore.NoiseOffsets offsets)
+        {
             int resolution = context.Resolution;
             float worldSize = context.WorldSize;
-            int seed = context.Seed;
 
             float[,] heightMap = new float[resolution, resolution];
             float[,] macroMap = new float[resolution, resolution];
 
-            // Compute all offsets from seed
-            System.Random seedRandom = new System.Random(seed);
-            float macroOffsetX = (float)(seedRandom.NextDouble() * 10000);
-            float macroOffsetZ = (float)(seedRandom.NextDouble() * 10000);
-            float ridgeOffsetX = (float)(seedRandom.NextDouble() * 10000);
-            float ridgeOffsetZ = (float)(seedRandom.NextDouble() * 10000);
-            float valleyOffsetX = (float)(seedRandom.NextDouble() * 10000);
-            float valleyOffsetZ = (float)(seedRandom.NextDouble() * 10000);
-            float detailOffsetX = (float)(seedRandom.NextDouble() * 10000);
-            float detailOffsetZ = (float)(seedRandom.NextDouble() * 10000);
-            float warpOffsetX = (float)(seedRandom.NextDouble() * 10000);
-            float warpOffsetZ = (float)(seedRandom.NextDouble() * 10000);
-
-            // Generate heightmap
+            // Generate heightmap using centralized noise
             for (int x = 0; x < resolution; x++)
             {
                 for (int z = 0; z < resolution; z++)
@@ -50,97 +38,9 @@ namespace Lootbound.Gameplay.World
                     float worldX = (x / (float)(resolution - 1)) * worldSize;
                     float worldZ = (z / (float)(resolution - 1)) * worldSize;
 
-                    // Apply light domain warping for more organic shapes
-                    float warpStrength = 0.15f;
-                    float warpScale = config.MacroScale * 0.5f;
-                    float warpX = SamplePerlin(worldX + warpOffsetX, worldZ + warpOffsetZ, warpScale) * warpStrength * worldSize * 0.1f;
-                    float warpZ = SamplePerlin(worldX + warpOffsetX + 1000, worldZ + warpOffsetZ + 1000, warpScale) * warpStrength * worldSize * 0.1f;
-
-                    float warpedX = worldX + warpX;
-                    float warpedZ = worldZ + warpZ;
-
-                    // 1. Macro terrain - main shape
-                    float macro = SampleFBM(
-                        warpedX + macroOffsetX,
-                        warpedZ + macroOffsetZ,
-                        config.MacroScale,
-                        config.MacroOctaves,
-                        config.MacroPersistence,
-                        config.MacroLacunarity
-                    );
-
-                    // Store macro for surface classification
-                    macroMap[x, z] = macro;
-
-                    // 2. Valley features - create low areas and corridors
-                    float valley = 0f;
-                    if (config.ValleyStrength > 0f)
-                    {
-                        float valleyNoise = SampleFBM(
-                            worldX + valleyOffsetX,
-                            worldZ + valleyOffsetZ,
-                            config.ValleyScale,
-                            3,
-                            0.5f,
-                            2f
-                        );
-
-                        // Invert and shape valleys - deeper in low macro areas
-                        float valleyMask = 1f - Mathf.Clamp01(macro * 1.5f);
-                        valley = (1f - Mathf.Abs(valleyNoise * 2f - 1f)) * valleyMask;
-                        valley = Mathf.Pow(valley, 1.5f) * config.ValleyStrength;
-                    }
-
-                    // 3. Ridge features - create high points
-                    float ridge = 0f;
-                    if (config.RidgeStrength > 0f)
-                    {
-                        float ridgeNoise = SampleFBM(
-                            worldX + ridgeOffsetX,
-                            worldZ + ridgeOffsetZ,
-                            config.RidgeScale,
-                            3,
-                            0.45f,
-                            2.1f
-                        );
-
-                        // Ridged noise formula
-                        ridge = 1f - Mathf.Abs(ridgeNoise * 2f - 1f);
-                        ridge = Mathf.Pow(ridge, 2f);
-
-                        // Only apply ridges in higher macro areas
-                        float ridgeMask = Mathf.Clamp01((macro - 0.4f) * 2f);
-                        ridge *= ridgeMask * config.RidgeStrength;
-                    }
-
-                    // 4. Detail noise - fine variation
-                    float detail = 0f;
-                    if (config.DetailStrength > 0f)
-                    {
-                        detail = SampleFBM(
-                            worldX + detailOffsetX,
-                            worldZ + detailOffsetZ,
-                            config.DetailScale,
-                            2,
-                            0.5f,
-                            2f
-                        ) * config.DetailStrength;
-                    }
-
-                    // Combine all layers
-                    float height = macro;
-                    height -= valley * 0.3f; // Valleys subtract from height
-                    height += ridge * 0.25f; // Ridges add to height
-                    height += detail;
-
-                    // Apply height remap curve
-                    height = Mathf.Clamp01(height);
-                    height = config.HeightRemap.Evaluate(height);
-
-                    // Apply global strength
-                    height *= config.GlobalHeightStrength;
-
-                    heightMap[x, z] = height;
+                    // Use centralized noise evaluation
+                    heightMap[x, z] = TerrainNoiseCore.EvaluateHeight(worldX, worldZ, offsets, config);
+                    macroMap[x, z] = TerrainNoiseCore.EvaluateMacro(worldX, worldZ, offsets, config);
                 }
             }
 
@@ -246,42 +146,6 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Sample Perlin noise at given world coordinates.
-        /// </summary>
-        private static float SamplePerlin(float worldX, float worldZ, float scale)
-        {
-            float x = worldX / scale;
-            float z = worldZ / scale;
-            return Mathf.PerlinNoise(x, z);
-        }
-
-        /// <summary>
-        /// Sample Fractional Brownian Motion (FBM) noise.
-        /// </summary>
-        private static float SampleFBM(float worldX, float worldZ, float scale, int octaves, float persistence, float lacunarity)
-        {
-            float value = 0f;
-            float amplitude = 1f;
-            float frequency = 1f;
-            float maxValue = 0f;
-
-            for (int i = 0; i < octaves; i++)
-            {
-                float x = worldX / scale * frequency;
-                float z = worldZ / scale * frequency;
-
-                value += Mathf.PerlinNoise(x, z) * amplitude;
-                maxValue += amplitude;
-
-                amplitude *= persistence;
-                frequency *= lacunarity;
-            }
-
-            // Normalize to 0-1 range
-            return value / maxValue;
-        }
-
-        /// <summary>
         /// Apply spawn zone flattening to the heightmap.
         /// </summary>
         public static void ApplySpawnFlattening(TerrainGenerationContext context, TerrainGenerationConfig config, Vector3 spawnWorldPos)
@@ -292,10 +156,6 @@ namespace Lootbound.Gameplay.World
             float safeRadius = config.SpawnSafeRadius;
             float blendRadius = config.SpawnBlendRadius;
             float targetHeight = config.SpawnTargetHeight;
-
-            // Convert spawn position to heightmap coordinates
-            float spawnNormX = spawnWorldPos.x / context.WorldSize;
-            float spawnNormZ = spawnWorldPos.z / context.WorldSize;
 
             // Sample current height at spawn to use as local target
             var (spawnX, spawnZ) = context.WorldToHeightmap(spawnWorldPos);
@@ -346,6 +206,154 @@ namespace Lootbound.Gameplay.World
 
             // Recompute slope map after flattening
             ComputeSlopeMap(context, config);
+        }
+
+        /// <summary>
+        /// Apply layout-aware flattening for clearings and path corridors.
+        /// </summary>
+        public static void ApplyLayoutFlattening(
+            TerrainGenerationContext context,
+            TerrainGenerationConfig config,
+            Layout.WorldLayoutContext layout)
+        {
+            if (layout == null) return;
+
+            int resolution = context.Resolution;
+            float[,] heightMap = context.NormalizedHeightMap;
+            float worldSize = context.WorldSize;
+
+            // Get correction limits from layout config
+            var layoutConfig = config.LayoutConfig;
+            if (layoutConfig == null) return;
+
+            float corridorWidth = layoutConfig.CorridorWidth;
+            float corridorBlend = layoutConfig.CorridorBlend;
+            float maxCorrection = layoutConfig.MaxCorrectionStrength;
+            float clearingRadius = layoutConfig.ClearingFlattenRadius;
+
+            // Process each point in the heightmap
+            for (int x = 0; x < resolution; x++)
+            {
+                for (int z = 0; z < resolution; z++)
+                {
+                    float normX = x / (float)(resolution - 1);
+                    float normZ = z / (float)(resolution - 1);
+                    float worldX = normX * worldSize;
+                    float worldZ = normZ * worldSize;
+
+                    float originalHeight = heightMap[x, z];
+                    float correctionStrength = 0f;
+                    float targetHeight = originalHeight;
+
+                    // Check distance to primary path edges (corridors)
+                    foreach (var edge in layout.EdgesOrdered)
+                    {
+                        if (!edge.IsPrimaryPathEdge) continue;
+
+                        // Find closest point on edge polyline
+                        float minDist = float.MaxValue;
+                        float closestHeight = originalHeight;
+
+                        var points = edge.ControlPoints;
+                        for (int i = 0; i < points.Count - 1; i++)
+                        {
+                            var p1 = points[i];
+                            var p2 = points[i + 1];
+                            var closest = ClosestPointOnLineSegment(
+                                new Vector2(worldX, worldZ),
+                                new Vector2(p1.x, p1.z),
+                                new Vector2(p2.x, p2.z)
+                            );
+                            float dist = Vector2.Distance(new Vector2(worldX, worldZ), closest);
+                            if (dist < minDist)
+                            {
+                                minDist = dist;
+                                // Interpolate height along segment
+                                float t = Vector2.Distance(closest, new Vector2(p1.x, p1.z)) /
+                                          Vector2.Distance(new Vector2(p1.x, p1.z), new Vector2(p2.x, p2.z));
+                                t = Mathf.Clamp01(t);
+                                closestHeight = Mathf.Lerp(
+                                    p1.y / context.TerrainHeight,
+                                    p2.y / context.TerrainHeight,
+                                    t
+                                );
+                            }
+                        }
+
+                        if (minDist < corridorWidth + corridorBlend)
+                        {
+                            float strength;
+                            if (minDist < corridorWidth)
+                            {
+                                strength = 1f;
+                            }
+                            else
+                            {
+                                float t = (minDist - corridorWidth) / corridorBlend;
+                                strength = 1f - (t * t * (3f - 2f * t));
+                            }
+
+                            strength = Mathf.Min(strength, maxCorrection);
+                            if (strength > correctionStrength)
+                            {
+                                correctionStrength = strength;
+                                targetHeight = closestHeight;
+                            }
+                        }
+                    }
+
+                    // Check distance to clearing nodes
+                    foreach (var node in layout.NodesOrdered)
+                    {
+                        if (node.Type != Layout.WorldNodeType.Clearing) continue;
+
+                        float dist = Vector2.Distance(
+                            new Vector2(worldX, worldZ),
+                            new Vector2(node.Position.x, node.Position.z)
+                        );
+
+                        if (dist < clearingRadius + corridorBlend)
+                        {
+                            float strength;
+                            if (dist < clearingRadius)
+                            {
+                                strength = 1f;
+                            }
+                            else
+                            {
+                                float t = (dist - clearingRadius) / corridorBlend;
+                                strength = 1f - (t * t * (3f - 2f * t));
+                            }
+
+                            strength = Mathf.Min(strength, maxCorrection);
+                            if (strength > correctionStrength)
+                            {
+                                correctionStrength = strength;
+                                targetHeight = node.Position.y / context.TerrainHeight;
+                            }
+                        }
+                    }
+
+                    // Apply correction
+                    if (correctionStrength > 0f)
+                    {
+                        heightMap[x, z] = Mathf.Lerp(originalHeight, targetHeight, correctionStrength);
+                    }
+                }
+            }
+
+            // Recompute slope map after layout flattening
+            ComputeSlopeMap(context, config);
+        }
+
+        private static Vector2 ClosestPointOnLineSegment(Vector2 point, Vector2 a, Vector2 b)
+        {
+            Vector2 ab = b - a;
+            float lengthSq = ab.sqrMagnitude;
+            if (lengthSq < 0.0001f) return a;
+
+            float t = Mathf.Clamp01(Vector2.Dot(point - a, ab) / lengthSq);
+            return a + t * ab;
         }
     }
 }

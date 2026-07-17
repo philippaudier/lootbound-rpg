@@ -344,6 +344,7 @@ Lootbound.Core.Scenes
 Lootbound.Debugging
 Lootbound.Gameplay.Player
 Lootbound.Gameplay.World
+Lootbound.Gameplay.World.Layout
 Lootbound.Gameplay.Interaction
 Lootbound.Gameplay.Inventory
 Lootbound.Gameplay.Combat
@@ -397,6 +398,39 @@ Procedural terrain test scene containing:
 Used for testing and tuning terrain generation.
 
 Generation controls available in Inspector on TerrainGenerator object.
+
+### World Layout (`Lootbound.Gameplay.World.Layout`)
+
+The world uses a radial architecture centered on the Refuge. Multiple RadialPaths emanate outward toward OuterDestinations.
+
+```
+Layout/
+├── WorldRing.cs              - Enum (Refuge, Nearlands, Wildlands, Farlands, Outerlands, Edgelands, Void)
+├── WorldRingSample.cs        - Readonly struct with distance, normalized radius, ring
+├── WorldRingConfig.cs        - ScriptableObject with ring thresholds
+├── WorldRingEvaluator.cs     - Static evaluation functions
+├── WorldDiscDefinition.cs    - Logical world definition with compression support
+├── RadialPath.cs             - Path structure with NodeIds, EdgeIds, StartAngle
+├── WorldNode.cs              - Node with radial properties
+├── WorldEdge.cs              - Edge with IsPrimaryPathEdge, RadialPathId
+├── WorldLayoutContext.cs     - Complete layout with RadialPaths, RefugeNode, OuterDestinations
+├── WorldLayoutConfig.cs      - ScriptableObject for generation parameters
+├── WorldLayoutGenerator.cs   - Radial layout generation
+├── WorldLayoutValidator.cs   - Structural and traversability validation
+└── WorldLayoutGizmos.cs      - Scene visualization with ring circles
+```
+
+#### Key Concepts
+
+**WorldRing**: Concentric zones (Refuge → Nearlands → Wildlands → Farlands → Outerlands → Edgelands → Void). Each node and reservation has a Ring property.
+
+**RadialPath**: Terrain-aware path from Refuge to OuterDestination. Curves naturally based on scoring (outward progression + slope + curvature penalty).
+
+**Radial Properties**: All nodes have DistanceFromRefuge, NormalizedWorldRadius (0-1), Ring, RadialPathId, and PathStepIndex.
+
+**IsPrimaryPathEdge**: True for main radial path edges, false for branch edges. All primary edges must be traversable.
+
+See `WORLD_LAYOUT.md`, `WORLD_RINGS.md`, and `WORLD_RPG_PROGRESSION.md` for details.
 
 ### 13_InteractionInventorySandbox
 
@@ -617,12 +651,17 @@ Equipment/
 │   ├── AffixDefinition       - ScriptableObject for affix templates
 │   └── EquipmentRegistry     - Registry of all definitions
 ├── Instances/
-│   ├── EquipmentData         - Unique instance with GUID, affixes, durability
+│   ├── EquipmentData         - Unique instance with GUID, affixes, durability, attunement
 │   ├── AffixInstance         - Rolled affix with value
-│   └── EquipmentHistory      - Tracks found location, kills, equips
+│   └── EquipmentHistory      - Tracks found location, kills, equips, repairs
 ├── Condition/
 │   ├── EquipmentCondition    - Enum (Excellent, Good, Worn, Fragile, Broken)
 │   └── EquipmentConditionHelper - Centralized thresholds, colors, tooltips
+├── Attunement/
+│   ├── AttunementState       - Enum (Unattuned, Attuned, Maximum)
+│   ├── AttunementLevelChangeResult - Struct for modification results
+│   ├── AttunementFoundationConfig  - ScriptableObject for max level
+│   └── AttunementHelper      - Static helper methods
 ├── Stats/
 │   └── ResolvedWeaponStats   - Computed final stats
 ├── Generation/
@@ -634,9 +673,11 @@ Equipment/
 
 ### Key Concepts
 
-**Definition vs Instance**: WeaponDefinition (ScriptableObject) is a template. EquipmentData (serializable class) is a unique instance with its own GUID, rolled affixes, history, and durability.
+**Definition vs Instance**: WeaponDefinition (ScriptableObject) is a template. EquipmentData (serializable class) is a unique instance with its own GUID, rolled affixes, history, durability, and attunement level.
 
 **Stat Resolution**: Base stats from definition + percentage modifiers from affixes = ResolvedWeaponStats.
+
+**Attunement System**: Equipment has an attunement level (0-5) displayed as "Traveler Blade +3". State derived from level: Unattuned (0), Attuned (1-4), Maximum (5). Currently data foundation only - no bonus stats or attempt mechanics.
 
 **Condition System**: Equipment condition is derived from normalized durability:
 - Excellent: 80-100%
@@ -648,6 +689,38 @@ Equipment/
 Colors and tooltips are centralized in EquipmentConditionHelper.
 
 See `EQUIPMENT.md` for detailed documentation.
+
+## Repair Station (`Lootbound.Gameplay.World` + `Lootbound.UI`)
+
+### Architecture
+
+```
+Gameplay/World/
+└── RepairStation.cs          - IInteractable world object
+
+UI/RepairStation/
+├── RepairStationUI.cs        - UI controller
+├── RepairStation.uxml        - UI layout
+└── RepairStation.uss         - UI styles
+```
+
+### RepairStation
+
+World object implementing `IInteractable`:
+- Instant interaction (no hold required)
+- Opens dedicated repair UI
+- Manages in-use state
+- Notifies UI on open/close
+
+### RepairStationUI
+
+UI Toolkit controller:
+- Equipment list (only items needing repair)
+- Repair preview with before/after state
+- Uses existing RepairService
+- Input and cursor management
+
+See `REPAIR_STATION.md` for detailed documentation.
 
 ## Design Principles
 
