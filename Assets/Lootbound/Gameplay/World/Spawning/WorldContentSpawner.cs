@@ -53,6 +53,11 @@ namespace Lootbound.Gameplay.World.Spawning
         [Tooltip("Maximum distance to search for baked NavMesh around an enemy spawn position")]
         private float navMeshSampleDistance = 4f;
 
+        [SerializeField]
+        [Range(0f, 2f)]
+        [Tooltip("Vertical offset above the terrain for resource pickups. Matches the enemy loot spawn convention (EnemyHealth.lootSpawnOffset) so world resources sit at the same height as dropped items.")]
+        private float resourceSpawnHeightOffset = 0.5f;
+
         private GameObject contentRoot;
 
         /// <summary>Report of the last spawning pass, for the debug panel.</summary>
@@ -267,7 +272,8 @@ namespace Lootbound.Gameplay.World.Spawning
             int spawned = 0;
             foreach (var entry in recipe.Entries)
             {
-                var pickup = ItemWorldPickup.SpawnPickup(definition.Item, entry.Position, entry.Quantity);
+                Vector3 spawnPosition = entry.Position + Vector3.up * resourceSpawnHeightOffset;
+                var pickup = ItemWorldPickup.SpawnPickup(definition.Item, spawnPosition, entry.Quantity);
                 if (pickup == null)
                 {
                     continue;
