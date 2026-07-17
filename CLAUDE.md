@@ -122,6 +122,8 @@ Avoid:
 
 ## Workflow for every implementation
 
+Before proposing a solution, explain how it fits Lootbound’s vision and which architectural boundaries it touches.
+
 Before editing:
 
 1. inspect the relevant existing files;
