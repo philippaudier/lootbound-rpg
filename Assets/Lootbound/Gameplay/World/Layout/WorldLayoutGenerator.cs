@@ -145,7 +145,7 @@ namespace Lootbound.Gameplay.World.Layout
             GenerateBranches(context, random, sampler, config, worldDiscDefinition, effectiveSeed, ref nodeIndex, ref edgeIndex);
 
             // Phase 6: Create reservations
-            GenerateReservations(context, random, config, worldDiscDefinition, effectiveSeed);
+            GenerateReservations(context, random, config, worldDiscDefinition, sampler, effectiveSeed);
 
             // Phase 7: Structural validation
             var validationResult = WorldLayoutValidator.ValidateStructure(context);
@@ -561,6 +561,7 @@ namespace Lootbound.Gameplay.World.Layout
             System.Random random,
             WorldLayoutConfig config,
             WorldDiscDefinition worldDiscDefinition,
+            ITerrainSampler sampler,
             int seed)
         {
             // Collect eligible nodes for reservations
@@ -588,14 +589,13 @@ namespace Lootbound.Gameplay.World.Layout
             {
                 var host = eligibleNodes[i];
 
-                // Offset position slightly from node center
+                // Offset XZ slightly from node center, then sample the height
+                // at the final XZ (the host height is only valid at the host XZ)
                 float offsetAngle = (float)(random.NextDouble() * Mathf.PI * 2f);
                 float offsetDist = host.Radius * 0.3f;
-                Vector3 pos = host.Position + new Vector3(
-                    Mathf.Cos(offsetAngle) * offsetDist,
-                    0f,
-                    Mathf.Sin(offsetAngle) * offsetDist
-                );
+                float posX = host.Position.x + Mathf.Cos(offsetAngle) * offsetDist;
+                float posZ = host.Position.z + Mathf.Sin(offsetAngle) * offsetDist;
+                Vector3 pos = new Vector3(posX, sampler.SampleHeight(posX, posZ), posZ);
 
                 var reservation = new EncounterReservation(
                     EncounterReservation.GenerateId(seed, encounterIndex++),
@@ -636,11 +636,9 @@ namespace Lootbound.Gameplay.World.Layout
 
                 float offsetAngle = (float)(random.NextDouble() * Mathf.PI * 2f);
                 float offsetDist = host.Radius * 0.4f;
-                Vector3 pos = host.Position + new Vector3(
-                    Mathf.Cos(offsetAngle) * offsetDist,
-                    0f,
-                    Mathf.Sin(offsetAngle) * offsetDist
-                );
+                float posX = host.Position.x + Mathf.Cos(offsetAngle) * offsetDist;
+                float posZ = host.Position.z + Mathf.Sin(offsetAngle) * offsetDist;
+                Vector3 pos = new Vector3(posX, sampler.SampleHeight(posX, posZ), posZ);
 
                 var reservation = new ResourceReservation(
                     ResourceReservation.GenerateId(seed, resourceIndex++),
@@ -656,7 +654,7 @@ namespace Lootbound.Gameplay.World.Layout
             }
 
             // Create landmark reservations
-            GenerateLandmarkReservations(context, random, config, worldDiscDefinition, seed);
+            GenerateLandmarkReservations(context, random, config, worldDiscDefinition, sampler, seed);
         }
 
         private static void GenerateLandmarkReservations(
@@ -664,6 +662,7 @@ namespace Lootbound.Gameplay.World.Layout
             System.Random random,
             WorldLayoutConfig config,
             WorldDiscDefinition worldDiscDefinition,
+            ITerrainSampler sampler,
             int seed)
         {
             // Collect viewpoint and landmark-type nodes
@@ -697,10 +696,17 @@ namespace Lootbound.Gameplay.World.Layout
             {
                 var host = landmarkCandidates[i];
 
+                // XZ stays on the host node; sample the height through the
+                // authoritative sampler like every other reservation
+                Vector3 pos = new Vector3(
+                    host.Position.x,
+                    sampler.SampleHeight(host.Position.x, host.Position.z),
+                    host.Position.z);
+
                 var reservation = new LandmarkReservation(
                     LandmarkReservation.GenerateId(seed, landmarkIndex++),
                     host.NodeId,
-                    host.Position,
+                    pos,
                     host.Radius,
                     host.DistanceFromRefuge,
                     host.NormalizedWorldRadius,
@@ -708,6 +714,33 @@ namespace Lootbound.Gameplay.World.Layout
                     host.RadialPathId
                 );
                 context.AddLandmarkReservation(reservation);
+            }
+        }
+
+        /// <summary>
+        /// Re-sample every reservation height from the authoritative sampler.
+        /// Must be called after any pass that modifies the heightmap after
+        /// layout generation (corridor/clearing flattening) so stored
+        /// reservation positions match the final published terrain.
+        /// XZ positions are never changed.
+        /// </summary>
+        public static void ReprojectReservationHeights(WorldLayoutContext layout, ITerrainSampler sampler)
+        {
+            if (layout == null || sampler == null) return;
+
+            foreach (var reservation in layout.EncounterReservations)
+            {
+                reservation.ReprojectHeight(sampler.SampleHeight(reservation.Position.x, reservation.Position.z));
+            }
+
+            foreach (var reservation in layout.ResourceReservations)
+            {
+                reservation.ReprojectHeight(sampler.SampleHeight(reservation.Position.x, reservation.Position.z));
+            }
+
+            foreach (var reservation in layout.LandmarkReservations)
+            {
+                reservation.ReprojectHeight(sampler.SampleHeight(reservation.Position.x, reservation.Position.z));
             }
         }
 

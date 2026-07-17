@@ -21,7 +21,17 @@ namespace Lootbound.Gameplay.World.Layout
         /// <summary>
         /// World position of this reservation.
         /// </summary>
-        public Vector3 Position { get; }
+        public Vector3 Position { get; private set; }
+
+        /// <summary>
+        /// Replace the stored world-space height. Called by the
+        /// post-flattening reprojection pass so the position matches the
+        /// final terrain; XZ never changes.
+        /// </summary>
+        public void ReprojectHeight(float worldY)
+        {
+            Position = new Vector3(Position.x, worldY, Position.z);
+        }
 
         /// <summary>
         /// Radius of the encounter area.
@@ -103,7 +113,17 @@ namespace Lootbound.Gameplay.World.Layout
         /// <summary>
         /// World position of this reservation.
         /// </summary>
-        public Vector3 Position { get; }
+        public Vector3 Position { get; private set; }
+
+        /// <summary>
+        /// Replace the stored world-space height. Called by the
+        /// post-flattening reprojection pass so the position matches the
+        /// final terrain; XZ never changes.
+        /// </summary>
+        public void ReprojectHeight(float worldY)
+        {
+            Position = new Vector3(Position.x, worldY, Position.z);
+        }
 
         /// <summary>
         /// Radius of the resource area.
@@ -185,7 +205,17 @@ namespace Lootbound.Gameplay.World.Layout
         /// <summary>
         /// World position of this reservation.
         /// </summary>
-        public Vector3 Position { get; }
+        public Vector3 Position { get; private set; }
+
+        /// <summary>
+        /// Replace the stored world-space height. Called by the
+        /// post-flattening reprojection pass so the position matches the
+        /// final terrain; XZ never changes.
+        /// </summary>
+        public void ReprojectHeight(float worldY)
+        {
+            Position = new Vector3(Position.x, worldY, Position.z);
+        }
 
         /// <summary>
         /// Radius of the landmark area.

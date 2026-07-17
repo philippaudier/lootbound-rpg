@@ -37,7 +37,7 @@ namespace Lootbound.Tests.EditMode
             SetField(config, "nodesPerRadialPath", 4);
             SetField(config, "radialStepMin", 80f);
             SetField(config, "radialStepMax", 150f);
-            SetField(config, "primaryPathMaxSlope", 40f);
+            SetField(config, "radialPathMaxSlope", 40f);
             SetField(config, "edgeSamplePoints", 3);
             SetField(config, "branchCount", 2);
             SetField(config, "branchMaxNodes", 2);
@@ -72,7 +72,9 @@ namespace Lootbound.Tests.EditMode
             var config = ScriptableObject.CreateInstance<TerrainGenerationConfig>();
 
             SetField(config, "worldSize", 1024f);
-            SetField(config, "terrainHeight", 150f);
+            // Gentle height budget: normalization stretches the map to the full
+            // terrainHeight, and slopes must stay within the path budget.
+            SetField(config, "terrainHeight", 60f);
             SetField(config, "heightmapResolution", 129);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);

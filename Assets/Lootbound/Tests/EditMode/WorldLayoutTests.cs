@@ -28,7 +28,7 @@ namespace Lootbound.Tests.EditMode
             SetField(config, "nodesPerRadialPath", 4);
             SetField(config, "radialStepMin", 80f);
             SetField(config, "radialStepMax", 150f);
-            SetField(config, "primaryPathMaxSlope", 40f);
+            SetField(config, "radialPathMaxSlope", 40f);
             SetField(config, "edgeSamplePoints", 3);
             SetField(config, "branchCount", 2);
             SetField(config, "branchMaxNodes", 2);
@@ -74,7 +74,11 @@ namespace Lootbound.Tests.EditMode
             var config = ScriptableObject.CreateInstance<TerrainGenerationConfig>();
 
             SetField(config, "worldSize", 1024f);
-            SetField(config, "terrainHeight", 150f);
+            // Min-max normalization stretches the heightmap to the full 0-1
+            // range, so the final terrain always spans the whole terrainHeight.
+            // Keep a gentle height budget so normalized-space slopes stay
+            // within the 40 degree path budget across seeds.
+            SetField(config, "terrainHeight", 60f);
             SetField(config, "heightmapResolution", 129);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
@@ -1011,6 +1015,171 @@ namespace Lootbound.Tests.EditMode
             Assert.AreEqual(expectedValid, validation.IsValid,
                 $"ValidateAgainstTerrain ({stage}) must agree with the slopes read from the context maps. " +
                 $"Error: {validation.Error}");
+        }
+
+        #endregion
+
+        #region Reservation Height Tests
+
+        // Every reservation category must sample its own height at its final
+        // XZ instead of inheriting the host node height (wrong on any slope).
+        [Test]
+        public void Reservations_AllCategories_SampleTerrainHeightAtTheirOwnXZ()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            Assert.Greater(result.Layout.EncounterReservations.Count, 0, "Fixture must produce encounter reservations");
+            Assert.Greater(result.Layout.ResourceReservations.Count, 0, "Fixture must produce resource reservations");
+            Assert.Greater(result.Layout.LandmarkReservations.Count, 0, "Fixture must produce landmark reservations");
+
+            foreach (var reservation in result.Layout.EncounterReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+            foreach (var reservation in result.Layout.ResourceReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+            foreach (var reservation in result.Layout.LandmarkReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+        }
+
+        // Guard against the inherit-host-height regression: encounter and
+        // resource reservations are XZ-offset from their host, so on sloped
+        // terrain at least one of them must end up at a different height than
+        // its host node.
+        [Test]
+        public void Reservations_OffsetOnSlope_DoNotInheritHostHeight()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            bool anyDiffersFromHost = false;
+            foreach (var reservation in result.Layout.EncounterReservations)
+            {
+                var host = result.Layout.NodesById[reservation.HostNodeId];
+                if (Mathf.Abs(reservation.Position.y - host.Position.y) > 0.01f)
+                {
+                    anyDiffersFromHost = true;
+                }
+            }
+            foreach (var reservation in result.Layout.ResourceReservations)
+            {
+                var host = result.Layout.NodesById[reservation.HostNodeId];
+                if (Mathf.Abs(reservation.Position.y - host.Position.y) > 0.01f)
+                {
+                    anyDiffersFromHost = true;
+                }
+            }
+
+            Assert.IsTrue(anyDiffersFromHost,
+                "On sloped terrain, XZ-offset reservations must sample their own height " +
+                "instead of inheriting the host node height");
+        }
+
+        [Test]
+        public void Reservations_XYZ_AreDeterministic()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig1 = CreateTerrainConfig();
+            var terrainConfig2 = CreateTerrainConfig();
+            var context1 = CreateGeneratedContext(12345, terrainConfig1);
+            var context2 = CreateGeneratedContext(12345, terrainConfig2);
+            var worldDisc = CreateTestWorldDiscDefinition(context1.WorldSize * 0.5f);
+
+            var result1 = WorldLayoutGenerator.Generate(12345, worldDisc, new TerrainContextSampler(context1), config);
+            var result2 = WorldLayoutGenerator.Generate(12345, worldDisc, new TerrainContextSampler(context2), config);
+
+            Assert.IsTrue(result1.Success);
+            Assert.IsTrue(result2.Success);
+
+            AssertReservationListsIdentical(
+                result1.Layout.EncounterReservations.Count, result2.Layout.EncounterReservations.Count,
+                i => (result1.Layout.EncounterReservations[i].ReservationId, result1.Layout.EncounterReservations[i].Position),
+                i => (result2.Layout.EncounterReservations[i].ReservationId, result2.Layout.EncounterReservations[i].Position));
+            AssertReservationListsIdentical(
+                result1.Layout.ResourceReservations.Count, result2.Layout.ResourceReservations.Count,
+                i => (result1.Layout.ResourceReservations[i].ReservationId, result1.Layout.ResourceReservations[i].Position),
+                i => (result2.Layout.ResourceReservations[i].ReservationId, result2.Layout.ResourceReservations[i].Position));
+            AssertReservationListsIdentical(
+                result1.Layout.LandmarkReservations.Count, result2.Layout.LandmarkReservations.Count,
+                i => (result1.Layout.LandmarkReservations[i].ReservationId, result1.Layout.LandmarkReservations[i].Position),
+                i => (result2.Layout.LandmarkReservations[i].ReservationId, result2.Layout.LandmarkReservations[i].Position));
+        }
+
+        // Full pipeline order: layout -> corridor/clearing flattening ->
+        // reprojection. Stored reservation heights must match the final
+        // published terrain exactly.
+        [Test]
+        public void Reservations_MatchFinalTerrain_AfterFlatteningAndReprojection()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            SetField(terrainConfig, "layoutConfig", config);
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            TerrainHeightGenerator.ApplyLayoutFlattening(context, terrainConfig, result.Layout);
+            WorldLayoutGenerator.ReprojectReservationHeights(result.Layout, sampler);
+
+            foreach (var reservation in result.Layout.EncounterReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+            foreach (var reservation in result.Layout.ResourceReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+            foreach (var reservation in result.Layout.LandmarkReservations)
+            {
+                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
+            }
+        }
+
+        private void AssertReservationOnTerrain(string reservationId, Vector3 position, TerrainGenerationContext context)
+        {
+            float terrainY = context.SampleHeightAtWorld(position.x, position.z);
+            Assert.AreEqual(terrainY, position.y, POSITION_EPSILON,
+                $"Reservation {reservationId}: stored Y must equal SampleHeightAtWorld at its own XZ");
+        }
+
+        private void AssertReservationListsIdentical(
+            int count1,
+            int count2,
+            System.Func<int, (string id, Vector3 position)> get1,
+            System.Func<int, (string id, Vector3 position)> get2)
+        {
+            Assert.AreEqual(count1, count2, "Reservation counts should match between generations");
+
+            for (int i = 0; i < count1; i++)
+            {
+                var (id1, pos1) = get1(i);
+                var (id2, pos2) = get2(i);
+
+                Assert.AreEqual(id1, id2, $"Reservation IDs at index {i} should match");
+                Assert.AreEqual(pos1.x, pos2.x, POSITION_EPSILON, $"Reservation {id1}: X should match");
+                Assert.AreEqual(pos1.y, pos2.y, POSITION_EPSILON, $"Reservation {id1}: Y should match");
+                Assert.AreEqual(pos1.z, pos2.z, POSITION_EPSILON, $"Reservation {id1}: Z should match");
+            }
         }
 
         #endregion

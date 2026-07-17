@@ -112,6 +112,9 @@ TerrainHeightGenerator.ApplyLayoutFlattening()
   ├── Gentle corridors along primary paths
   └── Flattened clearings
   ↓
+WorldLayoutGenerator.ReprojectReservationHeights()
+  └── Reservation Y re-sampled so stored positions match the final terrain
+  ↓
 WorldLayoutValidator.ValidateAgainstTerrain()
   ↓
 Done

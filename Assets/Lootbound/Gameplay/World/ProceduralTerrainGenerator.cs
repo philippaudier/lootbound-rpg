@@ -144,6 +144,10 @@ namespace Lootbound.Gameplay.World
 
                     // Step 4: Apply layout-aware flattening
                     TerrainHeightGenerator.ApplyLayoutFlattening(context, config, layoutResult.Layout);
+
+                    // Step 4b: reproject reservation heights onto the flattened
+                    // terrain so stored positions match the final ground
+                    WorldLayoutGenerator.ReprojectReservationHeights(layoutResult.Layout, sampler);
                 }
             }
 
