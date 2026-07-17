@@ -99,17 +99,20 @@ namespace Lootbound.Gameplay.World
             // Configure terrain data
             ConfigureTerrainData();
 
-            // Step 0: Create terrain sampler (before heightmap)
-            var sampler = new TerrainNoiseSampler(seed, config);
-
             // Step 1: Generate initial heightmap for spawn planning
             Stopwatch stepWatch = Stopwatch.StartNew();
-            TerrainHeightGenerator.Generate(context, config, sampler.GetOffsets());
+            TerrainHeightGenerator.Generate(context, config);
             stepWatch.Stop();
             context.HeightmapGenerationTimeMs = stepWatch.ElapsedMilliseconds;
 
             // Step 2: Find refuge origin FIRST (before layout)
             TerrainSpawnPlanner.PlanSpawn(context, config);
+
+            // Terrain sampler for layout generation, backed by the context's
+            // NormalizedHeightMap/SlopeMap so every downstream consumer (layout,
+            // flattening targets, ValidateAgainstTerrain, gizmos, spawning)
+            // shares the height space actually applied to the Unity Terrain.
+            var sampler = new TerrainContextSampler(context);
 
             // Step 3: Generate world layout (terrain-aware) if config is provided
             if (config.LayoutConfig != null && config.RingConfig != null)

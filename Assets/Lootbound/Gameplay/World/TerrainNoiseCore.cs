@@ -170,31 +170,6 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Evaluate slope at world position using finite differences.
-        /// Returns slope in degrees.
-        /// </summary>
-        public static float EvaluateSlope(
-            float worldX,
-            float worldZ,
-            in NoiseOffsets offsets,
-            TerrainGenerationConfig config)
-        {
-            float delta = 1f; // Sample 1 meter apart for gradient
-
-            float hCenter = EvaluateHeight(worldX, worldZ, offsets, config);
-            float hRight = EvaluateHeight(worldX + delta, worldZ, offsets, config);
-            float hUp = EvaluateHeight(worldX, worldZ + delta, offsets, config);
-
-            // Convert normalized heights to world heights
-            float terrainHeight = config.TerrainHeight;
-            float dx = (hRight - hCenter) * terrainHeight / delta;
-            float dz = (hUp - hCenter) * terrainHeight / delta;
-
-            float gradient = Mathf.Sqrt(dx * dx + dz * dz);
-            return Mathf.Atan(gradient) * Mathf.Rad2Deg;
-        }
-
-        /// <summary>
         /// Sample Perlin noise at given world coordinates.
         /// </summary>
         public static float SamplePerlin(float worldX, float worldZ, float scale)

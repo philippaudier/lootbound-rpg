@@ -1,11 +1,13 @@
 using Lootbound.Gameplay.World.Layout;
 
-namespace Lootbound.Gameplay.World.Spawning
+namespace Lootbound.Gameplay.World
 {
     /// <summary>
-    /// Adapts the post-generation TerrainGenerationContext to ITerrainSampler
-    /// so the content planner can validate placements against the final,
-    /// corrected heightmap (the noise sampler predates layout flattening).
+    /// Adapts TerrainGenerationContext to ITerrainSampler.
+    /// Single conversion authority for the pipeline height space
+    /// (NormalizedHeightMap -> terrain-local height -> world-space Y):
+    /// layout generation, terrain validation, and content spawning all sample
+    /// heights and slopes through it instead of converting on their own.
     /// </summary>
     public sealed class TerrainContextSampler : ITerrainSampler
     {

@@ -73,6 +73,7 @@ namespace Lootbound.Tests.EditMode
 
             SetField(config, "worldSize", 1024f);
             SetField(config, "terrainHeight", 150f);
+            SetField(config, "heightmapResolution", 129);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);
@@ -102,10 +103,20 @@ namespace Lootbound.Tests.EditMode
             field?.SetValue(obj, value);
         }
 
+        /// <summary>
+        /// Context-backed sampler, generated the same way the runtime pipeline
+        /// does before layout generation (unified height space).
+        /// </summary>
         private ITerrainSampler CreateSampler(int seed)
         {
             var terrainConfig = CreateTerrainConfig();
-            return new TerrainNoiseSampler(seed, terrainConfig);
+            var context = new TerrainGenerationContext(
+                seed,
+                terrainConfig.HeightmapResolution,
+                terrainConfig.WorldSize,
+                terrainConfig.TerrainHeight);
+            TerrainHeightGenerator.Generate(context, terrainConfig);
+            return new TerrainContextSampler(context);
         }
 
         private WorldRingConfig CreateTestRingConfig()

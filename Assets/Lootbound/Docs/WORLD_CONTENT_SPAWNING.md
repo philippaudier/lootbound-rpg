@@ -25,7 +25,7 @@ All runtime code lives in `Assets/Lootbound/Gameplay/World/Spawning/`
 | Recipes | `SpawnRecipe`, `SpawnRecipeEntry` | Fully resolved plan for one reservation: definition, anchor, one entry per instance with a `Role` (prepares richer encounter compositions later). |
 | Instantiation | `WorldContentSpawner` (MonoBehaviour) | Subscribes to `ProceduralTerrainGenerator.OnGenerationComplete`, instantiates recipes, records a `WorldContentSpawnReport`. |
 | Identity | `WorldContentIdentity` (MonoBehaviour) | Attached to every spawned instance: `ReservationId`, `HostNodeId`, `DefinitionId`, `Ring`, `RadialPathId`, `Role`. |
-| Terrain access | `TerrainContextSampler` | Adapts the post-correction `TerrainGenerationContext` to `ITerrainSampler` for placement validation. |
+| Terrain access | `TerrainContextSampler` (in `Lootbound.Gameplay.World`) | Adapts `TerrainGenerationContext` to `ITerrainSampler`. Shared with layout generation: the single conversion authority for the pipeline height space. |
 
 ## Determinism
 

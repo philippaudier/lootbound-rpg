@@ -14,15 +14,6 @@ namespace Lootbound.Gameplay.World
         public static void Generate(TerrainGenerationContext context, TerrainGenerationConfig config)
         {
             var offsets = new TerrainNoiseCore.NoiseOffsets(context.Seed);
-            Generate(context, config, offsets);
-        }
-
-        /// <summary>
-        /// Generate the complete heightmap using pre-computed noise offsets.
-        /// This ensures the heightmap matches what the sampler produced.
-        /// </summary>
-        public static void Generate(TerrainGenerationContext context, TerrainGenerationConfig config, TerrainNoiseCore.NoiseOffsets offsets)
-        {
             int resolution = context.Resolution;
             float worldSize = context.WorldSize;
 

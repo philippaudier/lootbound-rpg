@@ -75,6 +75,7 @@ namespace Lootbound.Tests.EditMode
 
             SetField(config, "worldSize", 1024f);
             SetField(config, "terrainHeight", 150f);
+            SetField(config, "heightmapResolution", 129);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);
@@ -104,10 +105,25 @@ namespace Lootbound.Tests.EditMode
             field?.SetValue(obj, value);
         }
 
+        /// <summary>
+        /// Generate a real terrain context (heightmap, normalized map, slope map)
+        /// the same way the runtime pipeline does before layout generation.
+        /// </summary>
+        private TerrainGenerationContext CreateGeneratedContext(int seed, TerrainGenerationConfig terrainConfig)
+        {
+            var context = new TerrainGenerationContext(
+                seed,
+                terrainConfig.HeightmapResolution,
+                terrainConfig.WorldSize,
+                terrainConfig.TerrainHeight);
+            TerrainHeightGenerator.Generate(context, terrainConfig);
+            return context;
+        }
+
         private ITerrainSampler CreateSampler(int seed)
         {
             var terrainConfig = CreateTerrainConfig();
-            return new TerrainNoiseSampler(seed, terrainConfig);
+            return new TerrainContextSampler(CreateGeneratedContext(seed, terrainConfig));
         }
 
         #endregion
@@ -812,41 +828,189 @@ namespace Lootbound.Tests.EditMode
         #region Sampler Consistency Tests
 
         [Test]
-        public void Sampler_ProducesSameHeightAsHeightmap()
+        public void Sampler_ProducesSameHeightAsContext()
         {
             var terrainConfig = CreateTerrainConfig();
-            int seed = 12345;
-
-            var sampler = new TerrainNoiseSampler(seed, terrainConfig);
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
 
             float worldX = terrainConfig.WorldSize * 0.3f;
             float worldZ = terrainConfig.WorldSize * 0.7f;
-            float sampledHeight = sampler.SampleHeight(worldX, worldZ);
 
-            var offsets = sampler.GetOffsets();
-            float evaluatedHeight = TerrainNoiseCore.EvaluateHeight(worldX, worldZ, offsets, terrainConfig) * terrainConfig.TerrainHeight;
+            Assert.AreEqual(context.SampleHeightAtWorld(worldX, worldZ), sampler.SampleHeight(worldX, worldZ), POSITION_EPSILON,
+                "Sampler must delegate height queries to the context (single conversion authority)");
 
-            Assert.AreEqual(evaluatedHeight, sampledHeight, POSITION_EPSILON,
-                "Sampler should produce same height as TerrainNoiseCore");
+            // At an exact grid point the sampled height must equal the value
+            // written to the Unity Terrain (NormalizedHeightMap * TerrainHeight).
+            int gridX = 40, gridZ = 90;
+            float gridWorldX = (gridX / (float)(context.Resolution - 1)) * context.WorldSize;
+            float gridWorldZ = (gridZ / (float)(context.Resolution - 1)) * context.WorldSize;
+
+            Assert.AreEqual(context.NormalizedHeightMap[gridX, gridZ] * context.TerrainHeight,
+                sampler.SampleHeight(gridWorldX, gridWorldZ), POSITION_EPSILON,
+                "Sampler heights must live in the terrain-applied (normalized) height space");
         }
 
         [Test]
-        public void Sampler_ProducesConsistentSlope()
+        public void Sampler_ProducesSameSlopeAsContext()
         {
             var terrainConfig = CreateTerrainConfig();
-            int seed = 54321;
-
-            var sampler = new TerrainNoiseSampler(seed, terrainConfig);
-            var offsets = sampler.GetOffsets();
+            var context = CreateGeneratedContext(54321, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
 
             float worldX = terrainConfig.WorldSize * 0.5f;
             float worldZ = terrainConfig.WorldSize * 0.5f;
 
-            float sampledSlope = sampler.SampleSlope(worldX, worldZ);
-            float evaluatedSlope = TerrainNoiseCore.EvaluateSlope(worldX, worldZ, offsets, terrainConfig);
+            Assert.AreEqual(context.SampleSlopeAtWorld(worldX, worldZ), sampler.SampleSlope(worldX, worldZ), SLOPE_EPSILON,
+                "Sampler must delegate slope queries to the context (single conversion authority)");
+        }
 
-            Assert.AreEqual(evaluatedSlope, sampledSlope, SLOPE_EPSILON,
-                "Sampler slope should match TerrainNoiseCore slope");
+        #endregion
+
+        #region Height Space Unification Tests
+
+        // Node and control point Y values are sampled through TerrainContextSampler,
+        // so before any flattening they must sit exactly on the terrain surface
+        // described by SampleHeightAtWorld.
+        [Test]
+        public void NodeAndControlPointHeights_MatchSampleHeightAtWorld()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            foreach (var node in result.Layout.NodesOrdered)
+            {
+                float terrainY = context.SampleHeightAtWorld(node.Position.x, node.Position.z);
+                Assert.AreEqual(terrainY, node.Position.y, POSITION_EPSILON,
+                    $"Node {node.NodeId}: stored Y must equal SampleHeightAtWorld at the same XZ");
+            }
+
+            foreach (var edge in result.Layout.EdgesOrdered)
+            {
+                foreach (var point in edge.ControlPoints)
+                {
+                    float terrainY = context.SampleHeightAtWorld(point.x, point.z);
+                    Assert.AreEqual(terrainY, point.y, POSITION_EPSILON,
+                        $"Edge {edge.EdgeId}: control point Y must equal SampleHeightAtWorld at the same XZ");
+                }
+            }
+        }
+
+        // After corridor/clearing flattening the terrain is pulled TOWARD the
+        // stored layout heights, so nodes stay close to the ground. The tolerance
+        // covers bilinear/grid discretization of the flattening pass, not a
+        // height-space mismatch (which would be tens of meters).
+        [Test]
+        public void NodeHeights_AfterLayoutFlattening_StayOnTerrain()
+        {
+            const float FLATTENING_TOLERANCE_METERS = 2f;
+
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            SetField(terrainConfig, "layoutConfig", config);
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            TerrainHeightGenerator.ApplyLayoutFlattening(context, terrainConfig, result.Layout);
+
+            foreach (var node in result.Layout.NodesOrdered)
+            {
+                float terrainY = context.SampleHeightAtWorld(node.Position.x, node.Position.z);
+                Assert.AreEqual(terrainY, node.Position.y, FLATTENING_TOLERANCE_METERS,
+                    $"Node {node.NodeId}: after flattening the terrain must stay within " +
+                    $"{FLATTENING_TOLERANCE_METERS}m of the stored node height");
+            }
+        }
+
+        // The unification guarantee: the slopes recorded on edges during
+        // generation are the very values ValidateAgainstTerrain re-reads from
+        // the context. Before the fix, edges carried raw-noise-space slopes
+        // while the validator read normalized-space slopes.
+        [Test]
+        public void EdgeRecordedSlopes_MatchContextSlopes()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            foreach (var edge in result.Layout.EdgesOrdered)
+            {
+                float maxSlope = 0f;
+                foreach (var point in edge.ControlPoints)
+                {
+                    maxSlope = Mathf.Max(maxSlope, context.SampleSlopeAtWorld(point.x, point.z));
+                }
+
+                Assert.AreEqual(maxSlope, edge.MaxSlope, SLOPE_EPSILON,
+                    $"Edge {edge.EdgeId}: recorded MaxSlope must equal the context slope at its control points");
+            }
+        }
+
+        // ValidateAgainstTerrain must agree with what the recorded control point
+        // slopes predict, before and after flattening — proof that the validator
+        // and the generator read the same height space.
+        [Test]
+        public void ValidateAgainstTerrain_ConsistentWithLayoutGeneration()
+        {
+            var config = CreateTestConfig();
+            var terrainConfig = CreateTerrainConfig();
+            SetField(terrainConfig, "layoutConfig", config);
+            var context = CreateGeneratedContext(12345, terrainConfig);
+            var sampler = new TerrainContextSampler(context);
+            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+            var result = WorldLayoutGenerator.Generate(12345, worldDisc, sampler, config);
+            Assert.IsTrue(result.Success, $"Generation should succeed. Error: {result.Error}");
+
+            AssertTerrainValidationAgreesWithContextSlopes(result.Layout, context, config, "before flattening");
+
+            TerrainHeightGenerator.ApplyLayoutFlattening(context, terrainConfig, result.Layout);
+
+            AssertTerrainValidationAgreesWithContextSlopes(result.Layout, context, config, "after flattening");
+        }
+
+        private void AssertTerrainValidationAgreesWithContextSlopes(
+            WorldLayoutContext layout,
+            TerrainGenerationContext context,
+            WorldLayoutConfig config,
+            string stage)
+        {
+            // Same rule as ValidateAgainstTerrain, computed from the context maps
+            float slopeLimit = config.PrimaryPathMaxSlope * 1.1f;
+            bool expectedValid = true;
+            foreach (var edge in layout.EdgesOrdered)
+            {
+                if (!edge.IsPrimaryPathEdge) continue;
+                foreach (var point in edge.ControlPoints)
+                {
+                    if (context.SampleSlopeAtWorld(point.x, point.z) > slopeLimit)
+                    {
+                        expectedValid = false;
+                    }
+                }
+            }
+
+            var validation = WorldLayoutValidator.ValidateAgainstTerrain(
+                layout, context, config.PrimaryPathMaxSlope);
+
+            Assert.AreEqual(expectedValid, validation.IsValid,
+                $"ValidateAgainstTerrain ({stage}) must agree with the slopes read from the context maps. " +
+                $"Error: {validation.Error}");
         }
 
         #endregion

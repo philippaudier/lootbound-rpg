@@ -88,9 +88,12 @@ All reservations inherit radial properties from their host node:
 ```
 WorldSeed
   ↓
+TerrainHeightGenerator.Generate() (heightmap + normalized map + slope map)
+  ↓
 WorldDiscDefinition created (WorldRadius, RingConfig)
   ↓
-TerrainNoiseSampler created (queries noise functions)
+TerrainContextSampler created (reads the context's NormalizedHeightMap/SlopeMap —
+the same height space applied to the Unity Terrain)
   ↓
 WorldLayoutGenerator.Generate()
   ├── Find Refuge position (near world center with bounded offset)
@@ -228,7 +231,6 @@ Add `WorldLayoutGizmos` component to view in Scene:
 ```
 Assets/Lootbound/Gameplay/World/Layout/
 ├── ITerrainSampler.cs           # Interface for terrain queries
-├── TerrainNoiseSampler.cs       # ITerrainSampler implementation
 ├── WorldRing.cs                 # Ring enum
 ├── WorldRingSample.cs           # Ring evaluation result
 ├── WorldRingConfig.cs           # Ring threshold configuration

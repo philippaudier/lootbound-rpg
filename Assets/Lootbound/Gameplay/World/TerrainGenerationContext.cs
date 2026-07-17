@@ -177,17 +177,6 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Convert heightmap coordinates to world position.
-        /// </summary>
-        public Vector3 HeightmapToWorld(int x, int z)
-        {
-            float worldX = (x / (float)(Resolution - 1)) * WorldSize;
-            float worldZ = (z / (float)(Resolution - 1)) * WorldSize;
-            float worldY = HeightMap[x, z] * TerrainHeight;
-            return new Vector3(worldX, worldY, worldZ);
-        }
-
-        /// <summary>
         /// Convert world position to heightmap coordinates.
         /// </summary>
         public (int x, int z) WorldToHeightmap(Vector3 worldPos)
