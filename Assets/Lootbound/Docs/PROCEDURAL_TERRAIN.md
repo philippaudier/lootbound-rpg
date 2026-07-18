@@ -137,7 +137,9 @@ Detail Noise
   ↓
 Height Remap Curve
   ↓
-Normalization
+Normalization (optional; disabled in the default preset — min-max
+normalization amplifies slopes by the inverse of the seed's raw range,
+making final slopes seed-dependent and layout generation unreliable)
   ↓
 Spawn Search
   ↓

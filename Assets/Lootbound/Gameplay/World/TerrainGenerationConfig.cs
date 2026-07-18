@@ -75,8 +75,8 @@ namespace Lootbound.Gameplay.World
         [Range(0.1f, 2f)]
         [SerializeField] private float globalHeightStrength = 1f;
 
-        [Tooltip("Normalize heightmap to use full 0-1 range")]
-        [SerializeField] private bool normalizeHeightmap = true;
+        [Tooltip("Normalize heightmap to use full 0-1 range. Warning: amplifies slopes by the inverse of the seed's raw range, making final slopes seed-dependent and unpredictable. Keep disabled for presets that must produce traversable layouts.")]
+        [SerializeField] private bool normalizeHeightmap = false;
 
         [Header("Spawn Zone")]
         [Tooltip("Radius of the completely safe zone around spawn in meters")]

@@ -811,6 +811,29 @@ namespace Lootbound.Tests.EditMode
 
         #region Multiple Seeds Test
 
+        // Robustness over a deterministic corpus: layout generation must
+        // succeed for every seed, and a failure must name the seed.
+        [Test]
+        public void Generation_Succeeds_ForDeterministicSeedCorpus()
+        {
+            const int corpusSize = 50;
+
+            var config = CreateTestConfig();
+
+            for (int seed = 0; seed < corpusSize; seed++)
+            {
+                var terrainConfig = CreateTerrainConfig();
+                var context = CreateGeneratedContext(seed, terrainConfig);
+                var sampler = new TerrainContextSampler(context);
+                var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
+
+                var result = WorldLayoutGenerator.Generate(seed, worldDisc, sampler, config);
+
+                Assert.IsTrue(result.Success,
+                    $"Layout generation failed for corpus seed {seed}: {result.Error}");
+            }
+        }
+
         [TestCase(1)]
         [TestCase(42)]
         [TestCase(999)]

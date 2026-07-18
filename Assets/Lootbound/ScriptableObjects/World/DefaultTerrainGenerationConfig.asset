@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: DefaultTerrainGenerationConfig
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.TerrainGenerationConfig
   defaultSeed: 42
-  worldSize: 4096
+  worldSize: 1024
   terrainHeight: 200
   heightmapResolution: 513
-  alphamapResolution: 513
+  alphamapResolution: 512
   macroScale: 600
   macroOctaves: 3
   macroPersistence: 0.4
@@ -52,7 +52,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   globalHeightStrength: 1
-  normalizeHeightmap: 1
+  normalizeHeightmap: 0
   spawnSafeRadius: 30
   spawnBlendRadius: 70
   spawnTargetHeight: 0.5

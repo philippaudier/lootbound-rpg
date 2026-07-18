@@ -102,6 +102,8 @@ WorldLayoutGenerator.Generate()
   ├── For each RadialPath:
   │   ├── Generate nodes outward with emergent curvature
   │   ├── Score candidates: outward progression + slope + curvature
+  │   │   (if no candidate fits — e.g. near the world margin — retry once
+  │   │   with shorter steps and a ±90° spread to curve along the edge)
   │   └── Terminal node becomes OuterDestination
   ├── Generate branches from primary path nodes
   │   └── Branches inherit RadialPathId from anchor

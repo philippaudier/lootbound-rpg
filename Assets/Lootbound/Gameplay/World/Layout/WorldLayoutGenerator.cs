@@ -767,19 +767,62 @@ namespace Lootbound.Gameplay.World.Layout
             WorldDiscDefinition worldDiscDefinition,
             bool isPrimaryPath)
         {
-            var candidates = new List<CandidatePosition>();
-
             float stepMin = isPrimaryPath ? config.RadialStepMin : config.RadialStepMin * 0.6f;
             float stepMax = isPrimaryPath ? config.RadialStepMax : config.RadialStepMax * 0.6f;
-            float maxSlope = config.PrimaryPathMaxSlope;
 
-            // Previous direction for curvature calculation
-            Vector2 fromPos2D = new Vector2(fromPosition.x, fromPosition.z);
+            var candidates = CollectRadialCandidates(
+                fromPosition, preferredDirection, refugePosition, context, random,
+                sampler, config, worldDiscDefinition, isPrimaryPath,
+                stepMin, stepMax, angleSpreadDegrees: 90f);
+
+            // Near the world margin the whole forward cone can be out of
+            // bounds (flat terrain favours straight max-length steps, so paths
+            // reach the edge). Retry once with shorter steps and a half-circle
+            // spread so the path can curve along the edge instead of failing.
+            // Primary paths only: extra random draws here never affect seeds
+            // that used to succeed, because this branch used to abort the
+            // whole attempt.
+            if (candidates.Count == 0 && isPrimaryPath)
+            {
+                float fallbackMin = Mathf.Max(config.NodeMinSpacing * 1.2f, stepMin * 0.5f);
+                float fallbackMax = Mathf.Max(fallbackMin + 1f, stepMin);
+                candidates = CollectRadialCandidates(
+                    fromPosition, preferredDirection, refugePosition, context, random,
+                    sampler, config, worldDiscDefinition, isPrimaryPath,
+                    fallbackMin, fallbackMax, angleSpreadDegrees: 180f);
+            }
+
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            // Sort by score and return best
+            candidates.Sort((a, b) => b.score.CompareTo(a.score));
+            return candidates[0];
+        }
+
+        private static List<CandidatePosition> CollectRadialCandidates(
+            Vector3 fromPosition,
+            Vector2 preferredDirection,
+            Vector3 refugePosition,
+            WorldLayoutContext context,
+            System.Random random,
+            ITerrainSampler sampler,
+            WorldLayoutConfig config,
+            WorldDiscDefinition worldDiscDefinition,
+            bool isPrimaryPath,
+            float stepMin,
+            float stepMax,
+            float angleSpreadDegrees)
+        {
+            var candidates = new List<CandidatePosition>();
+            float maxSlope = config.PrimaryPathMaxSlope;
 
             for (int i = 0; i < config.CandidatesPerStep; i++)
             {
                 // Generate candidate in forward cone
-                float angleSpread = 90f * Mathf.Deg2Rad; // ±45° from preferred direction
+                float angleSpread = angleSpreadDegrees * Mathf.Deg2Rad;
                 float angle = Mathf.Atan2(preferredDirection.y, preferredDirection.x);
                 angle += ((float)random.NextDouble() - 0.5f) * angleSpread;
 
@@ -858,14 +901,7 @@ namespace Lootbound.Gameplay.World.Layout
                 });
             }
 
-            if (candidates.Count == 0)
-            {
-                return null;
-            }
-
-            // Sort by score and return best
-            candidates.Sort((a, b) => b.score.CompareTo(a.score));
-            return candidates[0];
+            return candidates;
         }
 
         private static float ScoreRadialCandidate(

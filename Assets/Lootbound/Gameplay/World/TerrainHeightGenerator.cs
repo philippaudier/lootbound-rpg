@@ -61,19 +61,28 @@ namespace Lootbound.Gameplay.World
         /// </summary>
         private static void NormalizeHeightmap(TerrainGenerationContext context)
         {
-            int resolution = context.Resolution;
-            float[,] normalized = new float[resolution, resolution];
+            context.SetNormalizedHeightMap(
+                NormalizeToFullRange(context.HeightMap, context.MinHeight, context.MaxHeight));
+        }
 
-            float min = context.MinHeight;
-            float max = context.MaxHeight;
+        /// <summary>
+        /// Min-max normalize a heightmap to the full 0-1 range.
+        /// Note: this amplifies gradients (and therefore slopes) by
+        /// 1 / (max - min), a factor that depends on the observed range.
+        /// A near-flat input (range below 0.001) maps to a uniform 0.5.
+        /// </summary>
+        public static float[,] NormalizeToFullRange(float[,] heightMap, float min, float max)
+        {
+            int sizeX = heightMap.GetLength(0);
+            int sizeZ = heightMap.GetLength(1);
+            float[,] normalized = new float[sizeX, sizeZ];
             float range = max - min;
 
             if (range < 0.001f)
             {
-                // Flat terrain - set to middle value
-                for (int x = 0; x < resolution; x++)
+                for (int x = 0; x < sizeX; x++)
                 {
-                    for (int z = 0; z < resolution; z++)
+                    for (int z = 0; z < sizeZ; z++)
                     {
                         normalized[x, z] = 0.5f;
                     }
@@ -81,16 +90,16 @@ namespace Lootbound.Gameplay.World
             }
             else
             {
-                for (int x = 0; x < resolution; x++)
+                for (int x = 0; x < sizeX; x++)
                 {
-                    for (int z = 0; z < resolution; z++)
+                    for (int z = 0; z < sizeZ; z++)
                     {
-                        normalized[x, z] = (context.HeightMap[x, z] - min) / range;
+                        normalized[x, z] = (heightMap[x, z] - min) / range;
                     }
                 }
             }
 
-            context.SetNormalizedHeightMap(normalized);
+            return normalized;
         }
 
         /// <summary>
