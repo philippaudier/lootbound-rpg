@@ -118,11 +118,6 @@ namespace Lootbound.Gameplay.World.Spawning
             if (terrainGenerator != null && terrainGenerator.IsGenerated && LastReport == null)
             {
                 HandleGenerationComplete(terrainGenerator.Context);
-
-                if (navigationBuilder != null && navigationBuilder.LastResult != null)
-                {
-                    HandleNavigationCompleted(navigationBuilder.LastResult);
-                }
             }
         }
 
@@ -161,6 +156,17 @@ namespace Lootbound.Gameplay.World.Spawning
 
             pendingContext = generationContext;
             gate.TerrainPublished(generationContext.GenerationId);
+
+            // The invocation order of OnGenerationComplete subscribers is not
+            // guaranteed: the builder may have already built (synchronously)
+            // for this very generation before this handler armed the gate.
+            // Consume its result now instead of waiting for a signal that
+            // already fired. Also covers the Start() catch-up path.
+            var existingResult = navigationBuilder.LastResult;
+            if (existingResult != null && existingResult.GenerationId == generationContext.GenerationId)
+            {
+                HandleNavigationCompleted(existingResult);
+            }
         }
 
         private void HandleNavigationCompleted(RuntimeNavigationBuildResult result)
