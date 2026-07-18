@@ -56,6 +56,9 @@ namespace Lootbound.Gameplay.Combat
         private Vector3 lastProgressPosition;
         private int recoveryAttempts;
 
+        // Bounded no-sight-required chase opened by taking damage.
+        private readonly EnemyDefensiveChase defensiveChase = new EnemyDefensiveChase();
+
         private static EnemyNavigationProfile sharedDefaultProfile;
 
         #region Public API (consumed by EnemyCombat, debug, tests)
@@ -139,6 +142,7 @@ namespace Lootbound.Gameplay.Combat
             {
                 health.OnStagger += HandleStagger;
                 health.OnDied += HandleDeath;
+                health.OnDamaged += HandleDamaged;
             }
         }
 
@@ -148,6 +152,7 @@ namespace Lootbound.Gameplay.Combat
             {
                 health.OnStagger -= HandleStagger;
                 health.OnDied -= HandleDeath;
+                health.OnDamaged -= HandleDamaged;
             }
 
             if (stateMachine != null)
@@ -299,7 +304,16 @@ namespace Lootbound.Gameplay.Combat
             // Target vanished before the suspicion was confirmed.
             if (stateMachine.StateDuration(now) >= profile.SuspicionDuration)
             {
-                ResumeRoaming(now, EnemyTransitionReason.TargetLost);
+                // Far from the territory (interrupted return, post-combat):
+                // walk back instead of wandering around a distant home.
+                if (DistanceFromHome > profile.WanderRadius)
+                {
+                    StartReturningHome(EnemyTransitionReason.TargetLost);
+                }
+                else
+                {
+                    ResumeRoaming(now, EnemyTransitionReason.TargetLost);
+                }
             }
         }
 
@@ -312,10 +326,13 @@ namespace Lootbound.Gameplay.Combat
             }
 
             float targetDistanceFromHome = Vector3.Distance(target.position, HomePosition);
+            // While the defensive window is active the chase needs no line of
+            // sight (the enemy was hit); the territorial leash always applies.
+            float effectiveTimeSinceSeen = defensiveChase.IsActive(now) ? 0f : perception.TimeSinceSeen(now);
             if (EnemyPursuitRules.ShouldAbandonChase(
                     targetDistanceFromHome,
                     profile.MaxChaseDistanceFromHome,
-                    perception.TimeSinceSeen(now),
+                    effectiveTimeSinceSeen,
                     profile.LoseSightDelay))
             {
                 var reason = targetDistanceFromHome > profile.MaxChaseDistanceFromHome
@@ -394,7 +411,14 @@ namespace Lootbound.Gameplay.Combat
 
         private void UpdateReturningHome(float now)
         {
-            // The player is deliberately ignored during the whole return.
+            // Long-range passive reacquisition is deliberately disabled during
+            // the return - but the enemy is not blind at point-blank range.
+            if (perception.TargetWithinAwareness)
+            {
+                ChangeState(EnemyState.Suspicious, EnemyTransitionReason.TargetSpotted);
+                return;
+            }
+
             if (HasArrivedAtDestination(profile.ReturnCompletionDistance) ||
                 EnemyPursuitRules.HasArrived(DistanceFromHome, profile.ReturnCompletionDistance))
             {
@@ -488,11 +512,13 @@ namespace Lootbound.Gameplay.Combat
 
         /// <summary>
         /// After an interruption (attack recovery, stagger): look at the world
-        /// again instead of forcing a chase.
+        /// again instead of forcing a chase. An active defensive window keeps
+        /// the pursuit alive - a hit that staggers the enemy must not cancel
+        /// its riposte.
         /// </summary>
         private void ReevaluateAfterInterruption(EnemyTransitionReason reason)
         {
-            if (perception.TargetVisible)
+            if (perception.TargetVisible || defensiveChase.IsActive(Time.time))
             {
                 ChangeState(EnemyState.Chasing, reason);
             }
@@ -526,6 +552,14 @@ namespace Lootbound.Gameplay.Combat
         {
             ResetProgressTracking(transition.Time);
             recoveryAttempts = 0;
+
+            // The defensive (no-sight) window survives combat interruptions
+            // (stagger, attack phases) but never leaks past the end of the
+            // engagement into a later, legitimate pursuit.
+            if (transition.Current == EnemyState.ReturningHome || transition.Current == EnemyState.Idle)
+            {
+                defensiveChase.Clear();
+            }
 
             if (agent != null && agent.enabled && agent.isOnNavMesh && profile != null && config != null)
             {
@@ -750,6 +784,50 @@ namespace Lootbound.Gameplay.Combat
         #endregion
 
         #region Health events
+
+        /// <summary>
+        /// Taking damage always alerts a peaceful enemy - ReturningHome can
+        /// never be exploited as a free-hit window. Bypasses the reacquire
+        /// cooldown by design. Within the territorial leash the response is a
+        /// bounded defensive chase (no line of sight required, short duration,
+        /// successive hits never extend it); an unreachable attacker (beyond
+        /// the leash) is faced from Suspicious instead - no boundary ping-pong.
+        /// </summary>
+        private void HandleDamaged(DamageRequest request)
+        {
+            if (!initialized || target == null)
+            {
+                return;
+            }
+
+            var state = CurrentState;
+            bool peaceful = state == EnemyState.Idle || state == EnemyState.Wandering ||
+                            state == EnemyState.Patrolling || state == EnemyState.Suspicious ||
+                            state == EnemyState.ReturningHome;
+            if (!peaceful)
+            {
+                return;
+            }
+
+            float now = Time.time;
+            var reason = state == EnemyState.ReturningHome
+                ? EnemyTransitionReason.AttackedWhileReturning
+                : EnemyTransitionReason.TargetSpotted;
+
+            float targetDistanceFromHome = Vector3.Distance(target.position, HomePosition);
+            if (targetDistanceFromHome <= profile.MaxChaseDistanceFromHome)
+            {
+                defensiveChase.TryStart(now, profile.DefensiveChaseDuration);
+                // Head for the attacker, not for a stale last-seen point.
+                perception.NotifyTargetPosition(target.position);
+                ChangeState(EnemyState.Chasing, reason);
+            }
+            else if (state != EnemyState.Suspicious)
+            {
+                // Attacker outside the territory: face the threat, stand ground.
+                ChangeState(EnemyState.Suspicious, reason);
+            }
+        }
 
         private void HandleStagger(float force)
         {

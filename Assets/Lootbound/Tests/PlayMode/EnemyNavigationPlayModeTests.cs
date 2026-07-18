@@ -120,7 +120,7 @@ namespace Lootbound.Tests.PlayMode
             return config;
         }
 
-        private EnemyBrain CreateEnemy(Vector3 position, EnemyConfig config, Transform target)
+        private EnemyBrain CreateEnemy(Vector3 position, EnemyConfig config, Transform target, bool withHealth = false)
         {
             var go = Track(new GameObject("Test_Enemy"));
             go.transform.position = position;
@@ -128,6 +128,17 @@ namespace Lootbound.Tests.PlayMode
             var agent = go.AddComponent<NavMeshAgent>();
             agent.radius = 0.5f;
             agent.height = 2f;
+
+            if (withHealth)
+            {
+                // Must exist BEFORE the brain: EnemyBrain.Awake captures its
+                // EnemyHealth reference (mirrors the prefab component order).
+                // High poise isolates the pure damage-riposte path.
+                SetField(config, "maxPoise", 1000f);
+                var enemyHealth = go.AddComponent<EnemyHealth>();
+                enemyHealth.SetConfig(config);
+                enemyHealth.Reset();
+            }
 
             var brain = go.AddComponent<EnemyBrain>();
             brain.SetConfig(config);
@@ -297,6 +308,188 @@ namespace Lootbound.Tests.PlayMode
                 "The enemy must be back near its home");
             Assert.AreEqual(0, brain.EmergencyWarpCount, "The normal return must never warp");
         }
+
+        #region Defensive behaviour (ReturningHome exploit fix)
+
+        private IEnumerator StartReturningHome(EnemyBrain brain, Transform target, Vector3 farAway, float minReturnDistance = 6f)
+        {
+            yield return WaitForState(brain, EnemyState.Chasing, 3f);
+            Assert.AreEqual(EnemyState.Chasing, brain.CurrentState, "Setup: the chase must start");
+
+            // Kite the enemy away from home (staying outside attack range)
+            // so the return is long enough to act upon.
+            float deadline = Time.time + 6f;
+            while (Time.time < deadline && brain.DistanceFromHome < minReturnDistance)
+            {
+                Vector3 away = brain.transform.position - brain.HomePosition;
+                away.y = 0f;
+                Vector3 direction = away.sqrMagnitude > 0.01f ? away.normalized : Vector3.forward;
+                target.position = brain.transform.position + direction * 4f;
+                yield return null;
+            }
+            Assert.GreaterOrEqual(brain.DistanceFromHome, minReturnDistance * 0.8f,
+                "Setup: the enemy must be led away from its home");
+
+            target.position = farAway;
+            yield return WaitForState(brain, EnemyState.ReturningHome, 3f);
+            Assert.AreEqual(EnemyState.ReturningHome, brain.CurrentState, "Setup: the return must start");
+
+            // Let perception settle: the awareness flag can be one tick stale
+            // right after the kiting phase (target was point-blank), which
+            // produces a brief legitimate Suspicious detour. Wait it out so
+            // the test body starts from a stable ReturningHome.
+            yield return new WaitForSeconds(0.15f);
+            if (brain.CurrentState != EnemyState.ReturningHome)
+            {
+                yield return WaitForState(brain, EnemyState.ReturningHome, 3f);
+            }
+            Assert.AreEqual(EnemyState.ReturningHome, brain.CurrentState, "Setup: the return must be stable");
+        }
+
+        private static DamageRequest Hit(Transform target, EnemyBrain brain)
+        {
+            return new DamageRequest(
+                target.gameObject, 2f, brain.transform.position,
+                (brain.transform.position - target.position).normalized, staggerForce: 0f);
+        }
+
+        [UnityTest]
+        public IEnumerator ReturningHome_IgnoresDistantVisibleTarget()
+        {
+            BuildNavigableWorld();
+            var profile = CreateAcceleratedProfile();
+            SetField(profile, "idleDurationMin", 10f);
+            SetField(profile, "idleDurationMax", 12f);
+            SetField(profile, "awarenessRadius", 2f);
+            SetField(profile, "returnSpeedMultiplier", 0.3f); // slow return = stable observation window
+            var config = CreateConfig(profile);
+
+            Vector3 home = Ground(30f, 48f);
+            var target = CreateTargetDummy(Ground(30f, 54f));
+            var brain = CreateEnemy(home, config, target);
+            brain.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+
+            yield return StartReturningHome(brain, target, Ground(80f, 48f));
+
+            // Park the player 8m ahead on the return path: inside
+            // DetectionRange (12), inside the FOV, far outside
+            // AwarenessRadius (2). Normally this would be noticed.
+            Vector3 towardHome = (home - brain.transform.position).normalized;
+            target.position = brain.transform.position + towardHome * 8f;
+
+            float deadline = Time.time + 0.7f;
+            while (Time.time < deadline)
+            {
+                yield return null;
+                Assert.AreEqual(EnemyState.ReturningHome, brain.CurrentState,
+                    "Long-range passive reacquisition must stay disabled during the return");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ReturningHome_NoticesTargetInsideAwarenessRadius()
+        {
+            BuildNavigableWorld();
+            var profile = CreateAcceleratedProfile();
+            SetField(profile, "idleDurationMin", 10f);
+            SetField(profile, "idleDurationMax", 12f);
+            SetField(profile, "awarenessRadius", 3f);
+            var config = CreateConfig(profile);
+
+            Vector3 home = Ground(30f, 48f);
+            var target = CreateTargetDummy(Ground(30f, 54f));
+            var brain = CreateEnemy(home, config, target);
+            brain.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+
+            yield return StartReturningHome(brain, target, Ground(80f, 48f));
+
+            // Player standing right next to it (behind or not - 360 degrees).
+            target.position = brain.transform.position - brain.transform.forward * 2f;
+
+            yield return WaitForState(brain, EnemyState.Suspicious, 2f);
+            Assert.AreEqual(EnemyState.Suspicious, brain.CurrentState,
+                "Point-blank presence must be noticed even while returning");
+        }
+
+        [UnityTest]
+        public IEnumerator DamageDuringReturn_TriggersImmediateBoundedRiposte_ThenReturnAgain()
+        {
+            BuildNavigableWorld();
+            var profile = CreateAcceleratedProfile();
+            SetField(profile, "idleDurationMin", 10f);
+            SetField(profile, "idleDurationMax", 12f);
+            SetField(profile, "defensiveChaseDuration", 0.8f);
+            SetField(profile, "loseSightDelay", 0.3f);
+            SetField(profile, "maxChaseDistanceFromHome", 40f);
+            var config = CreateConfig(profile);
+
+            Vector3 home = Ground(30f, 48f);
+            var target = CreateTargetDummy(Ground(30f, 54f));
+            var brain = CreateEnemy(home, config, target, withHealth: true);
+            brain.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            var enemyHealth = brain.GetComponent<EnemyHealth>();
+
+            yield return StartReturningHome(brain, target, Ground(80f, 48f));
+
+            // Attacker inside the leash but permanently out of sight
+            // (25m above: beyond DetectionRange, unreachable).
+            target.position = home + new Vector3(0f, 25f, 0f);
+            yield return null;
+
+            enemyHealth.TakeDamage(Hit(target, brain));
+            yield return null;
+
+            Assert.AreEqual(EnemyState.Chasing, brain.CurrentState,
+                "Damage must interrupt ReturningHome immediately, sight or not");
+            Assert.AreEqual(EnemyTransitionReason.AttackedWhileReturning, brain.LastTransitionReason);
+
+            // Bounded: with the attacker unseen, the defensive window (0.8s)
+            // must expire and the enemy must resume its return.
+            yield return WaitForState(brain, EnemyState.ReturningHome, 4f);
+            Assert.AreEqual(EnemyState.ReturningHome, brain.CurrentState,
+                "The defensive riposte must stay bounded and the return must resume");
+        }
+
+        [UnityTest]
+        public IEnumerator SuccessiveHits_DoNotResetTheDefensiveChase()
+        {
+            BuildNavigableWorld();
+            var profile = CreateAcceleratedProfile();
+            SetField(profile, "idleDurationMin", 10f);
+            SetField(profile, "idleDurationMax", 12f);
+            SetField(profile, "defensiveChaseDuration", 0.8f);
+            SetField(profile, "loseSightDelay", 0.3f);
+            SetField(profile, "maxChaseDistanceFromHome", 40f);
+            var config = CreateConfig(profile);
+
+            Vector3 home = Ground(30f, 48f);
+            var target = CreateTargetDummy(Ground(30f, 54f));
+            var brain = CreateEnemy(home, config, target, withHealth: true);
+            brain.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            var enemyHealth = brain.GetComponent<EnemyHealth>();
+
+            yield return StartReturningHome(brain, target, Ground(80f, 48f));
+
+            // Attacker inside the leash but permanently out of sight.
+            target.position = home + new Vector3(0f, 25f, 0f);
+            yield return null;
+
+            enemyHealth.TakeDamage(Hit(target, brain));
+            yield return null;
+            Assert.AreEqual(EnemyState.Chasing, brain.CurrentState);
+
+            // Poke again mid-window: must NOT extend the pursuit.
+            yield return new WaitForSeconds(0.4f);
+            enemyHealth.TakeDamage(Hit(target, brain));
+
+            // Despite the second hit, the unseen-attacker chase must end
+            // within the ORIGINAL window (+ sight-loss delay + margin).
+            yield return WaitForState(brain, EnemyState.ReturningHome, 2.5f);
+            Assert.AreEqual(EnemyState.ReturningHome, brain.CurrentState,
+                "Repeated pokes must never produce an endless defensive pursuit");
+        }
+
+        #endregion
 
         [UnityTest]
         public IEnumerator DestroyedEnemy_CausesNoErrorsAfterwards()

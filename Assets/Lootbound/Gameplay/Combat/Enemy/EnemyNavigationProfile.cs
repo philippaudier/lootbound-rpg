@@ -83,6 +83,13 @@ namespace Lootbound.Gameplay.Combat
         [Tooltip("Hysteresis margin below the leash limit required to START a chase (prevents boundary oscillation).")]
         [SerializeField] private float leashHysteresis = 4f;
 
+        [Header("Defense")]
+        [Tooltip("Short omnidirectional awareness kept during ReturningHome (line of sight still applies). Long-range passive reacquisition stays disabled while returning.")]
+        [SerializeField] private float awarenessRadius = 4f;
+
+        [Tooltip("Duration of the bounded defensive chase triggered by taking damage. During this window the chase needs no line of sight; the territorial leash still applies. Successive hits never extend an active window.")]
+        [SerializeField] private float defensiveChaseDuration = 6f;
+
         [Header("Return")]
         [Tooltip("Return speed as a fraction of EnemyConfig.MoveSpeed.")]
         [SerializeField, Range(0.1f, 1.5f)] private float returnSpeedMultiplier = 0.85f;
@@ -132,6 +139,10 @@ namespace Lootbound.Gameplay.Combat
         public float MaxChaseDistanceFromHome => maxChaseDistanceFromHome;
         public float LeashHysteresis => leashHysteresis;
 
+        // Defense
+        public float AwarenessRadius => awarenessRadius;
+        public float DefensiveChaseDuration => defensiveChaseDuration;
+
         // Return
         public float ReturnSpeedMultiplier => returnSpeedMultiplier;
         public float ReturnCompletionDistance => returnCompletionDistance;
@@ -172,6 +183,8 @@ namespace Lootbound.Gameplay.Combat
             chaseRepathDistance = Mathf.Max(0f, chaseRepathDistance);
             maxChaseDistanceFromHome = Mathf.Max(wanderRadius, maxChaseDistanceFromHome);
             leashHysteresis = Mathf.Clamp(leashHysteresis, 0f, maxChaseDistanceFromHome * 0.5f);
+            awarenessRadius = Mathf.Max(0f, awarenessRadius);
+            defensiveChaseDuration = Mathf.Max(0.5f, defensiveChaseDuration);
             returnCompletionDistance = Mathf.Max(0.2f, returnCompletionDistance);
             reacquireCooldown = Mathf.Max(0f, reacquireCooldown);
             stuckVelocityThreshold = Mathf.Max(0.01f, stuckVelocityThreshold);

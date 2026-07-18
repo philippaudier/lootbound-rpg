@@ -58,4 +58,38 @@ namespace Lootbound.Gameplay.Combat
             return distanceToDestination <= completionDistance;
         }
     }
+
+    /// <summary>
+    /// Bounded defensive-chase window opened when the enemy takes damage in a
+    /// peaceful state. While active, the chase does not require line of sight
+    /// (the enemy KNOWS it was hit); the territorial leash still applies.
+    /// Successive hits never extend an active window, so repeated pokes can
+    /// not produce an infinite pursuit. Pure C#, injected time.
+    /// </summary>
+    public sealed class EnemyDefensiveChase
+    {
+        private float activeUntil = float.NegativeInfinity;
+
+        public bool IsActive(float now) => now < activeUntil;
+
+        /// <summary>
+        /// Open the window. Returns false without extending when a window is
+        /// already active.
+        /// </summary>
+        public bool TryStart(float now, float duration)
+        {
+            if (IsActive(now))
+            {
+                return false;
+            }
+
+            activeUntil = now + duration;
+            return true;
+        }
+
+        public void Clear()
+        {
+            activeUntil = float.NegativeInfinity;
+        }
+    }
 }

@@ -95,6 +95,69 @@ namespace Lootbound.Tests.EditMode
 
         #endregion
 
+        #region Defensive chase
+
+        [Test]
+        public void DefensiveChase_OpensOnce_AndExpires()
+        {
+            var defense = new EnemyDefensiveChase();
+
+            Assert.IsFalse(defense.IsActive(10f));
+            Assert.IsTrue(defense.TryStart(10f, duration: 5f));
+            Assert.IsTrue(defense.IsActive(14.9f));
+            Assert.IsFalse(defense.IsActive(15.1f), "The window must expire after its duration");
+        }
+
+        [Test]
+        public void DefensiveChase_SuccessiveHits_NeverExtendTheWindow()
+        {
+            var defense = new EnemyDefensiveChase();
+            defense.TryStart(10f, duration: 5f); // active until 15
+
+            Assert.IsFalse(defense.TryStart(13f, duration: 5f), "A hit during an active window must not restart it");
+            Assert.IsFalse(defense.IsActive(15.1f),
+                "The window must still end at the ORIGINAL expiry despite later hits - no infinite pursuit by poking");
+
+            // Once expired, a new hit opens a fresh window.
+            Assert.IsTrue(defense.TryStart(16f, duration: 5f));
+            Assert.IsTrue(defense.IsActive(20f));
+        }
+
+        [Test]
+        public void DefensiveChase_SuppressesSightRequirement_ButNeverTheLeash()
+        {
+            // The brain feeds timeSinceSeen = 0 while the window is active:
+            // sight loss cannot abandon the chase, the territorial leash can.
+            Assert.IsFalse(EnemyPursuitRules.ShouldAbandonChase(
+                targetDistanceFromHome: 20f, maxChaseDistanceFromHome: 40f,
+                timeSinceTargetSeen: 0f, loseSightDelay: 3f));
+
+            Assert.IsTrue(EnemyPursuitRules.ShouldAbandonChase(
+                targetDistanceFromHome: 45f, maxChaseDistanceFromHome: 40f,
+                timeSinceTargetSeen: 0f, loseSightDelay: 3f),
+                "The leash applies even during a defensive chase");
+        }
+
+        [Test]
+        public void DefensiveChase_Clear_EndsTheWindow()
+        {
+            var defense = new EnemyDefensiveChase();
+            defense.TryStart(10f, 5f);
+            defense.Clear();
+
+            Assert.IsFalse(defense.IsActive(11f));
+            Assert.IsTrue(defense.TryStart(11f, 5f), "After Clear a new window can open immediately");
+        }
+
+        [Test]
+        public void AttackedWhileReturning_ReasonExists()
+        {
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyTransitionReason),
+                EnemyTransitionReason.AttackedWhileReturning));
+        }
+
+        #endregion
+
         #region Wander
 
         [Test]

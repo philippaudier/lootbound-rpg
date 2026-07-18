@@ -87,8 +87,24 @@ After `AttackRecovery` or `Stagger`, the enemy re-evaluates the world
 
 ## Return and recovery
 
-`ReturningHome` walks back (player deliberately ignored the whole way),
-tolerant arrival, then routine resumes. No teleport in the nominal path.
+`ReturningHome` walks back with **long-range passive reacquisition
+disabled** — but it is not a free-hit window:
+
+- a short omnidirectional `AwarenessRadius` (LOS still applies) notices a
+  point-blank player → `Suspicious`;
+- **taking damage always interrupts the return**
+  (`TransitionReason.AttackedWhileReturning`), bypassing the reacquire
+  cooldown. Within the territorial leash the response is a **bounded
+  defensive chase** (`DefensiveChaseDuration`): no line of sight required
+  during the window, leash always enforced, successive hits never extend an
+  active window (no infinite pursuit by poking), return resumes as soon as
+  the attacker retreats or the window expires. An attacker beyond the leash
+  is faced from `Suspicious` (stand ground — no boundary ping-pong). The
+  same damage response applies to all peaceful states (Idle, Wandering,
+  Patrolling, Suspicious).
+
+Arrival is tolerant, then the routine resumes. No teleport in the nominal
+path.
 Stuck detection (near-zero velocity + no displacement for `StuckTimeout`)
 escalates: recompute destination → sample navigable ground ahead → `Stuck`
 state → sample near home → **emergency warp only as a logged, countable,

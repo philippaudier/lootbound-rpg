@@ -22,6 +22,13 @@ namespace Lootbound.Gameplay.Combat
         /// <summary>Result of the latest perception check.</summary>
         public bool TargetVisible { get; private set; }
 
+        /// <summary>
+        /// Target within the short omnidirectional AwarenessRadius with line
+        /// of sight (no field-of-view requirement). Used during ReturningHome,
+        /// where long-range passive reacquisition is deliberately disabled.
+        /// </summary>
+        public bool TargetWithinAwareness { get; private set; }
+
         /// <summary>Time of the last positive sighting (negative infinity when never seen).</summary>
         public float LastSeenTime { get; private set; } = float.NegativeInfinity;
 
@@ -51,12 +58,39 @@ namespace Lootbound.Gameplay.Combat
 
             nextCheckAt = now + profile.PerceptionInterval;
             TargetVisible = EvaluateVisibility();
+            TargetWithinAwareness = EvaluateAwareness();
 
             if (TargetVisible)
             {
                 LastSeenTime = now;
                 LastKnownTargetPosition = Target.position;
             }
+        }
+
+        /// <summary>
+        /// Inform perception of a known target position without a sighting
+        /// (e.g. the enemy just took damage): the defensive pursuit heads for
+        /// the attacker, not for a stale last-seen point.
+        /// </summary>
+        public void NotifyTargetPosition(Vector3 position)
+        {
+            LastKnownTargetPosition = position;
+        }
+
+        private bool EvaluateAwareness()
+        {
+            if (Target == null || profile.AwarenessRadius <= 0f)
+            {
+                return false;
+            }
+
+            float distance = Vector3.Distance(self.position, Target.position);
+            if (distance > profile.AwarenessRadius)
+            {
+                return false;
+            }
+
+            return HasLineOfSight(distance);
         }
 
         private bool EvaluateVisibility()

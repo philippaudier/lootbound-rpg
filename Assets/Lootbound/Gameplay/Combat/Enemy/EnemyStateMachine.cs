@@ -19,6 +19,7 @@ namespace Lootbound.Gameplay.Combat
         AttackFinished,
         LeashExceeded,
         LostSightTimeout,
+        AttackedWhileReturning,
         ArrivedHome,
         Staggered,
         StaggerRecovered,
