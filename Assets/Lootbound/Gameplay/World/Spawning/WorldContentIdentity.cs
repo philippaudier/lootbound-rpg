@@ -18,6 +18,8 @@ namespace Lootbound.Gameplay.World.Spawning
         [SerializeField] private WorldRing ring;
         [SerializeField] private string radialPathId;
         [SerializeField] private string role;
+        [SerializeField] private int worldSeed;
+        [SerializeField] private int entryIndex;
 
         public string ReservationId => reservationId;
         public string HostNodeId => hostNodeId;
@@ -27,7 +29,13 @@ namespace Lootbound.Gameplay.World.Spawning
         public string RadialPathId => radialPathId;
         public string Role => role;
 
-        public void Initialize(SpawnRecipe recipe, string entryRole)
+        /// <summary>World seed of the generation this instance belongs to.</summary>
+        public int WorldSeed => worldSeed;
+
+        /// <summary>Index of this entry within its recipe (0 for single-entry content).</summary>
+        public int EntryIndex => entryIndex;
+
+        public void Initialize(SpawnRecipe recipe, string entryRole, int seed, int index)
         {
             reservationId = recipe.ReservationId;
             hostNodeId = recipe.HostNodeId;
@@ -36,6 +44,8 @@ namespace Lootbound.Gameplay.World.Spawning
             ring = recipe.Ring;
             radialPathId = recipe.RadialPathId;
             role = entryRole;
+            worldSeed = seed;
+            entryIndex = index;
         }
     }
 }

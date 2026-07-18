@@ -16,6 +16,7 @@ MonoBehaviour:
   detectionRange: 12
   attackRange: 2
   fieldOfView: 120
+  navigationProfile: {fileID: 11400000, guid: 5b9d8e7e34eeab248a3fd56ce638f024, type: 2}
   moveSpeed: 3.5
   turnSpeed: 180
   attackDamage: 20

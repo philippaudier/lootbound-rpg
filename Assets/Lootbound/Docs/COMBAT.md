@@ -2,6 +2,10 @@
 
 This document describes the combat system implemented in Slice 0.5.
 
+> Since slice 0.9.6, enemy navigation behaviours (wander, patrol, suspicion,
+> chase leash, return home) are documented in `ENEMY_NAVIGATION.md`. The
+> `EnemyState` machine now covers both navigation and combat states.
+
 ## Overview
 
 The combat system provides first-person melee combat with:

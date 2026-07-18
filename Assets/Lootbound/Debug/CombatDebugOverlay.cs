@@ -615,6 +615,25 @@ namespace Lootbound.Debugging
                 GUI.Label(new Rect(labelX + 115f, lineY, 40f, lineHeight), "Dist:", labelStyle);
                 GUI.Label(new Rect(labelX + 155f, lineY, 50f, lineHeight), $"{trackedEnemyBrain.DistanceToTarget:F1}m", valueStyle);
                 lineY += lineHeight;
+
+                // Navigation diagnostics (slice 0.9.6)
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight),
+                    $"Prev: {trackedEnemyBrain.PreviousState}  Reason: {trackedEnemyBrain.LastTransitionReason}  " +
+                    $"In state: {trackedEnemyBrain.CurrentStateDuration:F1}s", labelStyle);
+                lineY += lineHeight;
+
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight),
+                    $"Mode: {trackedEnemyBrain.RoamingModeName}  Home dist: {trackedEnemyBrain.DistanceFromHome:F1}m  " +
+                    $"Path: {trackedEnemyBrain.PathStatusText}", labelStyle);
+                lineY += lineHeight;
+
+                string seen = float.IsInfinity(trackedEnemyBrain.TimeSinceTargetSeen)
+                    ? "never"
+                    : $"{trackedEnemyBrain.TimeSinceTargetSeen:F1}s ago";
+                GUI.Label(new Rect(labelX, lineY, width - 16f, lineHeight),
+                    $"Sees player: {FormatBool(trackedEnemyBrain.TargetVisible)} ({seen})  " +
+                    $"Recoveries: {trackedEnemyBrain.RecoveryCount}  Warps: {trackedEnemyBrain.EmergencyWarpCount}", labelStyle);
+                lineY += lineHeight;
             }
 
             if (trackedEnemy == null && trackedEnemyBrain == null)

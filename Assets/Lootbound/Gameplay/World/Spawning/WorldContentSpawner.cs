@@ -74,6 +74,9 @@ namespace Lootbound.Gameplay.World.Spawning
         // Context of the generation waiting for its navigation result.
         private TerrainGenerationContext pendingContext;
 
+        // World seed of the plan being instantiated (stamped on identities).
+        private int currentWorldSeed;
+
         /// <summary>Report of the last spawning pass, for the debug panel.</summary>
         public WorldContentSpawnReport LastReport { get; private set; }
 
@@ -201,6 +204,7 @@ namespace Lootbound.Gameplay.World.Spawning
         private void SpawnContent(TerrainGenerationContext generationContext, bool encountersAllowed, string encounterRejectionDetail)
         {
             var layout = generationContext.LayoutContext;
+            currentWorldSeed = layout.WorldSeed;
             var sampler = new TerrainContextSampler(generationContext);
             var settings = new WorldContentPlannerSettings
             {
@@ -320,7 +324,7 @@ namespace Lootbound.Gameplay.World.Spawning
                 float yaw = DeterministicYaw(recipe.ReservationId, i);
                 var enemy = Instantiate(definition.EnemyPrefab, hit.position, Quaternion.Euler(0f, yaw, 0f), groupRoot.transform);
                 enemy.name = $"{definition.EnemyPrefab.name}_{recipe.ReservationId}_{i}";
-                AttachIdentity(enemy, recipe, entry.Role);
+                AttachIdentity(enemy, recipe, entry.Role, i);
 
                 var agent = enemy.GetComponent<NavMeshAgent>();
                 if (agent != null)
@@ -468,10 +472,10 @@ namespace Lootbound.Gameplay.World.Spawning
 
         #region Helpers
 
-        private static void AttachIdentity(GameObject target, SpawnRecipe recipe, string role)
+        private void AttachIdentity(GameObject target, SpawnRecipe recipe, string role, int entryIndex = 0)
         {
             var identity = target.AddComponent<WorldContentIdentity>();
-            identity.Initialize(recipe, role);
+            identity.Initialize(recipe, role, currentWorldSeed, entryIndex);
         }
 
         /// <summary>

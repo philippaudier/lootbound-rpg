@@ -265,11 +265,16 @@ namespace Lootbound.Tests.EditMode
         public void EnemyState_AllValuesAreDefined()
         {
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Idle));
-            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Chase));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Wandering));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Patrolling));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Suspicious));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Chasing));
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.AttackWindup));
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.AttackActive));
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.AttackRecovery));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.ReturningHome));
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Stagger));
+            Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Stuck));
             Assert.IsTrue(System.Enum.IsDefined(typeof(EnemyState), EnemyState.Dead));
         }
 

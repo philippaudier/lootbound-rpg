@@ -25,6 +25,10 @@ namespace Lootbound.Gameplay.Combat
         [Tooltip("Field of view angle for detection (degrees).")]
         [SerializeField] private float fieldOfView = 120f;
 
+        [Header("Navigation")]
+        [Tooltip("Navigation behaviour profile (wander, perception details, chase leash, return, recovery). Shareable between enemy types. When empty, built-in defaults apply.")]
+        [SerializeField] private EnemyNavigationProfile navigationProfile;
+
         [Header("Movement")]
         [Tooltip("Movement speed when chasing.")]
         [SerializeField] private float moveSpeed = 3.5f;
@@ -94,6 +98,9 @@ namespace Lootbound.Gameplay.Combat
         public float DetectionRange => detectionRange;
         public float AttackRange => attackRange;
         public float FieldOfView => fieldOfView;
+
+        // Navigation
+        public EnemyNavigationProfile NavigationProfile => navigationProfile;
 
         // Movement
         public float MoveSpeed => moveSpeed;

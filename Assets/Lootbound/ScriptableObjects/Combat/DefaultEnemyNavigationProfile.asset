@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f9e2ae40c73dce4b9b22f1ab8450b9c, type: 3}
+  m_Name: DefaultEnemyNavigationProfile
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.Combat.EnemyNavigationProfile
+  roamingMode: 0
+  wanderRadius: 14
+  idleDurationMin: 2.5
+  idleDurationMax: 7
+  wanderDestinationAttempts: 4
+  wanderSampleDistance: 2
+  arrivalDistance: 0.6
+  roamingSpeedMultiplier: 0.5
+  immediateDetectionRange: 2.5
+  loseSightDelay: 3
+  suspicionDuration: 0.9
+  perceptionInterval: 0.15
+  eyeHeight: 1.5
+  targetHeightOffset: 1
+  lineOfSightMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  chaseSpeedMultiplier: 1
+  chaseRepathInterval: 0.25
+  chaseRepathDistance: 0.75
+  maxChaseDistanceFromHome: 40
+  leashHysteresis: 4
+  returnSpeedMultiplier: 0.85
+  returnCompletionDistance: 1.5
+  reacquireCooldown: 2
+  stuckVelocityThreshold: 0.05
+  stuckTimeout: 3
+  maxRecoveryAttempts: 3
+  allowEmergencyWarp: 1

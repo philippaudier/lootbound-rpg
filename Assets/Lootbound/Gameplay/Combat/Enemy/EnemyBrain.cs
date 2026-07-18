@@ -2,17 +2,31 @@ using System;
 using UnityEngine;
 using UnityEngine.AI;
 using Lootbound.Core.Logging;
+using Lootbound.Gameplay.World.Spawning;
 
 namespace Lootbound.Gameplay.Combat
 {
     /// <summary>
-    /// Simple state machine AI for enemy behavior.
-    /// Handles detection, chase, attack, and stagger states.
+    /// Enemy AI orchestrator. Composes the single state machine
+    /// (EnemyStateMachine), perception (EnemyPerception), a roaming behaviour
+    /// (IEnemyRoamingBehaviour: wander or patrol) and the NavMeshAgent - the
+    /// agent IS the motor, no extra layer around it.
+    ///
+    /// Territory: HomePosition is captured after the final NavMesh placement
+    /// (post spawner Warp), never from the reservation or prefab position.
+    /// No assumption about nodes or paths: any navigable start position works.
+    ///
+    /// Perception decides what is seen; the brain decides the state; the
+    /// NavMeshAgent moves. Combat states (windup/active/recovery) keep their
+    /// existing contract with EnemyCombat via OnStateChanged.
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
     public class EnemyBrain : MonoBehaviour
     {
         private const string Category = "EnemyBrain";
+
+        // Retry pacing inside the Stuck state.
+        private const float StuckRetryInterval = 1f;
 
         [Header("Configuration")]
         [SerializeField] private EnemyConfig config;
@@ -20,44 +34,85 @@ namespace Lootbound.Gameplay.Combat
         [Header("Target")]
         [SerializeField] private Transform target;
 
-        [Header("Debug")]
-        [SerializeField] private bool debugDraw = false;
-
         private NavMeshAgent agent;
         private EnemyHealth health;
-        private EnemyCombat combat;
 
-        private EnemyState currentState = EnemyState.Idle;
-        private float stateTimer;
+        private EnemyStateMachine stateMachine;
+        private EnemyPerception perception;
+        private IEnemyRoamingBehaviour roaming;
+        private EnemyNavigationProfile profile;
+        private System.Random instanceRandom;
+
+        private bool initialized;
         private float attackCooldownTimer;
+        private float reacquireBlockedUntil = float.NegativeInfinity;
 
-        /// <summary>
-        /// Current AI state.
-        /// </summary>
-        public EnemyState CurrentState => currentState;
+        // Chase repath throttling
+        private float lastRepathTime;
+        private Vector3 lastRepathTargetPosition;
 
-        /// <summary>
-        /// Current target transform.
-        /// </summary>
+        // Stuck tracking
+        private float lastProgressTime;
+        private Vector3 lastProgressPosition;
+        private int recoveryAttempts;
+
+        private static EnemyNavigationProfile sharedDefaultProfile;
+
+        #region Public API (consumed by EnemyCombat, debug, tests)
+
+        public EnemyState CurrentState => stateMachine?.CurrentState ?? EnemyState.Idle;
+        public EnemyState PreviousState => stateMachine?.PreviousState ?? EnemyState.Idle;
+        public EnemyTransitionReason LastTransitionReason => stateMachine?.LastReason ?? EnemyTransitionReason.None;
+        public float CurrentStateDuration => stateMachine?.StateDuration(Time.time) ?? 0f;
+
         public Transform Target => target;
 
-        /// <summary>
-        /// Distance to target (or infinity if no target).
-        /// </summary>
         public float DistanceToTarget => target != null
             ? Vector3.Distance(transform.position, target.position)
             : float.MaxValue;
 
-        /// <summary>
-        /// Fired when state changes.
-        /// </summary>
+        /// <summary>Territory anchor captured after final NavMesh placement.</summary>
+        public Vector3 HomePosition { get; private set; }
+
+        public float DistanceFromHome => initialized
+            ? Vector3.Distance(transform.position, HomePosition)
+            : 0f;
+
+        public bool IsInitialized => initialized;
+        public bool TargetVisible => perception != null && perception.TargetVisible;
+        public float TimeSinceTargetSeen => perception != null ? perception.TimeSinceSeen(Time.time) : float.PositiveInfinity;
+        public string RoamingModeName => roaming?.ModeName ?? "-";
+        public int RecoveryCount { get; private set; }
+        public int EmergencyWarpCount { get; private set; }
+        public float TimeWithoutProgress => agent != null && agent.hasPath ? Time.time - lastProgressTime : 0f;
+        public Vector3 CurrentDestination => agent != null && agent.hasPath ? agent.destination : transform.position;
+        public EnemyNavigationProfile Profile => profile;
+
+        public string PathStatusText
+        {
+            get
+            {
+                if (agent == null || !agent.enabled) return "Disabled";
+                if (agent.pathPending) return "Pending";
+                if (!agent.hasPath) return "None";
+                return agent.pathStatus.ToString();
+            }
+        }
+
+        /// <summary>Fired when state changes (old, new).</summary>
         public event Action<EnemyState, EnemyState> OnStateChanged;
+
+        #endregion
+
+        #region Lifecycle
 
         private void Awake()
         {
             agent = GetComponent<NavMeshAgent>();
             health = GetComponent<EnemyHealth>();
-            combat = GetComponent<EnemyCombat>();
+
+            stateMachine = new EnemyStateMachine(EnemyState.Idle, Time.time);
+            stateMachine.OnTransition += HandleTransition;
 
             // Auto-find player if no target assigned
             if (target == null)
@@ -72,9 +127,11 @@ namespace Lootbound.Gameplay.Combat
 
         private void Start()
         {
+            profile = ResolveProfile();
+
             if (config != null && agent != null)
             {
-                agent.speed = config.MoveSpeed;
+                agent.speed = config.MoveSpeed * profile.RoamingSpeedMultiplier;
                 agent.angularSpeed = config.TurnSpeed;
             }
 
@@ -92,212 +149,431 @@ namespace Lootbound.Gameplay.Combat
                 health.OnStagger -= HandleStagger;
                 health.OnDied -= HandleDeath;
             }
+
+            if (stateMachine != null)
+            {
+                stateMachine.OnTransition -= HandleTransition;
+            }
         }
 
         private void Update()
         {
-            if (currentState == EnemyState.Dead)
+            if (CurrentState == EnemyState.Dead)
             {
                 return;
             }
 
-            UpdateCooldowns();
-            UpdateStateMachine();
+            float now = Time.time;
 
-            if (debugDraw)
+            if (!initialized)
             {
-                DrawDebug();
+                TryInitialize(now);
+                return;
             }
-        }
 
-        private void UpdateCooldowns()
-        {
             if (attackCooldownTimer > 0f)
             {
                 attackCooldownTimer -= Time.deltaTime;
             }
-        }
 
-        private void UpdateStateMachine()
-        {
-            stateTimer += Time.deltaTime;
+            perception.Tick(now);
 
-            switch (currentState)
+            switch (CurrentState)
             {
                 case EnemyState.Idle:
-                    UpdateIdle();
+                    UpdateIdle(now);
                     break;
-
-                case EnemyState.Chase:
-                    UpdateChase();
+                case EnemyState.Wandering:
+                case EnemyState.Patrolling:
+                    UpdateRoamingMove(now);
                     break;
-
+                case EnemyState.Suspicious:
+                    UpdateSuspicious(now);
+                    break;
+                case EnemyState.Chasing:
+                    UpdateChasing(now);
+                    break;
                 case EnemyState.AttackWindup:
-                    UpdateAttackWindup();
+                    UpdateAttackWindup(now);
                     break;
-
                 case EnemyState.AttackActive:
-                    UpdateAttackActive();
+                    UpdateAttackActive(now);
                     break;
-
                 case EnemyState.AttackRecovery:
-                    UpdateAttackRecovery();
+                    UpdateAttackRecovery(now);
                     break;
-
+                case EnemyState.ReturningHome:
+                    UpdateReturningHome(now);
+                    break;
                 case EnemyState.Stagger:
-                    UpdateStagger();
+                    UpdateStagger(now);
+                    break;
+                case EnemyState.Stuck:
+                    UpdateStuck(now);
                     break;
             }
         }
 
-        private void UpdateIdle()
+        /// <summary>
+        /// Capture the territory once the agent stands on the final NavMesh
+        /// (the spawner warps the agent before our first Update, but a guard
+        /// keeps manually placed enemies safe too).
+        /// </summary>
+        private void TryInitialize(float now)
         {
-            if (target == null)
+            if (agent == null || !agent.enabled || !agent.isOnNavMesh)
             {
                 return;
             }
 
-            if (CanSeeTarget())
+            HomePosition = transform.position;
+            instanceRandom = CreateInstanceRandom();
+            perception = new EnemyPerception(
+                transform, target, config, profile,
+                now + profile.PerceptionInterval * (float)instanceRandom.NextDouble());
+            roaming = CreateRoamingBehaviour();
+            roaming.OnRoamingResumed(now);
+            ResetProgressTracking(now);
+            initialized = true;
+        }
+
+        #endregion
+
+        #region State updates
+
+        private void UpdateIdle(float now)
+        {
+            if (TryNoticeTarget(now))
             {
-                ChangeState(EnemyState.Chase);
+                return;
+            }
+
+            if (roaming.TryGetNextDestination(HomePosition, transform.position, now, out Vector3 destination))
+            {
+                if (agent.SetDestination(destination))
+                {
+                    ChangeState(roaming.MovingState, EnemyTransitionReason.RoamingStarted);
+                }
             }
         }
 
-        private void UpdateChase()
+        private void UpdateRoamingMove(float now)
+        {
+            if (TryNoticeTarget(now))
+            {
+                return;
+            }
+
+            if (HasArrivedAtDestination(profile.ArrivalDistance))
+            {
+                roaming.OnDestinationReached(now);
+                ChangeState(EnemyState.Idle, EnemyTransitionReason.DestinationReached);
+                return;
+            }
+
+            CheckStuckAndRecover(now, EnemyState.Idle);
+        }
+
+        private void UpdateSuspicious(float now)
+        {
+            // Observing, never moving: the hesitation is what makes the
+            // upcoming chase readable.
+            FaceTarget();
+
+            if (perception.TargetVisible)
+            {
+                bool confirmed = stateMachine.StateDuration(now) >= profile.SuspicionDuration;
+                bool inLeash = target != null && EnemyPursuitRules.CanStartChase(
+                    Vector3.Distance(target.position, HomePosition),
+                    profile.MaxChaseDistanceFromHome,
+                    profile.LeashHysteresis);
+
+                if (confirmed && inLeash)
+                {
+                    ChangeState(EnemyState.Chasing, EnemyTransitionReason.SuspicionConfirmed);
+                }
+                // Visible but outside the territory leash: keep watching from here.
+                return;
+            }
+
+            // Target vanished before the suspicion was confirmed.
+            if (stateMachine.StateDuration(now) >= profile.SuspicionDuration)
+            {
+                ResumeRoaming(now, EnemyTransitionReason.TargetLost);
+            }
+        }
+
+        private void UpdateChasing(float now)
         {
             if (target == null)
             {
-                ChangeState(EnemyState.Idle);
+                StartReturningHome(EnemyTransitionReason.TargetLost);
+                return;
+            }
+
+            float targetDistanceFromHome = Vector3.Distance(target.position, HomePosition);
+            if (EnemyPursuitRules.ShouldAbandonChase(
+                    targetDistanceFromHome,
+                    profile.MaxChaseDistanceFromHome,
+                    perception.TimeSinceSeen(now),
+                    profile.LoseSightDelay))
+            {
+                var reason = targetDistanceFromHome > profile.MaxChaseDistanceFromHome
+                    ? EnemyTransitionReason.LeashExceeded
+                    : EnemyTransitionReason.LostSightTimeout;
+                StartReturningHome(reason);
                 return;
             }
 
             float distance = DistanceToTarget;
 
-            // Lost target
-            if (distance > config.DetectionRange * 1.5f)
-            {
-                agent.SetDestination(transform.position);
-                ChangeState(EnemyState.Idle);
-                return;
-            }
-
-            // In attack range and ready to attack
+            // In attack range and ready - hand over to the combat cycle.
             if (distance <= config.AttackRange && attackCooldownTimer <= 0f)
             {
-                agent.SetDestination(transform.position);
-                ChangeState(EnemyState.AttackWindup);
+                StopAgent();
+                ChangeState(EnemyState.AttackWindup, EnemyTransitionReason.AttackStarted);
                 return;
             }
 
-            // In attack range but on cooldown - stop and wait
+            // In attack range but on cooldown - hold position, face the player.
             if (distance <= config.AttackRange)
             {
-                agent.SetDestination(transform.position);
+                StopAgent();
                 FaceTarget();
                 return;
             }
 
-            // Outside attack range - chase
-            agent.SetDestination(target.position);
-            FaceTarget();
+            // Pursue with throttled repathing (no per-frame destination churn).
+            Vector3 pursuitPoint = perception.TargetVisible ? target.position : perception.LastKnownTargetPosition;
+            bool intervalElapsed = now - lastRepathTime >= profile.ChaseRepathInterval;
+            bool movedEnough = (pursuitPoint - lastRepathTargetPosition).sqrMagnitude >=
+                               profile.ChaseRepathDistance * profile.ChaseRepathDistance;
+            if (intervalElapsed && (movedEnough || !agent.hasPath))
+            {
+                agent.SetDestination(pursuitPoint);
+                lastRepathTime = now;
+                lastRepathTargetPosition = pursuitPoint;
+            }
+
+            CheckStuckAndRecover(now, EnemyState.ReturningHome);
         }
 
-        private void UpdateAttackWindup()
+        private void UpdateAttackWindup(float now)
         {
-            // Stop moving during windup
-            agent.SetDestination(transform.position);
+            StopAgent();
             FaceTarget();
 
-            if (stateTimer >= config.AttackWindup)
+            if (stateMachine.StateDuration(now) >= config.AttackWindup)
             {
-                ChangeState(EnemyState.AttackActive);
+                ChangeState(EnemyState.AttackActive, EnemyTransitionReason.AttackPhase);
             }
         }
 
-        private void UpdateAttackActive()
+        private void UpdateAttackActive(float now)
         {
-            // Limited tracking during active phase
+            // Limited tracking during the active phase
             if (config.TurnSpeed > 0f)
             {
-                FaceTarget(0.5f); // Reduced tracking
+                FaceTarget(0.5f);
             }
 
-            if (stateTimer >= config.AttackActive)
+            if (stateMachine.StateDuration(now) >= config.AttackActive)
             {
-                ChangeState(EnemyState.AttackRecovery);
+                ChangeState(EnemyState.AttackRecovery, EnemyTransitionReason.AttackPhase);
             }
         }
 
-        private void UpdateAttackRecovery()
+        private void UpdateAttackRecovery(float now)
         {
-            if (stateTimer >= config.AttackRecovery)
+            if (stateMachine.StateDuration(now) >= config.AttackRecovery)
             {
                 attackCooldownTimer = config.AttackCooldown;
-                ChangeState(EnemyState.Chase);
+                ReevaluateAfterInterruption(EnemyTransitionReason.AttackFinished);
             }
         }
 
-        private void UpdateStagger()
+        private void UpdateReturningHome(float now)
         {
-            // Agent is disabled during stagger to allow knockback physics
-
-            if (stateTimer >= config.StaggerDuration)
+            // The player is deliberately ignored during the whole return.
+            if (HasArrivedAtDestination(profile.ReturnCompletionDistance) ||
+                EnemyPursuitRules.HasArrived(DistanceFromHome, profile.ReturnCompletionDistance))
             {
-                // Re-enable agent before leaving stagger
+                reacquireBlockedUntil = now + profile.ReacquireCooldown;
+                ResumeRoaming(now, EnemyTransitionReason.ArrivedHome);
+                return;
+            }
+
+            CheckStuckAndRecover(now, EnemyState.Stuck);
+        }
+
+        private void UpdateStagger(float now)
+        {
+            // Agent is disabled during stagger to allow knockback physics.
+            if (stateMachine.StateDuration(now) >= config.StaggerDuration)
+            {
                 if (!agent.enabled)
                 {
                     agent.enabled = true;
                 }
-                ChangeState(EnemyState.Chase);
+
+                // Re-evaluate the world instead of blindly chasing.
+                ReevaluateAfterInterruption(EnemyTransitionReason.StaggerRecovered);
             }
         }
 
-        private bool CanSeeTarget()
+        private void UpdateStuck(float now)
         {
-            if (target == null || config == null)
+            if (stateMachine.StateDuration(now) < StuckRetryInterval * (recoveryAttempts + 1))
+            {
+                return;
+            }
+
+            recoveryAttempts++;
+            RecoveryCount++;
+
+            // Try to find navigable ground near home and walk there.
+            if (SampleNavMesh(HomePosition, profile.WanderSampleDistance * 2f, out Vector3 nearHome) &&
+                agent.isOnNavMesh && agent.SetDestination(nearHome))
+            {
+                ResetProgressTracking(now);
+                ChangeState(EnemyState.ReturningHome, EnemyTransitionReason.StuckRecovered);
+                return;
+            }
+
+            if (recoveryAttempts < profile.MaxRecoveryAttempts)
+            {
+                return;
+            }
+
+            // Last resort, rare, always logged, configurable.
+            if (profile.AllowEmergencyWarp &&
+                SampleNavMesh(HomePosition, Mathf.Max(profile.WanderRadius, 10f), out Vector3 warpPoint) &&
+                agent.Warp(warpPoint))
+            {
+                EmergencyWarpCount++;
+                LootboundLog.Warning(Category,
+                    $"{gameObject.name}: emergency warp to home area after {recoveryAttempts} failed recoveries " +
+                    $"(total warps: {EmergencyWarpCount})");
+                ResumeRoaming(now, EnemyTransitionReason.StuckRecovered);
+                return;
+            }
+
+            // Give up cleanly: live where we stand; wander keeps pulling
+            // toward HomePosition by construction.
+            LootboundLog.Warning(Category, $"{gameObject.name}: stuck recovery failed, resuming roaming in place");
+            ResumeRoaming(now, EnemyTransitionReason.StuckRecovered);
+        }
+
+        #endregion
+
+        #region Decisions and transitions
+
+        /// <summary>
+        /// Shared "player noticed" check for roaming states.
+        /// </summary>
+        private bool TryNoticeTarget(float now)
+        {
+            if (!perception.TargetVisible)
             {
                 return false;
             }
 
-            float distance = DistanceToTarget;
-            if (distance > config.DetectionRange)
+            if (!EnemyPursuitRules.CanReacquireTarget(now, reacquireBlockedUntil))
             {
                 return false;
             }
 
-            // Check field of view
-            Vector3 dirToTarget = (target.position - transform.position).normalized;
-            float angle = Vector3.Angle(transform.forward, dirToTarget);
+            return ChangeState(EnemyState.Suspicious, EnemyTransitionReason.TargetSpotted);
+        }
 
-            if (angle > config.FieldOfView / 2f)
+        /// <summary>
+        /// After an interruption (attack recovery, stagger): look at the world
+        /// again instead of forcing a chase.
+        /// </summary>
+        private void ReevaluateAfterInterruption(EnemyTransitionReason reason)
+        {
+            if (perception.TargetVisible)
             {
-                return false;
+                ChangeState(EnemyState.Chasing, reason);
             }
-
-            // Raycast for line of sight - check if anything blocks view to target
-            Vector3 eyePosition = transform.position + Vector3.up * 1.5f;
-            Vector3 targetCenter = target.position + Vector3.up * 1f;
-            Vector3 toTarget = targetCenter - eyePosition;
-
-            if (Physics.Raycast(eyePosition, toTarget.normalized, out RaycastHit hit, distance))
+            else
             {
-                // Check if we hit the target or something blocking
-                if (!hit.transform.IsChildOf(target) && hit.transform != target)
+                ChangeState(EnemyState.Suspicious, reason);
+            }
+        }
+
+        private void StartReturningHome(EnemyTransitionReason reason)
+        {
+            ChangeState(EnemyState.ReturningHome, reason);
+        }
+
+        private void ResumeRoaming(float now, EnemyTransitionReason reason)
+        {
+            roaming.OnRoamingResumed(now);
+            ChangeState(EnemyState.Idle, reason);
+        }
+
+        private bool ChangeState(EnemyState newState, EnemyTransitionReason reason)
+        {
+            return stateMachine.TryTransition(newState, reason, Time.time);
+        }
+
+        /// <summary>
+        /// Single place where transitions apply their side effects
+        /// (speeds, stops) and get logged/forwarded.
+        /// </summary>
+        private void HandleTransition(EnemyStateTransition transition)
+        {
+            ResetProgressTracking(transition.Time);
+            recoveryAttempts = 0;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh && profile != null && config != null)
+            {
+                switch (transition.Current)
                 {
-                    if (debugDraw)
-                    {
-                        Debug.DrawLine(eyePosition, hit.point, Color.red, 0.1f);
-                    }
-                    return false;
+                    case EnemyState.Idle:
+                    case EnemyState.Suspicious:
+                        StopAgent();
+                        agent.speed = config.MoveSpeed * profile.RoamingSpeedMultiplier;
+                        break;
+
+                    case EnemyState.Wandering:
+                    case EnemyState.Patrolling:
+                        agent.speed = config.MoveSpeed * profile.RoamingSpeedMultiplier;
+                        break;
+
+                    case EnemyState.Chasing:
+                        agent.speed = config.MoveSpeed * profile.ChaseSpeedMultiplier;
+                        lastRepathTime = float.NegativeInfinity;
+                        break;
+
+                    case EnemyState.ReturningHome:
+                        agent.speed = config.MoveSpeed * profile.ReturnSpeedMultiplier;
+                        agent.SetDestination(HomePosition);
+                        break;
                 }
             }
 
-            if (debugDraw)
-            {
-                Debug.DrawLine(eyePosition, targetCenter, Color.green, 0.1f);
-            }
+            LootboundLog.Info(Category, $"{gameObject.name}: {transition}");
+            OnStateChanged?.Invoke(transition.Previous, transition.Current);
+        }
 
-            return true;
+        #endregion
+
+        #region Movement helpers
+
+        private void StopAgent()
+        {
+            if (agent.enabled && agent.isOnNavMesh)
+            {
+                agent.ResetPath();
+            }
+        }
+
+        private bool HasArrivedAtDestination(float tolerance)
+        {
+            return agent.enabled && agent.isOnNavMesh && !agent.pathPending &&
+                   agent.remainingDistance <= tolerance;
         }
 
         private void FaceTarget(float speedMultiplier = 1f)
@@ -307,7 +583,7 @@ namespace Lootbound.Gameplay.Combat
                 return;
             }
 
-            Vector3 direction = (target.position - transform.position);
+            Vector3 direction = target.position - transform.position;
             direction.y = 0f;
 
             if (direction.sqrMagnitude > 0.01f)
@@ -321,91 +597,255 @@ namespace Lootbound.Gameplay.Combat
             }
         }
 
-        private void ChangeState(EnemyState newState)
+        private void CheckStuckAndRecover(float now, EnemyState escalateTo)
         {
-            if (currentState == newState)
+            if (!agent.enabled || !agent.hasPath || agent.pathPending)
+            {
+                ResetProgressTracking(now);
+                return;
+            }
+
+            bool moving = agent.velocity.sqrMagnitude >
+                          profile.StuckVelocityThreshold * profile.StuckVelocityThreshold;
+            bool displaced = (transform.position - lastProgressPosition).sqrMagnitude > 0.05f;
+
+            if (moving || displaced)
+            {
+                ResetProgressTracking(now);
+                return;
+            }
+
+            if (now - lastProgressTime < profile.StuckTimeout)
             {
                 return;
             }
 
-            var oldState = currentState;
-            currentState = newState;
-            stateTimer = 0f;
+            recoveryAttempts++;
+            RecoveryCount++;
+            ResetProgressTracking(now);
 
-            LootboundLog.Info(Category, $"{gameObject.name}: {oldState} -> {newState}");
-            OnStateChanged?.Invoke(oldState, newState);
+            if (recoveryAttempts == 1)
+            {
+                // First response: recompute the same destination.
+                agent.SetDestination(agent.destination);
+                return;
+            }
+
+            if (recoveryAttempts <= profile.MaxRecoveryAttempts &&
+                SampleNavMesh(transform.position + (agent.destination - transform.position).normalized * 2f,
+                    profile.WanderSampleDistance, out Vector3 nearby))
+            {
+                // Second response: try navigable ground just ahead.
+                agent.SetDestination(nearby);
+                return;
+            }
+
+            ChangeState(escalateTo, EnemyTransitionReason.StuckDetected);
         }
+
+        private void ResetProgressTracking(float now)
+        {
+            lastProgressTime = now;
+            lastProgressPosition = transform.position;
+        }
+
+        private static bool SampleNavMesh(Vector3 position, float maxDistance, out Vector3 sampled)
+        {
+            if (NavMesh.SamplePosition(position, out NavMeshHit hit, maxDistance, NavMesh.AllAreas))
+            {
+                sampled = hit.position;
+                return true;
+            }
+
+            sampled = default;
+            return false;
+        }
+
+        #endregion
+
+        #region Setup helpers
+
+        private EnemyNavigationProfile ResolveProfile()
+        {
+            if (config != null && config.NavigationProfile != null)
+            {
+                return config.NavigationProfile;
+            }
+
+            if (sharedDefaultProfile == null)
+            {
+                sharedDefaultProfile = ScriptableObject.CreateInstance<EnemyNavigationProfile>();
+                sharedDefaultProfile.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            return sharedDefaultProfile;
+        }
+
+        /// <summary>
+        /// Per-instance random source seeded from stable world data
+        /// (WorldSeed + ReservationId + entry index), so enemies desynchronize
+        /// from each other without touching UnityEngine.Random or the world's
+        /// procedural determinism. Manually placed enemies (test scenes) fall
+        /// back to stable placement data (name + rounded position).
+        /// </summary>
+        private System.Random CreateInstanceRandom()
+        {
+            var identity = GetComponent<WorldContentIdentity>();
+
+            unchecked
+            {
+                uint hash = 2166136261u;
+
+                void Mix(int value)
+                {
+                    hash = (hash ^ (uint)value) * 16777619u;
+                }
+
+                void MixString(string text)
+                {
+                    if (string.IsNullOrEmpty(text)) return;
+                    foreach (char c in text) Mix(c);
+                }
+
+                if (identity != null && !string.IsNullOrEmpty(identity.ReservationId))
+                {
+                    Mix(identity.WorldSeed);
+                    MixString(identity.ReservationId);
+                    Mix(identity.EntryIndex);
+                }
+                else
+                {
+                    MixString(gameObject.name);
+                    Mix(Mathf.RoundToInt(transform.position.x * 10f));
+                    Mix(Mathf.RoundToInt(transform.position.z * 10f));
+                }
+
+                return new System.Random((int)hash);
+            }
+        }
+
+        private IEnemyRoamingBehaviour CreateRoamingBehaviour()
+        {
+            if (profile.RoamingMode == EnemyRoamingMode.Patrol)
+            {
+                var route = GetComponent<EnemyPatrolRoute>();
+                if (route != null && route.PointCount > 0)
+                {
+                    return new EnemyPatrolBehaviour(
+                        route.ResolveWorldPoints(),
+                        route.PingPong,
+                        route.DwellSeconds,
+                        profile.WanderSampleDistance,
+                        instanceRandom,
+                        SampleNavMesh);
+                }
+
+                LootboundLog.Warning(Category,
+                    $"{gameObject.name}: Patrol mode selected but no EnemyPatrolRoute with points found - wandering instead");
+            }
+
+            return new EnemyWanderBehaviour(profile.ToWanderSettings(), instanceRandom, SampleNavMesh);
+        }
+
+        #endregion
+
+        #region Health events
 
         private void HandleStagger(float force)
         {
-            // Stagger can interrupt windup but not active attack
-            if (currentState == EnemyState.AttackWindup || currentState == EnemyState.Chase || currentState == EnemyState.Idle)
+            // Stagger can interrupt movement and windup, but not the active attack.
+            var state = CurrentState;
+            if (state != EnemyState.AttackActive && state != EnemyState.Stagger && state != EnemyState.Dead)
             {
                 // Disable agent to allow knockback physics
                 agent.enabled = false;
-                ChangeState(EnemyState.Stagger);
+                ChangeState(EnemyState.Stagger, EnemyTransitionReason.Staggered);
             }
         }
 
         private void HandleDeath()
         {
-            ChangeState(EnemyState.Dead);
+            ChangeState(EnemyState.Dead, EnemyTransitionReason.Died);
             agent.enabled = false;
         }
 
-        /// <summary>
-        /// Set target at runtime.
-        /// </summary>
+        #endregion
+
+        #region Runtime configuration
+
+        /// <summary>Set target at runtime.</summary>
         public void SetTarget(Transform newTarget)
         {
             target = newTarget;
+            if (perception != null)
+            {
+                perception.Target = newTarget;
+            }
         }
 
-        /// <summary>
-        /// Set config at runtime.
-        /// </summary>
+        /// <summary>Set config at runtime.</summary>
         public void SetConfig(EnemyConfig newConfig)
         {
             config = newConfig;
+            profile = ResolveProfile();
             if (config != null && agent != null)
             {
-                agent.speed = config.MoveSpeed;
+                agent.speed = config.MoveSpeed * profile.RoamingSpeedMultiplier;
                 agent.angularSpeed = config.TurnSpeed;
             }
         }
 
-        private void DrawDebug()
+        #endregion
+
+        #region Gizmos
+
+        private void OnDrawGizmosSelected()
         {
-            if (config == null)
+            if (!initialized || profile == null)
             {
                 return;
             }
 
-            // Detection range
-            DebugDrawCircle(transform.position, config.DetectionRange, Color.yellow);
+            // Territory: home, wander radius, chase leash.
+            Gizmos.color = new Color(0.2f, 1f, 0.4f, 0.9f);
+            Gizmos.DrawWireSphere(HomePosition + Vector3.up * 0.2f, 0.4f);
+            DrawGizmoCircle(HomePosition, profile.WanderRadius, new Color(0.2f, 1f, 0.4f, 0.6f));
+            DrawGizmoCircle(HomePosition, profile.MaxChaseDistanceFromHome, new Color(1f, 0.55f, 0.1f, 0.6f));
 
-            // Attack range
-            DebugDrawCircle(transform.position, config.AttackRange, Color.red);
-
-            // FOV
-            float halfFov = config.FieldOfView / 2f;
-            Vector3 leftDir = Quaternion.Euler(0, -halfFov, 0) * transform.forward;
-            Vector3 rightDir = Quaternion.Euler(0, halfFov, 0) * transform.forward;
-            Debug.DrawRay(transform.position, leftDir * config.DetectionRange, Color.cyan);
-            Debug.DrawRay(transform.position, rightDir * config.DetectionRange, Color.cyan);
-        }
-
-        private void DebugDrawCircle(Vector3 center, float radius, Color color, int segments = 32)
-        {
-            float angleStep = 360f / segments;
-            for (int i = 0; i < segments; i++)
+            // Vision cone
+            if (config != null)
             {
-                float angle1 = i * angleStep * Mathf.Deg2Rad;
-                float angle2 = (i + 1) * angleStep * Mathf.Deg2Rad;
-                Vector3 p1 = center + new Vector3(Mathf.Cos(angle1), 0, Mathf.Sin(angle1)) * radius;
-                Vector3 p2 = center + new Vector3(Mathf.Cos(angle2), 0, Mathf.Sin(angle2)) * radius;
-                Debug.DrawLine(p1, p2, color);
+                Gizmos.color = new Color(0.2f, 0.8f, 1f, 0.5f);
+                float halfFov = config.FieldOfView * 0.5f;
+                Vector3 left = Quaternion.Euler(0f, -halfFov, 0f) * transform.forward;
+                Vector3 right = Quaternion.Euler(0f, halfFov, 0f) * transform.forward;
+                Gizmos.DrawRay(transform.position + Vector3.up * profile.EyeHeight, left * config.DetectionRange);
+                Gizmos.DrawRay(transform.position + Vector3.up * profile.EyeHeight, right * config.DetectionRange);
+                DrawGizmoCircle(transform.position, profile.ImmediateDetectionRange, new Color(1f, 0.9f, 0.2f, 0.5f));
+            }
+
+            // Current destination
+            if (agent != null && agent.enabled && agent.hasPath)
+            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawLine(transform.position, agent.destination);
+                Gizmos.DrawWireSphere(agent.destination, 0.25f);
             }
         }
+
+        private static void DrawGizmoCircle(Vector3 center, float radius, Color color, int segments = 40)
+        {
+            Gizmos.color = color;
+            Vector3 previous = center + new Vector3(radius, 0f, 0f);
+            for (int i = 1; i <= segments; i++)
+            {
+                float angle = (i / (float)segments) * Mathf.PI * 2f;
+                Vector3 next = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                Gizmos.DrawLine(previous, next);
+                previous = next;
+            }
+        }
+
+        #endregion
     }
 }
