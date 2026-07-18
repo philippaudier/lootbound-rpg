@@ -15,6 +15,14 @@ namespace Lootbound.Gameplay.World
         public int Seed { get; }
 
         /// <summary>
+        /// Monotone identity of this generation within the session.
+        /// Distinct from the seed: two successive generations may share a
+        /// seed but never a GenerationId. Derived systems (navigation,
+        /// spawning) use it to discard stale results.
+        /// </summary>
+        public int GenerationId { get; }
+
+        /// <summary>
         /// Resolution of the heightmap (width and height are equal).
         /// </summary>
         public int Resolution { get; }
@@ -101,9 +109,10 @@ namespace Lootbound.Gameplay.World
         /// </summary>
         public WorldLayoutContext LayoutContext { get; set; }
 
-        public TerrainGenerationContext(int seed, int resolution, float worldSize, float terrainHeight)
+        public TerrainGenerationContext(int seed, int resolution, float worldSize, float terrainHeight, int generationId = 0)
         {
             Seed = seed;
+            GenerationId = generationId;
             Resolution = resolution;
             WorldSize = worldSize;
             TerrainHeight = terrainHeight;

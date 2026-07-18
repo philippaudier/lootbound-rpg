@@ -31,6 +31,10 @@ namespace Lootbound.Gameplay.World
         // Current generation context
         private TerrainGenerationContext context;
 
+        // Monotone per-session generation identity. Two generations with the
+        // same seed remain distinguishable for derived systems (navigation).
+        private int generationCounter;
+
         // Events
         public event System.Action<TerrainGenerationContext> OnGenerationComplete;
 
@@ -89,11 +93,13 @@ namespace Lootbound.Gameplay.World
             Debug.Log($"[ProceduralTerrainGenerator] Generating terrain with seed {seed}...");
 
             // Create context
+            generationCounter++;
             context = new TerrainGenerationContext(
                 seed,
                 config.HeightmapResolution,
                 config.WorldSize,
-                config.TerrainHeight
+                config.TerrainHeight,
+                generationCounter
             );
 
             // Configure terrain data

@@ -3,25 +3,29 @@ using UnityEngine;
 using UnityEngine.AI;
 using Lootbound.Core.Logging;
 using Lootbound.Gameplay.World.Layout;
+using Lootbound.Gameplay.World.Navigation;
 
 namespace Lootbound.Gameplay.World.Spawning
 {
     /// <summary>
     /// Instantiates world content from the validated layout's reservations.
     ///
-    /// Consumes ONLY the published, validated WorldLayoutContext: it subscribes
-    /// to ProceduralTerrainGenerator.OnGenerationComplete, which fires after
-    /// terrain application and final layout validation. It never reads from an
-    /// unpublished generation attempt.
+    /// Consumes ONLY the published, validated WorldLayoutContext. On
+    /// OnGenerationComplete it clears the previous content immediately (so
+    /// nothing stale contributes to the new NavMesh build) and waits; content
+    /// is instantiated when RuntimeNavigationBuilder publishes the navigation
+    /// result for that same generation (NavigationContentGate decides).
     ///
     /// All selection/placement decisions are delegated to WorldContentPlanner
-    /// (pure C#, deterministic); this component only instantiates the plan and
-    /// records a debug report.
+    /// (pure C#, deterministic); navigation never changes the plan, only the
+    /// moment of instantiation and the final physical position of entries
+    /// that depend on it.
     ///
-    /// NavMesh: encounters use the existing baked NavMesh via
-    /// NavMesh.SamplePosition. Positions without nearby NavMesh are rejected
-    /// and reported (NavMeshUnavailable) - runtime NavMesh building is a
-    /// deliberate non-goal of this slice (see WORLD_CONTENT_SPAWNING.md).
+    /// Navigation is global for building the mesh but LOCAL for validation:
+    /// each encounter entry is resolved individually via NavMesh.SamplePosition
+    /// (bounded by navMeshSampleDistance); one failed entry never blocks the
+    /// others. If the whole navigation build failed, resources and landmarks
+    /// still spawn and encounters are rejected with an explicit reason.
     /// </summary>
     public sealed class WorldContentSpawner : MonoBehaviour
     {
@@ -31,6 +35,10 @@ namespace Lootbound.Gameplay.World.Spawning
         [SerializeField]
         [Tooltip("Generator whose OnGenerationComplete publishes the validated layout")]
         private ProceduralTerrainGenerator terrainGenerator;
+
+        [SerializeField]
+        [Tooltip("Runtime navigation builder gating encounter instantiation. If absent, content spawns immediately but encounters are rejected (no valid navigation can exist).")]
+        private RuntimeNavigationBuilder navigationBuilder;
 
         [Header("Content Registries")]
         [SerializeField] private EncounterRegistry encounterRegistry;
@@ -60,8 +68,17 @@ namespace Lootbound.Gameplay.World.Spawning
 
         private GameObject contentRoot;
 
+        // Pure orchestration: which generation may spawn, and when.
+        private readonly NavigationContentGate gate = new NavigationContentGate();
+
+        // Context of the generation waiting for its navigation result.
+        private TerrainGenerationContext pendingContext;
+
         /// <summary>Report of the last spawning pass, for the debug panel.</summary>
         public WorldContentSpawnReport LastReport { get; private set; }
+
+        /// <summary>True while a generation is waiting for its navigation result.</summary>
+        public bool IsWaitingForNavigation => gate.PendingGenerationId != null;
 
         public event System.Action<WorldContentSpawnReport> OnSpawnCompleted;
 
@@ -74,6 +91,11 @@ namespace Lootbound.Gameplay.World.Spawning
             }
 
             terrainGenerator.OnGenerationComplete += HandleGenerationComplete;
+
+            if (navigationBuilder != null)
+            {
+                navigationBuilder.OnNavigationCompleted += HandleNavigationCompleted;
+            }
         }
 
         private void OnDisable()
@@ -82,14 +104,25 @@ namespace Lootbound.Gameplay.World.Spawning
             {
                 terrainGenerator.OnGenerationComplete -= HandleGenerationComplete;
             }
+
+            if (navigationBuilder != null)
+            {
+                navigationBuilder.OnNavigationCompleted -= HandleNavigationCompleted;
+            }
         }
 
         private void Start()
         {
-            // Cover the case where generation finished before this component subscribed.
+            // Cover the case where generation (and possibly the navigation
+            // build) finished before this component subscribed.
             if (terrainGenerator != null && terrainGenerator.IsGenerated && LastReport == null)
             {
                 HandleGenerationComplete(terrainGenerator.Context);
+
+                if (navigationBuilder != null && navigationBuilder.LastResult != null)
+                {
+                    HandleNavigationCompleted(navigationBuilder.LastResult);
+                }
             }
         }
 
@@ -101,7 +134,11 @@ namespace Lootbound.Gameplay.World.Spawning
                 return;
             }
 
+            // Clear immediately so stale content cannot contribute to the
+            // navigation build of the new generation.
             ClearSpawnedContent();
+            pendingContext = null;
+            gate.Reset();
 
             if (generationContext == null || generationContext.LayoutContext == null)
             {
@@ -111,6 +148,52 @@ namespace Lootbound.Gameplay.World.Spawning
                 return;
             }
 
+            if (navigationBuilder == null)
+            {
+                // No navigation layer at all: spawn what does not depend on
+                // it, reject encounters explicitly (never against a stale mesh).
+                LootboundLog.Warning(LogCategory,
+                    "No RuntimeNavigationBuilder assigned - spawning without encounters");
+                SpawnContent(generationContext, encountersAllowed: false,
+                    encounterRejectionDetail: "no RuntimeNavigationBuilder assigned");
+                return;
+            }
+
+            pendingContext = generationContext;
+            gate.TerrainPublished(generationContext.GenerationId);
+        }
+
+        private void HandleNavigationCompleted(RuntimeNavigationBuildResult result)
+        {
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+
+            var decision = gate.NavigationCompleted(result.GenerationId, result.Success);
+            switch (decision)
+            {
+                case NavigationGateDecision.Ignore:
+                    return;
+
+                case NavigationGateDecision.SpawnAll:
+                    SpawnContent(pendingContext, encountersAllowed: true, encounterRejectionDetail: null);
+                    break;
+
+                case NavigationGateDecision.SpawnWithoutEncounters:
+                    LootboundLog.Warning(LogCategory,
+                        $"Navigation build failed for generation {result.GenerationId} " +
+                        $"({result.FailureReason}) - spawning without encounters");
+                    SpawnContent(pendingContext, encountersAllowed: false,
+                        encounterRejectionDetail: $"navigation build failed: {result.FailureReason}");
+                    break;
+            }
+
+            pendingContext = null;
+        }
+
+        private void SpawnContent(TerrainGenerationContext generationContext, bool encountersAllowed, string encounterRejectionDetail)
+        {
             var layout = generationContext.LayoutContext;
             var sampler = new TerrainContextSampler(generationContext);
             var settings = new WorldContentPlannerSettings
@@ -144,7 +227,10 @@ namespace Lootbound.Gameplay.World.Spawning
                 switch (recipe.Category)
                 {
                     case WorldContentCategory.Encounter:
-                        outcomes.Add(SpawnEncounter(recipe, encounterParent));
+                        outcomes.Add(encountersAllowed
+                            ? SpawnEncounter(recipe, encounterParent)
+                            : new SpawnOutcome(recipe, 0,
+                                $"{SpawnRejectionReason.NavMeshUnavailable} ({encounterRejectionDetail})"));
                         break;
                     case WorldContentCategory.Resource:
                         outcomes.Add(SpawnResource(recipe, resourceParent));
@@ -158,7 +244,7 @@ namespace Lootbound.Gameplay.World.Spawning
             LastReport = new WorldContentSpawnReport(plan.TotalReservations, outcomes, plan.Rejections);
 
             LootboundLog.Info(LogCategory,
-                $"Spawning pass: {LastReport.ReservationsReceived} reservations, " +
+                $"Spawning pass (gen {generationContext.GenerationId}): {LastReport.ReservationsReceived} reservations, " +
                 $"{LastReport.RecipesPlanned} recipes, {LastReport.SpawnsSucceeded} spawned, " +
                 $"{LastReport.SpawnsRejected} rejected");
 
@@ -204,18 +290,26 @@ namespace Lootbound.Gameplay.World.Spawning
 
             int spawned = 0;
             int navMeshMisses = 0;
+            var placements = new List<EntryPlacement>(recipe.Entries.Count);
 
             for (int i = 0; i < recipe.Entries.Count; i++)
             {
                 var entry = recipe.Entries[i];
 
-                // Encounters require the existing baked NavMesh. No mesh nearby
-                // means no enemy - reported, never masked.
+                // Local validation: each entry resolves its own navigable
+                // position within the bounded tolerance. One failed entry
+                // never blocks the others - reported, never masked. The
+                // requested position is already on the final terrain; the
+                // NavMesh only confirms navigability, it never repairs a
+                // wrong height or teleports an enemy away from its reservation.
                 if (!NavMesh.SamplePosition(entry.Position, out NavMeshHit hit, navMeshSampleDistance, NavMesh.AllAreas))
                 {
                     navMeshMisses++;
+                    placements.Add(new EntryPlacement(i, entry.Position, entry.Position, navMeshResolved: false));
                     continue;
                 }
+
+                placements.Add(new EntryPlacement(i, entry.Position, hit.position, navMeshResolved: true));
 
                 float yaw = DeterministicYaw(recipe.ReservationId, i);
                 var enemy = Instantiate(definition.EnemyPrefab, hit.position, Quaternion.Euler(0f, yaw, 0f), groupRoot.transform);
@@ -236,11 +330,11 @@ namespace Lootbound.Gameplay.World.Spawning
                 Destroy(groupRoot);
                 LootboundLog.Warning(LogCategory,
                     $"Encounter {recipe.ReservationId}: no NavMesh within {navMeshSampleDistance}m of any member position ({SpawnRejectionReason.NavMeshUnavailable})");
-                return new SpawnOutcome(recipe, 0, SpawnRejectionReason.NavMeshUnavailable.ToString());
+                return new SpawnOutcome(recipe, 0, SpawnRejectionReason.NavMeshUnavailable.ToString(), placements);
             }
 
             string detail = navMeshMisses > 0 ? $"{navMeshMisses} member(s) dropped: {SpawnRejectionReason.NavMeshUnavailable}" : null;
-            return new SpawnOutcome(recipe, spawned, detail);
+            return new SpawnOutcome(recipe, spawned, detail, placements);
         }
 
         private EncounterDefinition FindEncounterDefinition(string definitionId)

@@ -3,7 +3,8 @@
     "rootNamespace": "Lootbound.Gameplay",
     "references": [
         "Lootbound.Core",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.AI.Navigation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

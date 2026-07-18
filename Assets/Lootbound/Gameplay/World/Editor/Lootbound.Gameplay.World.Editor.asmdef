@@ -2,7 +2,8 @@
     "name": "Lootbound.Gameplay.World.Editor",
     "rootNamespace": "Lootbound.Gameplay.World.Editor",
     "references": [
-        "Lootbound.Gameplay"
+        "Lootbound.Gameplay",
+        "Unity.AI.Navigation"
     ],
     "includePlatforms": [
         "Editor"

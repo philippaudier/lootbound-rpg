@@ -51,11 +51,16 @@ All runtime code lives in `Assets/Lootbound/Gameplay/World/Spawning/`
 
 ## Spawning sequence
 
-`WorldContentSpawner` consumes **only** the published, validated layout: it
-runs from `OnGenerationComplete`, which the generator fires after terrain
-application and final layout validation. Generation attempts that were not
-published are never visible to the spawner. Editor-mode generation (inspector
-buttons) is ignored (`Application.isPlaying` guard).
+`WorldContentSpawner` consumes **only** the published, validated layout.
+Since slice 0.9.5 it is gated by runtime navigation (see
+`RUNTIME_NAVIGATION.md`): on `OnGenerationComplete` it clears the previous
+content immediately (so nothing stale contributes to the new NavMesh build)
+and waits; the plan is computed and instantiated when
+`RuntimeNavigationBuilder.OnNavigationCompleted` publishes the result for
+that same `GenerationId` (`NavigationContentGate`, pure C#). Generation
+attempts that were not published are never visible to the spawner.
+Editor-mode generation (inspector buttons) is ignored
+(`Application.isPlaying` guard).
 
 Spawned objects live under `WorldContent_Spawned/{Encounters,Resources,Landmarks}`;
 the hierarchy is destroyed and rebuilt on regeneration.
@@ -70,22 +75,17 @@ the hierarchy is destroyed and rebuilt on regeneration.
   primitive (`Landmark_PLACEHOLDER_...`), encapsulated in one method and easy
   to replace with real assets.
 
-## Known limitation: NavMesh
+## NavMesh (since slice 0.9.5)
 
-The NavMesh is baked statically in `12_ProceduralTerrainSandbox` against the
-terrain produced by the **default seed**. Nothing rebuilds it at runtime, and
-this slice deliberately does not address runtime NavMesh building.
-
-Consequences:
-- With the default seed (and a NavMesh re-baked after generation), encounters
-  spawn normally.
-- With any other seed, spawn positions without nearby baked mesh are rejected
-  and reported as `NavMeshUnavailable` — visible in the debug panel, never
-  masked.
-
-Proposed future minimal slice: an `OnGenerationComplete` handler calling
-`NavMeshSurface.BuildNavMesh()` (AI Navigation 2.0.10) so the mesh follows the
-generated terrain.
+The NavMesh is rebuilt at runtime for every generation by
+`RuntimeNavigationBuilder` (`RUNTIME_NAVIGATION.md`). Navigation is global
+for building the mesh but **local for validation**: each encounter entry
+resolves its own navigable position via `NavMesh.SamplePosition` bounded by
+`navMeshSampleDistance`; a failed entry is rejected (`NavMeshUnavailable`)
+without blocking the others, and per-entry diagnostics keep the requested
+position, resolved position and distance (`EntryPlacement`). If the whole
+navigation build failed, resources and landmarks still spawn and encounters
+are rejected with an explicit reason.
 
 ## Debug
 
