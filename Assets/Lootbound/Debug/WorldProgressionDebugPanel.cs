@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Lootbound.Gameplay.World;
+using Lootbound.Gameplay.World.Ambience;
 using Lootbound.Gameplay.World.Population;
 using Lootbound.Gameplay.World.Progression;
 using Lootbound.Gameplay.World.Spawning;
@@ -22,6 +23,7 @@ namespace Lootbound.Debugging
         [SerializeField] private ResourceSpawnRegistry resourceRegistry;
         [SerializeField] private LandmarkRegistry landmarkRegistry;
         [SerializeField] private AmbientPopulationController ambientController;
+        [SerializeField] private WorldAmbienceController ambienceController;
         [SerializeField] private Key toggleKey = Key.F7;
 
         [SerializeField]
@@ -66,6 +68,7 @@ namespace Lootbound.Debugging
 
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
 
+            DrawAmbienceSection();
             DrawAmbientSection();
 
             if (TryGetAimedPoint(out Vector3 aimedPoint))
@@ -81,6 +84,73 @@ namespace Lootbound.Debugging
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        private void DrawAmbienceSection()
+        {
+            if (ambienceController == null)
+            {
+                return;
+            }
+
+            GUILayout.Label("<b>World Ambience</b>", RichLabel());
+            GUILayout.Label($"  {(ambienceController.IsReady ? "active" : "inactive")}   applier: {ambienceController.ApplierStatus}");
+
+            if (!ambienceController.IsReady)
+            {
+                return;
+            }
+
+            // Preview Depth Override (debug only): forces the visual context,
+            // never touches WorldProgression or gameplay.
+            bool previewActive = ambienceController.PreviewDepthOverride.HasValue;
+            float actualDepth = ambienceController.ActualDepth01 ?? 0f;
+
+            if (previewActive)
+            {
+                GUILayout.Label("  <b><color=#FFB020>PREVIEW ACTIVE</color></b>", RichLabel());
+                GUILayout.Label($"  Actual Depth01: {actualDepth:F2}   Preview Depth01: {ambienceController.PreviewDepthOverride.Value:F2}");
+            }
+            else
+            {
+                GUILayout.Label($"  Actual Depth01: {actualDepth:F2}");
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("  Preview:", GUILayout.Width(70f));
+            float slider = GUILayout.HorizontalSlider(
+                ambienceController.PreviewDepthOverride ?? actualDepth, 0f, 1f, GUILayout.Width(160f));
+            if (previewActive || Mathf.Abs(slider - actualDepth) > 0.01f)
+            {
+                ambienceController.PreviewDepthOverride = slider;
+            }
+            foreach (float preset in new[] { 0f, 0.25f, 0.5f, 0.75f, 1f })
+            {
+                if (GUILayout.Button(preset.ToString("0.##"), GUILayout.Width(38f)))
+                {
+                    ambienceController.PreviewDepthOverride = preset;
+                }
+            }
+            if (GUILayout.Button("Off", GUILayout.Width(38f)))
+            {
+                ambienceController.PreviewDepthOverride = null;
+            }
+            GUILayout.EndHorizontal();
+
+            var context = ambienceController.LastContext;
+            GUILayout.Label($"  Intent: fog {context.FogDensity01:F2}  light-att {context.LightAttenuation01:F2}  " +
+                            $"sat {context.Saturation01:F2}  temp {context.Temperature01:F2}");
+
+            var target = ambienceController.TargetState;
+            var current = ambienceController.CurrentState;
+            var baseline = ambienceController.Baseline;
+            GUILayout.Label($"  Fog mfp: {current.MeanFreePath:F0}m -> {target.MeanFreePath:F0}m  (baseline {baseline.MeanFreePath:F0}m)");
+            GUILayout.Label($"  Light x{current.DirectionalMultiplier:F2} -> x{target.DirectionalMultiplier:F2}   " +
+                            $"Ambient x{current.AmbientMultiplier:F2} -> x{target.AmbientMultiplier:F2}");
+            GUILayout.Label($"  Sat {current.SaturationOffset:F1} -> {target.SaturationOffset:F1}   " +
+                            $"Temp {current.TemperatureOffset:F1} -> {target.TemperatureOffset:F1}   " +
+                            $"Contrast {current.ContrastOffset:F1} -> {target.ContrastOffset:F1}");
+            GUILayout.Space(6f);
         }
 
         private void DrawAmbientSection()

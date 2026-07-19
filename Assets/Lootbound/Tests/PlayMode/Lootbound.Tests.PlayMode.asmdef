@@ -6,7 +6,11 @@
         "UnityEditor.TestRunner",
         "Lootbound.Core",
         "Lootbound.Gameplay",
-        "Unity.AI.Navigation"
+        "Lootbound.Rendering.PBSky",
+        "Unity.AI.Navigation",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "PBSkyURP"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
