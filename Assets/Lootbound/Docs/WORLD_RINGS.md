@@ -142,18 +142,27 @@ Use DistanceFromRefuge for precise calculations (threat gradient).
 
 ## Gameplay Intent
 
-The ring system supports the core expedition loop:
+The ring system is designed to support the core expedition loop:
 - **Refuge**: Preparation, repair, enhancement
 - **Nearlands**: Learning, safe exploration
 - **Wildlands → Outerlands**: Progressive challenge and reward
 - **Edgelands**: High-risk expeditions for the prepared
 - **Void**: Future content, currently represents the world boundary
 
-Each ring further from Refuge increases:
+Each ring further from Refuge is intended to increase:
 - Encounter difficulty
 - Resource quality
 - Equipment requirements
 - Return journey tension
+
+**Implementation status (since slice 0.9.7):** rings are computed during
+world layout generation (`WorldRingEvaluator`), carried by nodes and
+reservations, and consumed through the progression authority
+(`WorldProgression` / `WorldRingContext`, see `WORLD_PROGRESSION.md`):
+content selection uses inclusive ring windows with deterministic weighted
+picks, and expected difficulty/loot tier/ambience are exposed per position.
+Not yet current behaviour: actual loot drops by tier, ambient population,
+rendering driven by ambience parameters.
 
 ## Configuration
 
