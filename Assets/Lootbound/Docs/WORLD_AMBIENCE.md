@@ -1,4 +1,4 @@
-# World Ambience (slices 0.9.9 / 0.9.9.1 / 0.9.9.2)
+# World Ambience (slices 0.9.9 / 0.9.9.1 / 0.9.9.2 / 0.9.9.3)
 
 ## Purpose
 
@@ -159,6 +159,36 @@ intents into temporary, world-anchored events around the player:
 
 The Gameplay assembly references no AudioSource, AudioClip, Shader or
 PBSky type anywhere in this system.
+
+## Spatial bird audio (slice 0.9.9.3)
+
+`Lootbound.Presentation.Audio` (`Assets/Lootbound/Presentation/Audio/`) is
+the first presentation layer consuming the director's events — same
+decoupling pattern as `Lootbound.Rendering.PBSky`; Gameplay never
+references it.
+
+- `AmbientAudioPresenter` subscribes to `OnEventSpawned` /
+  `OnEventReleased`. For each **Birds** event it creates a runtime child
+  `BirdAudioPresentation` under the marker, carrying a 3D `AudioSource`.
+  Ownership: the director owns the marker; the presenter owns only its
+  audio child.
+- `BirdAudioLibrary` (SO): clips (null entries ignored), pitch 0.95–1.05,
+  volume 0.90–1.00, minDistance 8, maxDistance 45, logarithmic rolloff,
+  spatialBlend 1, priority 128 — all defensively bounded. Source defaults:
+  loop off, playOnAwake off, doppler 0, spread 0.
+- Randomness: a private seedable `System.Random` (clip, pitch, volume) —
+  the global `UnityEngine.Random` is never touched. The same blackbird
+  never sings exactly the same.
+- No valid clip (null/empty/all-null library) → no AudioSource is created.
+- Release → stop + destroy the audio child; presenter disable → all audio
+  children destroyed, markers intact; re-enable → missing presentations
+  recreated exactly once for still-active instances.
+- Distance attenuation, panning and multiple simultaneous birds come free
+  from Unity's 3D audio — no code follows the player's head.
+
+Asset: `ScriptableObjects/Audio/DefaultBirdAudioLibrary.asset` ships with
+an **empty clip list** — import bird recordings and fill it to hear the
+world.
 
 ## Timing
 
