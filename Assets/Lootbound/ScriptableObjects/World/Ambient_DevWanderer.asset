@@ -42,7 +42,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   minimumGroupSize: 1
-  maximumGroupSize: 2
+  maximumGroupSize: 3
   groupRadius: 5
   maximumSlope: 35
   minimumDistanceFromRefuge: 0
@@ -50,5 +50,5 @@ MonoBehaviour:
   excludeNearEncounters: 1
   excludeNearLandmarks: 1
   excludeNearResources: 0
-  maxAliveGlobally: 5
+  maxAliveGlobally: 20
   maxAlivePerCell: 3

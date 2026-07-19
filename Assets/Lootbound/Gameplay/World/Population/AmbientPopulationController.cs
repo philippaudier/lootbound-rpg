@@ -256,6 +256,7 @@ namespace Lootbound.Gameplay.World.Population
             Vector3 anchor = PlayerAnchor();
             AmbientPopulationCells.CollectCellsInRadius(
                 anchor, config.SpawnRadiusMax, progression.RefugePosition, config.CellSize, cellScratch);
+            SortCellsByDistance(anchor);
             foreach (var cell in cellScratch)
             {
                 PlanCellIfNeeded(cell);
@@ -316,9 +317,13 @@ namespace Lootbound.Gameplay.World.Population
         {
             Vector3 anchor = PlayerAnchor();
 
-            // 1. Progressive planning of unplanned cells in range
+            // 1. Progressive planning of unplanned cells in range.
+            // Cells are processed nearest-first: when the budget cannot fill
+            // the whole bubble, the population surrounds the player instead
+            // of clustering in one grid corner.
             AmbientPopulationCells.CollectCellsInRadius(
                 anchor, config.SpawnRadiusMax, progression.RefugePosition, config.CellSize, cellScratch);
+            SortCellsByDistance(anchor);
             int planned = 0;
             foreach (var cell in cellScratch)
             {
@@ -331,6 +336,27 @@ namespace Lootbound.Gameplay.World.Population
 
             // 3. Streaming despawn with grace
             DespawnPass(now, anchor);
+        }
+
+        /// <summary>
+        /// Nearest-first processing order (deterministic tie-break on
+        /// coordinates). Only the materialization ORDER depends on the
+        /// player; the per-cell intentions never do.
+        /// </summary>
+        private void SortCellsByDistance(Vector3 anchor)
+        {
+            Vector3 discCenter = progression.RefugePosition;
+            float cellSize = config.CellSize;
+
+            cellScratch.Sort((a, b) =>
+            {
+                float distanceA = (AmbientPopulationCells.CellCenter(a, discCenter, cellSize) - anchor).sqrMagnitude;
+                float distanceB = (AmbientPopulationCells.CellCenter(b, discCenter, cellSize) - anchor).sqrMagnitude;
+                int comparison = distanceA.CompareTo(distanceB);
+                if (comparison != 0) return comparison;
+                comparison = a.x.CompareTo(b.x);
+                return comparison != 0 ? comparison : a.y.CompareTo(b.y);
+            });
         }
 
         private bool PlanCellIfNeeded(Vector2Int cell)
@@ -410,7 +436,23 @@ namespace Lootbound.Gameplay.World.Population
                 return;
             }
 
-            var spawned = spawner.SpawnPlan(record, definition, result.ResolvedPosition, SampleNavMesh, now, OnMemberDied);
+            // Members spread around the anchor must respect the same live
+            // rules as the anchor itself (refuge, ring window, anti-pop).
+            float refugeBuffer = Mathf.Max(config.MinimumDistanceFromRefuge, definition.MinimumDistanceFromRefuge);
+            bool MemberPositionAllowed(Vector3 position)
+            {
+                var memberContext = progression.GetContext(position);
+                if (memberContext.Ring < definition.MinimumRing || memberContext.Ring > definition.MaximumRing) return false;
+                if (memberContext.DistanceFromRefuge < refugeBuffer) return false;
+                if (validationContext.PlayerPosition.HasValue &&
+                    Vector3.Distance(position, validationContext.PlayerPosition.Value) < config.MinimumDistanceFromPlayer) return false;
+                if (validationContext.FrustumPlanes != null &&
+                    AmbientSpawnValidator.IsInsideFrustum(position, validationContext.FrustumPlanes)) return false;
+                return true;
+            }
+
+            var spawned = spawner.SpawnPlan(record, definition, result.ResolvedPosition, SampleNavMesh, now,
+                OnMemberDied, MemberPositionAllowed);
             foreach (var instance in spawned)
             {
                 members[instance.MemberId] = (record, instance);

@@ -93,7 +93,8 @@ namespace Lootbound.Gameplay.World.Population
             Vector3 resolvedAnchor,
             NavigationSampleDelegate sampleNavMesh,
             float now,
-            System.Action<AmbientPopulationInstance> onMemberDied)
+            System.Action<AmbientPopulationInstance> onMemberDied,
+            System.Func<Vector3, bool> isMemberPositionAllowed = null)
         {
             var spawned = new List<AmbientPopulationInstance>();
             if (definition.Prefab == null)
@@ -121,6 +122,14 @@ namespace Lootbound.Gameplay.World.Population
 
                 Vector3 desired = resolvedAnchor + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
                 if (!sampleNavMesh(desired, 4f, out Vector3 position))
+                {
+                    position = resolvedAnchor;
+                }
+
+                // The group spread must not leak past the validated rules
+                // (refuge ring, player distance, frustum): a rejected member
+                // falls back onto the anchor, which is guaranteed valid.
+                if (isMemberPositionAllowed != null && !isMemberPositionAllowed(position))
                 {
                     position = resolvedAnchor;
                 }
