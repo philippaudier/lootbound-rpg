@@ -19,11 +19,34 @@ namespace Lootbound.Gameplay.World.Ambience
         /// <summary>Existing maximum fog distance (kept fixed unless explicitly controlled).</summary>
         public float MaxFogDistance { get; }
 
+        /// <summary>PBSky zenith tint of the existing global profile.</summary>
+        public Color SkyZenithTint { get; }
+
+        /// <summary>PBSky horizon tint of the existing global profile.</summary>
+        public Color SkyHorizonTint { get; }
+
+        /// <summary>PBSky sky color saturation (artistic override, 0..1).</summary>
+        public float SkyColorSaturation { get; }
+
+        /// <summary>PBSky sky exposure in EV (only driven when explicitly enabled).</summary>
+        public float SkyExposure { get; }
+
         public WorldAmbienceBaseline(float meanFreePath, Color fogTint, float maxFogDistance)
+            : this(meanFreePath, fogTint, maxFogDistance, Color.white, Color.white, 1f, 0f)
+        {
+        }
+
+        public WorldAmbienceBaseline(
+            float meanFreePath, Color fogTint, float maxFogDistance,
+            Color skyZenithTint, Color skyHorizonTint, float skyColorSaturation, float skyExposure)
         {
             MeanFreePath = meanFreePath > 1f ? meanFreePath : 400f;
             FogTint = fogTint;
             MaxFogDistance = maxFogDistance > 1f ? maxFogDistance : 5000f;
+            SkyZenithTint = skyZenithTint;
+            SkyHorizonTint = skyHorizonTint;
+            SkyColorSaturation = float.IsNaN(skyColorSaturation) ? 1f : Mathf.Clamp01(skyColorSaturation);
+            SkyExposure = float.IsNaN(skyExposure) ? 0f : skyExposure;
         }
 
         /// <summary>Safe defaults matching the shipped global profile.</summary>
@@ -51,10 +74,19 @@ namespace Lootbound.Gameplay.World.Ambience
         public float TemperatureOffset { get; }
         public float ContrastOffset { get; }
 
+        // Sky artistic overrides (PBSky; never touch precomputation parameters)
+        public Color SkyZenithTint { get; }
+        public Color SkyHorizonTint { get; }
+        public float SkyColorSaturation { get; }
+        public float SkyExposure { get; }
+        public bool ControlSkyExposure { get; }
+
         public WorldAmbienceState(
             float meanFreePath, Color fogTint, float maxFogDistance, bool controlMaxFogDistance,
             float directionalMultiplier, float ambientMultiplier,
-            float saturationOffset, float temperatureOffset, float contrastOffset)
+            float saturationOffset, float temperatureOffset, float contrastOffset,
+            Color skyZenithTint, Color skyHorizonTint, float skyColorSaturation,
+            float skyExposure, bool controlSkyExposure)
         {
             MeanFreePath = meanFreePath;
             FogTint = fogTint;
@@ -65,6 +97,11 @@ namespace Lootbound.Gameplay.World.Ambience
             SaturationOffset = saturationOffset;
             TemperatureOffset = temperatureOffset;
             ContrastOffset = contrastOffset;
+            SkyZenithTint = skyZenithTint;
+            SkyHorizonTint = skyHorizonTint;
+            SkyColorSaturation = skyColorSaturation;
+            SkyExposure = skyExposure;
+            ControlSkyExposure = controlSkyExposure;
         }
 
         /// <summary>The neutral state: exactly the captured baseline.</summary>
@@ -72,7 +109,9 @@ namespace Lootbound.Gameplay.World.Ambience
         {
             return new WorldAmbienceState(
                 baseline.MeanFreePath, baseline.FogTint, baseline.MaxFogDistance, false,
-                1f, 1f, 0f, 0f, 0f);
+                1f, 1f, 0f, 0f, 0f,
+                baseline.SkyZenithTint, baseline.SkyHorizonTint, baseline.SkyColorSaturation,
+                baseline.SkyExposure, false);
         }
 
         /// <summary>Per-field linear interpolation (factor 0 = current, 1 = target).</summary>
@@ -88,7 +127,12 @@ namespace Lootbound.Gameplay.World.Ambience
                 Mathf.Lerp(current.AmbientMultiplier, target.AmbientMultiplier, t),
                 Mathf.Lerp(current.SaturationOffset, target.SaturationOffset, t),
                 Mathf.Lerp(current.TemperatureOffset, target.TemperatureOffset, t),
-                Mathf.Lerp(current.ContrastOffset, target.ContrastOffset, t));
+                Mathf.Lerp(current.ContrastOffset, target.ContrastOffset, t),
+                Color.Lerp(current.SkyZenithTint, target.SkyZenithTint, t),
+                Color.Lerp(current.SkyHorizonTint, target.SkyHorizonTint, t),
+                Mathf.Lerp(current.SkyColorSaturation, target.SkyColorSaturation, t),
+                Mathf.Lerp(current.SkyExposure, target.SkyExposure, t),
+                target.ControlSkyExposure);
         }
     }
 

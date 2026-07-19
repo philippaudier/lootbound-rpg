@@ -26,6 +26,10 @@ namespace Lootbound.Tests.PlayMode
         private const float BASELINE_MEAN_FREE_PATH = 400f;
         private const float BASELINE_MAX_FOG_DISTANCE = 5000f;
         private const float BASELINE_LIGHT_INTENSITY = 1.23f;
+        private const float BASELINE_SKY_SATURATION = 1f;
+        private const float BASELINE_SKY_EXPOSURE = 0.3f;
+        private static readonly Color BaselineSkyZenith = new Color(1f, 0.98f, 0.96f);
+        private static readonly Color BaselineSkyHorizon = new Color(0.98f, 0.97f, 0.95f);
         private const string RUNTIME_VOLUME_NAME = "WorldAmbience_RuntimeVolume";
 
         private readonly List<GameObject> spawned = new List<GameObject>();
@@ -73,6 +77,7 @@ namespace Lootbound.Tests.PlayMode
             public Volume GlobalVolume;
             public VolumeProfile SharedProfile;
             public global::Fog SceneFog;
+            public global::PhysicallyBasedSky SceneSky;
             public Light DirectionalLight;
             public Transform Player;
             public PBSkyWorldAmbienceApplier Applier;
@@ -95,6 +100,14 @@ namespace Lootbound.Tests.PlayMode
             rig.SceneFog.meanFreePath.value = BASELINE_MEAN_FREE_PATH;
             rig.SceneFog.tint.value = Color.white;
             rig.SceneFog.maxFogDistance.value = BASELINE_MAX_FOG_DISTANCE;
+
+            // Real PBSky component with distinctive artistic-override values,
+            // so exact baseline capture is provable.
+            rig.SceneSky = rig.SharedProfile.Add<global::PhysicallyBasedSky>(overrides: true);
+            rig.SceneSky.zenithTint.value = BaselineSkyZenith;
+            rig.SceneSky.horizonTint.value = BaselineSkyHorizon;
+            rig.SceneSky.colorSaturation.value = BASELINE_SKY_SATURATION;
+            rig.SceneSky.exposure.value = BASELINE_SKY_EXPOSURE;
 
             var volumeGo = Track(new GameObject("Test_GlobalVolume"));
             rig.GlobalVolume = volumeGo.AddComponent<Volume>();
@@ -146,6 +159,15 @@ namespace Lootbound.Tests.PlayMode
             // Volume.sharedProfile stays null for runtime-created volumes.
             if (volume == null || volume.profile == null) return null;
             return volume.profile.TryGet(out global::Fog fog) ? fog : null;
+        }
+
+        private static global::PhysicallyBasedSky FindRuntimeSky(Rig rig)
+        {
+            var child = rig.Applier.transform.Find(RUNTIME_VOLUME_NAME);
+            if (child == null) return null;
+            var volume = child.GetComponent<Volume>();
+            if (volume == null || volume.profile == null) return null;
+            return volume.profile.TryGet(out global::PhysicallyBasedSky sky) ? sky : null;
         }
 
         private static int CountRuntimeVolumes(Rig rig)
@@ -292,6 +314,93 @@ namespace Lootbound.Tests.PlayMode
             Assert.AreEqual(0, CountRuntimeVolumes(rig), "no runtime volume without a config");
             Assert.AreEqual(BASELINE_LIGHT_INTENSITY, rig.DirectionalLight.intensity, 0.0001f);
             Assert.AreEqual(BASELINE_MEAN_FREE_PATH, rig.SceneFog.meanFreePath.value, 0.0001f);
+        }
+
+        [UnityTest]
+        public IEnumerator SkyBaseline_IsCapturedExactly()
+        {
+            var rig = CreateRig();
+            yield return null;
+
+            Assert.AreEqual(BaselineSkyZenith, rig.Controller.Baseline.SkyZenithTint);
+            Assert.AreEqual(BaselineSkyHorizon, rig.Controller.Baseline.SkyHorizonTint);
+            Assert.AreEqual(BASELINE_SKY_SATURATION, rig.Controller.Baseline.SkyColorSaturation, 0.0001f);
+            Assert.AreEqual(BASELINE_SKY_EXPOSURE, rig.Controller.Baseline.SkyExposure, 0.0001f);
+        }
+
+        [UnityTest]
+        public IEnumerator RuntimeSky_HasSurgicalOverridesOnly_ExposureAbsentWhenOff()
+        {
+            var rig = CreateRig();
+            yield return null;
+
+            var runtimeSky = FindRuntimeSky(rig);
+            Assert.IsNotNull(runtimeSky, "the runtime volume must carry a sky override block");
+
+            // Driven artistic overrides.
+            Assert.IsTrue(runtimeSky.zenithTint.overrideState);
+            Assert.IsTrue(runtimeSky.horizonTint.overrideState);
+            Assert.IsTrue(runtimeSky.colorSaturation.overrideState);
+
+            // Exposure toggle is off by default: the override must be absent
+            // so the global profile stays fully in charge of the exposure.
+            Assert.IsFalse(runtimeSky.exposure.overrideState);
+
+            // Precomputation parameters must never be overridden (no LUT rebuild).
+            Assert.IsFalse(runtimeSky.type.overrideState);
+            Assert.IsFalse(runtimeSky.atmosphericScattering.overrideState);
+            Assert.IsFalse(runtimeSky.aerosolDensity.overrideState);
+            Assert.IsFalse(runtimeSky.aerosolTint.overrideState);
+            Assert.IsFalse(runtimeSky.airTint.overrideState);
+            Assert.IsFalse(runtimeSky.groundTint.overrideState);
+            Assert.IsFalse(runtimeSky.ozoneDensityDimmer.overrideState);
+
+            // Other artistic parameters stay untouched as well.
+            Assert.IsFalse(runtimeSky.horizonZenithShift.overrideState);
+            Assert.IsFalse(runtimeSky.alphaSaturation.overrideState);
+            Assert.IsFalse(runtimeSky.alphaMultiplier.overrideState);
+            Assert.IsFalse(runtimeSky.multiplier.overrideState);
+            Assert.IsFalse(runtimeSky.skyIntensityMode.overrideState);
+        }
+
+        [UnityTest]
+        public IEnumerator SkySharedProfile_IsNeverModified()
+        {
+            var rig = CreateRig(transitionSpeed: 50f);
+            yield return null;
+
+            rig.Controller.PreviewDepthOverride = 1f;
+            yield return new WaitForSeconds(0.5f);
+
+            Assert.AreEqual(BaselineSkyZenith, rig.SceneSky.zenithTint.value,
+                "the shared sky profile must keep its authored zenith tint");
+            Assert.AreEqual(BaselineSkyHorizon, rig.SceneSky.horizonTint.value);
+            Assert.AreEqual(BASELINE_SKY_SATURATION, rig.SceneSky.colorSaturation.value, 0.0001f);
+            Assert.AreEqual(BASELINE_SKY_EXPOSURE, rig.SceneSky.exposure.value, 0.0001f);
+        }
+
+        [UnityTest]
+        public IEnumerator PreviewDepth_DrivesSkyTintAndSaturation()
+        {
+            var rig = CreateRig(transitionSpeed: 50f);
+            yield return null;
+
+            rig.Controller.PreviewDepthOverride = 1f;
+            yield return new WaitForSeconds(0.6f);
+
+            var runtimeSky = FindRuntimeSky(rig);
+            Assert.IsNotNull(runtimeSky);
+            Assert.AreNotEqual(BaselineSkyZenith, runtimeSky.zenithTint.value,
+                "deep preview must drift the zenith tint away from the baseline");
+            Assert.AreNotEqual(BaselineSkyHorizon, runtimeSky.horizonTint.value);
+            Assert.Less(runtimeSky.colorSaturation.value, BASELINE_SKY_SATURATION,
+                "deep preview must flatten the sky saturation");
+            Assert.IsFalse(runtimeSky.exposure.overrideState,
+                "exposure stays absent from the runtime override with the default config");
+
+            // The smoothed state and the runtime component must agree.
+            Assert.AreEqual(rig.Controller.CurrentState.SkyColorSaturation,
+                runtimeSky.colorSaturation.value, 0.01f);
         }
 
         [UnityTest]

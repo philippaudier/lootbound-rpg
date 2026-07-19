@@ -1,4 +1,4 @@
-# World Ambience (slice 0.9.9)
+# World Ambience (slices 0.9.9 / 0.9.9.1)
 
 ## Purpose
 
@@ -83,6 +83,31 @@ come from composing both layers:
 
 Beyond the disc, `Depth01` is already clamped to 1 by `WorldProgression`:
 the Void inherits the Edgelands maximum without extrapolation.
+
+## Sky extension (slice 0.9.9.1)
+
+The same runtime volume also carries a `PhysicallyBasedSky` block driving
+ONLY the component's artistic overrides — never a parameter included in
+`GetPrecomputationHashCode`, so no atmosphere LUT rebuild is ever
+triggered:
+
+| Value | Refuge (depth 0) | Edgelands (depth 1) |
+|---|---|---|
+| `zenithTint` | exact baseline | 35 % drift toward (0.94, 0.96, 1.00) |
+| `horizonTint` | exact baseline | 50 % drift toward (0.90, 0.92, 0.95) |
+| `colorSaturation` | baseline | toward 0.90 floor (via `Saturation01`), never above baseline |
+| `exposure` | **not driven** (default) | opt-in: baseline −0.20 EV via `LightAttenuation01` |
+
+- When `controlSkyExposure` is off (default), the exposure override is
+  **absent** from the runtime volume — the global profile stays fully in
+  charge. The toggle exists because sky dimming composes with the ambient
+  multiplier.
+- If the global profile has no `PhysicallyBasedSky`, the sky is simply not
+  driven (clean fallback, same as the fog).
+- Clouds, weather, sun rotation and all physical/precomputation sky
+  parameters stay strictly untouched.
+- F7 shows the driven sky values (baseline / current → target, and
+  "Exposure: off (global profile)" when uncontrolled).
 
 ## Timing
 

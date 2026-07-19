@@ -56,9 +56,29 @@ namespace Lootbound.Gameplay.World.Ambience
 
             float contrast = config.EnableContrast ? depth * config.MaximumContrast : 0f;
 
+            // Sky artistic overrides: same drift pattern as the fog tint -
+            // Depth 0 is the exact baseline, the targets are only blended in
+            // progressively, bounded by their configured influences.
+            Color skyZenith = Color.Lerp(baseline.SkyZenithTint, config.SkyZenithTintTarget,
+                depth * Mathf.Clamp01(config.SkyZenithTintInfluence));
+            Color skyHorizon = Color.Lerp(baseline.SkyHorizonTint, config.SkyHorizonTintTarget,
+                depth * Mathf.Clamp01(config.SkyHorizonTintInfluence));
+
+            // Saturation01 = 1 means fully natural -> baseline saturation.
+            // The floor never exceeds the baseline: depth can only flatten the
+            // sky, never make it more saturated than the scene's own look.
+            float skySaturationFloor = Mathf.Min(baseline.SkyColorSaturation, config.MinimumSkyColorSaturation);
+            float skySaturation = Mathf.Clamp01(
+                Mathf.Lerp(skySaturationFloor, baseline.SkyColorSaturation, saturationIntent));
+
+            float skyExposure = config.ControlSkyExposure
+                ? baseline.SkyExposure + Mathf.Lerp(0f, config.MinimumSkyExposureOffset, attenuationIntent)
+                : baseline.SkyExposure;
+
             return new WorldAmbienceState(
                 meanFreePath, fogTint, maxFogDistance, config.ControlMaxFogDistance,
-                directional, ambient, saturation, temperature, contrast);
+                directional, ambient, saturation, temperature, contrast,
+                skyZenith, skyHorizon, skySaturation, skyExposure, config.ControlSkyExposure);
         }
 
         private static float Sane01(float value, float fallback = 0f)

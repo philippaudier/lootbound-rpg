@@ -150,6 +150,17 @@ namespace Lootbound.Debugging
             GUILayout.Label($"  Sat {current.SaturationOffset:F1} -> {target.SaturationOffset:F1}   " +
                             $"Temp {current.TemperatureOffset:F1} -> {target.TemperatureOffset:F1}   " +
                             $"Contrast {current.ContrastOffset:F1} -> {target.ContrastOffset:F1}");
+            GUILayout.Label($"  Sky zenith #{ColorUtility.ToHtmlStringRGB(current.SkyZenithTint)} -> " +
+                            $"#{ColorUtility.ToHtmlStringRGB(target.SkyZenithTint)}  " +
+                            $"(baseline #{ColorUtility.ToHtmlStringRGB(baseline.SkyZenithTint)})");
+            GUILayout.Label($"  Sky horizon #{ColorUtility.ToHtmlStringRGB(current.SkyHorizonTint)} -> " +
+                            $"#{ColorUtility.ToHtmlStringRGB(target.SkyHorizonTint)}  " +
+                            $"(baseline #{ColorUtility.ToHtmlStringRGB(baseline.SkyHorizonTint)})");
+            string skyExposure = target.ControlSkyExposure
+                ? $"Exposure {current.SkyExposure:F2} -> {target.SkyExposure:F2} EV (baseline {baseline.SkyExposure:F2})"
+                : "Exposure: off (global profile)";
+            GUILayout.Label($"  Sky sat {current.SkyColorSaturation:F2} -> {target.SkyColorSaturation:F2} " +
+                            $"(baseline {baseline.SkyColorSaturation:F2})   {skyExposure}");
             GUILayout.Space(6f);
         }
 

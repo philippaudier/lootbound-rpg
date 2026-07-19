@@ -36,6 +36,14 @@ namespace Lootbound.Tests.EditMode
             return config;
         }
 
+        private static void SetField(object obj, string fieldName, object value)
+        {
+            var field = obj.GetType().GetField(fieldName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.IsNotNull(field, $"Field {fieldName} not found on {obj.GetType().Name}");
+            field.SetValue(obj, value);
+        }
+
         private static WorldRingContext MakeContext(
             float depth, float fog, float attenuation, float saturation, float temperature)
         {
@@ -257,6 +265,160 @@ namespace Lootbound.Tests.EditMode
 
         #endregion
 
+        #region Sky (slice 0.9.9.1)
+
+        private static readonly WorldAmbienceBaseline SkyBaseline = new WorldAmbienceBaseline(
+            400f, Color.white, 5000f,
+            new Color(1f, 0.98f, 0.96f), new Color(0.98f, 0.97f, 0.95f), 1f, 0.3f);
+
+        [Test]
+        public void Evaluate_SkyAtDepthZero_IsExactBaseline()
+        {
+            var config = CreateDefaultConfig();
+            var context = MakeContext(0f, 0f, 0f, 1f, 0.5f);
+
+            var state = WorldAmbienceEvaluator.Evaluate(context, config, SkyBaseline);
+
+            Assert.AreEqual(SkyBaseline.SkyZenithTint, state.SkyZenithTint);
+            Assert.AreEqual(SkyBaseline.SkyHorizonTint, state.SkyHorizonTint);
+            Assert.AreEqual(SkyBaseline.SkyColorSaturation, state.SkyColorSaturation, EPSILON);
+            Assert.AreEqual(SkyBaseline.SkyExposure, state.SkyExposure, EPSILON);
+            Assert.IsFalse(state.ControlSkyExposure);
+        }
+
+        [Test]
+        public void Evaluate_SkyAtFullDepth_ReachesBoundedTargets()
+        {
+            var config = CreateDefaultConfig();
+            var context = MakeContext(1f, 1f, 1f, 0f, 0f);
+
+            var state = WorldAmbienceEvaluator.Evaluate(context, config, SkyBaseline);
+
+            // Influences 0.35 / 0.50: the tints drift toward the targets but
+            // never reach them - a drift of the same sky, never a replacement.
+            Color expectedZenith = Color.Lerp(SkyBaseline.SkyZenithTint, config.SkyZenithTintTarget, 0.35f);
+            Color expectedHorizon = Color.Lerp(SkyBaseline.SkyHorizonTint, config.SkyHorizonTintTarget, 0.50f);
+            Assert.AreEqual(expectedZenith.r, state.SkyZenithTint.r, 0.001f);
+            Assert.AreEqual(expectedZenith.g, state.SkyZenithTint.g, 0.001f);
+            Assert.AreEqual(expectedZenith.b, state.SkyZenithTint.b, 0.001f);
+            Assert.AreEqual(expectedHorizon.r, state.SkyHorizonTint.r, 0.001f);
+            Assert.AreEqual(expectedHorizon.g, state.SkyHorizonTint.g, 0.001f);
+            Assert.AreEqual(expectedHorizon.b, state.SkyHorizonTint.b, 0.001f);
+
+            // Saturation at zero intent hits the configured minimum (0.90).
+            Assert.AreEqual(0.90f, state.SkyColorSaturation, EPSILON);
+        }
+
+        [Test]
+        public void Evaluate_SkyExposure_DefaultOff_KeepsBaselineAndNoControl()
+        {
+            var config = CreateDefaultConfig();
+            var context = MakeContext(1f, 1f, 1f, 0f, 0f);
+
+            var state = WorldAmbienceEvaluator.Evaluate(context, config, SkyBaseline);
+
+            Assert.IsFalse(state.ControlSkyExposure, "V1 default must not control sky exposure");
+            Assert.AreEqual(SkyBaseline.SkyExposure, state.SkyExposure, EPSILON,
+                "exposure must stay at the baseline when not controlled");
+        }
+
+        [Test]
+        public void Evaluate_SkyExposure_WhenEnabled_OffsetsBaselineByAttenuation()
+        {
+            var config = CreateDefaultConfig();
+            SetField(config, "controlSkyExposure", true);
+
+            var full = WorldAmbienceEvaluator.Evaluate(
+                MakeContext(1f, 1f, 1f, 0f, 0f), config, SkyBaseline);
+            Assert.IsTrue(full.ControlSkyExposure);
+            Assert.AreEqual(SkyBaseline.SkyExposure - 0.20f, full.SkyExposure, EPSILON,
+                "full attenuation intent applies the configured -0.20 EV offset to the baseline");
+
+            var half = WorldAmbienceEvaluator.Evaluate(
+                MakeContext(1f, 1f, 0.5f, 0.6f, 0.25f), config, SkyBaseline);
+            Assert.AreEqual(SkyBaseline.SkyExposure - 0.10f, half.SkyExposure, EPSILON,
+                "default edge attenuation intent 0.5 lands at -0.10 EV");
+        }
+
+        [Test]
+        public void Evaluate_SkySaturation_NeverRisesAboveBaseline()
+        {
+            var config = CreateDefaultConfig();
+            // Scene authored below the configured minimum: depth must never
+            // make the sky MORE saturated than the scene's own look.
+            var lowSaturationBaseline = new WorldAmbienceBaseline(
+                400f, Color.white, 5000f, Color.white, Color.white, 0.8f, 0f);
+
+            foreach (float saturationIntent in new[] { 0f, 0.5f, 1f })
+            {
+                var state = WorldAmbienceEvaluator.Evaluate(
+                    MakeContext(1f, 1f, 1f, saturationIntent, 0f), config, lowSaturationBaseline);
+                Assert.LessOrEqual(state.SkyColorSaturation, 0.8f + EPSILON);
+            }
+        }
+
+        [Test]
+        public void Evaluate_SkyWithNaNIntents_ProducesNoNaN()
+        {
+            var config = CreateDefaultConfig();
+            var context = MakeContext(float.NaN, float.NaN, float.NaN, float.NaN, float.NaN);
+
+            var state = WorldAmbienceEvaluator.Evaluate(context, config, SkyBaseline);
+
+            Assert.IsFalse(float.IsNaN(state.SkyZenithTint.r));
+            Assert.IsFalse(float.IsNaN(state.SkyHorizonTint.r));
+            Assert.IsFalse(float.IsNaN(state.SkyColorSaturation));
+            Assert.IsFalse(float.IsNaN(state.SkyExposure));
+            // NaN saturation intent falls back to fully natural -> baseline.
+            Assert.AreEqual(SkyBaseline.SkyColorSaturation, state.SkyColorSaturation, EPSILON);
+        }
+
+        [Test]
+        public void SkyBaseline_GuardsInvalidValues()
+        {
+            var nan = new WorldAmbienceBaseline(
+                400f, Color.white, 5000f, Color.white, Color.white, float.NaN, float.NaN);
+            Assert.AreEqual(1f, nan.SkyColorSaturation);
+            Assert.AreEqual(0f, nan.SkyExposure);
+
+            var outOfRange = new WorldAmbienceBaseline(
+                400f, Color.white, 5000f, Color.white, Color.white, 2.5f, 0.3f);
+            Assert.AreEqual(1f, outOfRange.SkyColorSaturation, "saturation is clamped to 0..1");
+            Assert.AreEqual(0.3f, outOfRange.SkyExposure, EPSILON);
+
+            // The compact 3-arg constructor yields a neutral sky.
+            var neutral = new WorldAmbienceBaseline(400f, Color.white, 5000f);
+            Assert.AreEqual(Color.white, neutral.SkyZenithTint);
+            Assert.AreEqual(Color.white, neutral.SkyHorizonTint);
+            Assert.AreEqual(1f, neutral.SkyColorSaturation);
+            Assert.AreEqual(0f, neutral.SkyExposure);
+        }
+
+        [Test]
+        public void Interpolate_SkyFields_AreStableAndDoNotOvershoot()
+        {
+            var current = WorldAmbienceState.AtBaseline(SkyBaseline);
+            var target = new WorldAmbienceState(
+                160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, 0.1f, true);
+
+            var atOne = WorldAmbienceState.Interpolate(current, target, 1f);
+            Assert.AreEqual(target.SkyZenithTint, atOne.SkyZenithTint);
+            Assert.AreEqual(target.SkyColorSaturation, atOne.SkyColorSaturation, EPSILON);
+            Assert.AreEqual(target.SkyExposure, atOne.SkyExposure, EPSILON);
+            Assert.IsTrue(atOne.ControlSkyExposure, "the control flag follows the target");
+
+            var beyond = WorldAmbienceState.Interpolate(current, target, 3f);
+            Assert.AreEqual(target.SkyColorSaturation, beyond.SkyColorSaturation, EPSILON, "no overshoot");
+
+            var half = WorldAmbienceState.Interpolate(current, target, 0.5f);
+            Assert.AreEqual(
+                (current.SkyColorSaturation + target.SkyColorSaturation) * 0.5f,
+                half.SkyColorSaturation, EPSILON);
+        }
+
+        #endregion
+
         #region Baseline and state
 
         [Test]
@@ -295,7 +457,8 @@ namespace Lootbound.Tests.EditMode
         {
             var current = WorldAmbienceState.AtBaseline(SceneBaseline);
             var target = new WorldAmbienceState(
-                160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f);
+                160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false);
 
             var atZero = WorldAmbienceState.Interpolate(current, target, 0f);
             Assert.AreEqual(current.MeanFreePath, atZero.MeanFreePath, EPSILON);
@@ -311,7 +474,8 @@ namespace Lootbound.Tests.EditMode
         {
             var current = WorldAmbienceState.AtBaseline(SceneBaseline);
             var target = new WorldAmbienceState(
-                160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f);
+                160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false);
 
             var beyond = WorldAmbienceState.Interpolate(current, target, 2.5f);
             Assert.AreEqual(target.MeanFreePath, beyond.MeanFreePath, EPSILON);

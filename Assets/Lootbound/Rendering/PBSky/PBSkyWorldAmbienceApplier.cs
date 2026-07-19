@@ -42,6 +42,8 @@ namespace Lootbound.Rendering.PBSky
         private global::Fog runtimeFog;
         private ColorAdjustments runtimeColorAdjustments;
         private WhiteBalance runtimeWhiteBalance;
+        private global::PhysicallyBasedSky runtimeSky;
+        private bool sceneHasSky;
 
         private float baselineDirectionalIntensity;
         private float baselineAmbientIntensity;
@@ -52,21 +54,50 @@ namespace Lootbound.Rendering.PBSky
         {
             fallbackNote = "";
 
+            float fogMeanFreePath = 400f;
+            Color fogTint = Color.white;
+            float fogMaxDistance = 5000f;
+
             // Fog baseline: read from the existing shared profile (never written).
-            if (globalVolume != null && globalVolume.sharedProfile != null &&
-                globalVolume.sharedProfile.TryGet(out global::Fog sceneFog))
+            var sharedProfile = globalVolume != null ? globalVolume.sharedProfile : null;
+            if (sharedProfile != null && sharedProfile.TryGet(out global::Fog sceneFog))
             {
-                baseline = new WorldAmbienceBaseline(
-                    sceneFog.meanFreePath.value,
-                    sceneFog.tint.value,
-                    sceneFog.maxFogDistance.value);
+                fogMeanFreePath = sceneFog.meanFreePath.value;
+                fogTint = sceneFog.tint.value;
+                fogMaxDistance = sceneFog.maxFogDistance.value;
             }
             else
             {
-                baseline = WorldAmbienceBaseline.Default;
                 fallbackNote = "no PBSky Fog found on the global volume - using default fog baseline";
                 LootboundLog.Warning(LogCategory, fallbackNote);
             }
+
+            // Sky baseline: only the artistic overrides (never precomputation
+            // parameters). Without a scene sky, the sky is simply not driven.
+            Color skyZenith = Color.white;
+            Color skyHorizon = Color.white;
+            float skySaturation = 1f;
+            float skyExposure = 0f;
+
+            sceneHasSky = sharedProfile != null && sharedProfile.TryGet(out global::PhysicallyBasedSky sceneSky);
+            if (sceneHasSky)
+            {
+                sharedProfile.TryGet(out global::PhysicallyBasedSky sky);
+                skyZenith = sky.zenithTint.value;
+                skyHorizon = sky.horizonTint.value;
+                skySaturation = sky.colorSaturation.value;
+                skyExposure = sky.exposure.value;
+            }
+            else
+            {
+                fallbackNote = string.IsNullOrEmpty(fallbackNote)
+                    ? "no PhysicallyBasedSky on the global volume - sky is not driven"
+                    : fallbackNote + "; no PhysicallyBasedSky - sky is not driven";
+            }
+
+            baseline = new WorldAmbienceBaseline(
+                fogMeanFreePath, fogTint, fogMaxDistance,
+                skyZenith, skyHorizon, skySaturation, skyExposure);
 
             RefreshLightingBaseline();
             EnsureRuntimeVolume();
@@ -100,6 +131,21 @@ namespace Lootbound.Rendering.PBSky
             runtimeColorAdjustments.contrast.value = state.ContrastOffset;
             runtimeWhiteBalance.temperature.value = state.TemperatureOffset;
 
+            if (runtimeSky != null)
+            {
+                runtimeSky.zenithTint.value = state.SkyZenithTint;
+                runtimeSky.horizonTint.value = state.SkyHorizonTint;
+                runtimeSky.colorSaturation.value = state.SkyColorSaturation;
+
+                // When exposure is not controlled, the override is absent and
+                // the global profile stays fully in charge of the exposure.
+                runtimeSky.exposure.overrideState = state.ControlSkyExposure;
+                if (state.ControlSkyExposure)
+                {
+                    runtimeSky.exposure.value = state.SkyExposure;
+                }
+            }
+
             if (directionalLight != null && lightingBaselineCaptured)
             {
                 directionalLight.intensity = baselineDirectionalIntensity * state.DirectionalMultiplier;
@@ -129,6 +175,7 @@ namespace Lootbound.Rendering.PBSky
             runtimeFog = null;
             runtimeColorAdjustments = null;
             runtimeWhiteBalance = null;
+            runtimeSky = null;
 
             // External values: written back exactly.
             if (lightingBaselineCaptured)
@@ -147,8 +194,9 @@ namespace Lootbound.Rendering.PBSky
             {
                 string volume = runtimeVolumeObject != null ? "runtime volume OK" : "no runtime volume";
                 string light = directionalLight != null ? "light OK" : "no directional light";
+                string sky = runtimeSky != null ? "sky OK" : "sky not driven";
                 string note = string.IsNullOrEmpty(fallbackNote) ? "" : $"  [{fallbackNote}]";
-                return $"{volume}, {light}{note}";
+                return $"{volume}, {light}, {sky}{note}";
             }
         }
 
@@ -186,6 +234,19 @@ namespace Lootbound.Rendering.PBSky
 
             runtimeWhiteBalance = runtimeProfile.Add<WhiteBalance>(overrides: false);
             runtimeWhiteBalance.temperature.overrideState = true;
+
+            // Sky: artistic overrides only, and only when the scene actually
+            // has a PhysicallyBasedSky. No precomputation parameter is ever
+            // overridden, so this never triggers a LUT rebuild. The exposure
+            // overrideState is driven per-state in Apply (absent when the
+            // config toggle is off).
+            if (sceneHasSky)
+            {
+                runtimeSky = runtimeProfile.Add<global::PhysicallyBasedSky>(overrides: false);
+                runtimeSky.zenithTint.overrideState = true;
+                runtimeSky.horizonTint.overrideState = true;
+                runtimeSky.colorSaturation.overrideState = true;
+            }
 
             var volume = runtimeVolumeObject.AddComponent<Volume>();
             volume.isGlobal = true;

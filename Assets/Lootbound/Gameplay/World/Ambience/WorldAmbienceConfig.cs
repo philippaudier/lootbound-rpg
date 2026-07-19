@@ -74,6 +74,35 @@ namespace Lootbound.Gameplay.World.Ambience
         [Tooltip("URP contrast at Depth01 = 1")]
         private float maximumContrast = 4f;
 
+        [Header("Sky (PBSky artistic overrides only - never precomputation parameters)")]
+        [SerializeField]
+        [Tooltip("Zenith tint drift target at full depth. Depth 0 is ALWAYS the exact baseline tint.")]
+        private Color skyZenithTintTarget = new Color(0.94f, 0.96f, 1.00f);
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("How strongly the zenith tint drifts toward the target at full depth (0 = never leave baseline)")]
+        private float skyZenithTintInfluence = 0.35f;
+
+        [SerializeField]
+        [Tooltip("Horizon tint drift target at full depth (slightly desaturated grey: a less welcoming horizon)")]
+        private Color skyHorizonTintTarget = new Color(0.90f, 0.92f, 0.95f);
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("How strongly the horizon tint drifts toward the target at full depth")]
+        private float skyHorizonTintInfluence = 0.50f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("PBSky color saturation at FULLY desaturated intent (Saturation01 = 0). Default intent floors at 0.6 -> Edgelands lands at ~0.96: a flatter, less familiar sky.")]
+        private float minimumSkyColorSaturation = 0.90f;
+
+        [SerializeField]
+        [Tooltip("V1 default: off. When off, the sky exposure override is NOT created and the global profile stays fully in charge. Enable only if the deep world should feel dimmer from the sky itself (composes with the ambient multiplier).")]
+        private bool controlSkyExposure;
+
+        [SerializeField, Range(-1f, 0f)]
+        [Tooltip("Sky exposure offset in EV at FULL attenuation intent (only when controlled)")]
+        private float minimumSkyExposureOffset = -0.20f;
+
         [Header("Timing")]
         [SerializeField, Range(0.05f, 2f)]
         [Tooltip("Seconds between context evaluations at the player position")]
@@ -95,6 +124,13 @@ namespace Lootbound.Gameplay.World.Ambience
         public float MaximumTemperatureOffset => maximumTemperatureOffset;
         public bool EnableContrast => enableContrast;
         public float MaximumContrast => maximumContrast;
+        public Color SkyZenithTintTarget => skyZenithTintTarget;
+        public float SkyZenithTintInfluence => skyZenithTintInfluence;
+        public Color SkyHorizonTintTarget => skyHorizonTintTarget;
+        public float SkyHorizonTintInfluence => skyHorizonTintInfluence;
+        public float MinimumSkyColorSaturation => minimumSkyColorSaturation;
+        public bool ControlSkyExposure => controlSkyExposure;
+        public float MinimumSkyExposureOffset => minimumSkyExposureOffset;
         public float EvaluationInterval => evaluationInterval;
         public float TransitionSpeed => transitionSpeed;
 
