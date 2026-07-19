@@ -180,10 +180,39 @@ namespace Lootbound.UI
             if (inventoryPanel != null)
             {
                 inventoryPanel.style.display = DisplayStyle.None;
+
+                // The cloned TemplateContainer between the document root and
+                // the panel has no definite height, so percent-based bounds
+                // (max-height: 92%) never resolve and the centered panel can
+                // overflow the screen. Stretch every intermediate container
+                // and enforce the bound in pixels from the real root height.
+                for (var element = inventoryPanel.parent; element != null && element != root; element = element.parent)
+                {
+                    element.style.flexGrow = 1;
+                }
+
+                root.RegisterCallback<GeometryChangedEvent>(_ => ApplyPanelHeightBound());
+                ApplyPanelHeightBound();
             }
 
             // Start with picking disabled - will enable when opened
             root.pickingMode = PickingMode.Ignore;
+        }
+
+        /// <summary>
+        /// Caps the panel height in pixels (92% of the resolved root height)
+        /// so item details can never spill past the screen edge; the details
+        /// column scrolls instead. Re-applied on every root geometry change
+        /// (resolution or aspect switches).
+        /// </summary>
+        private void ApplyPanelHeightBound()
+        {
+            if (inventoryPanel == null || root == null) return;
+
+            float rootHeight = root.resolvedStyle.height;
+            if (float.IsNaN(rootHeight) || rootHeight <= 0f) return;
+
+            inventoryPanel.style.maxHeight = rootHeight * 0.92f;
         }
 
         private void Start()
