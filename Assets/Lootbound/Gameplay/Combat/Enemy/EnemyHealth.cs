@@ -150,6 +150,16 @@ namespace Lootbound.Gameplay.Combat
         /// <summary>
         /// Apply damage to the enemy.
         /// </summary>
+        /// <summary>
+        /// Restore health to a normalized value without any damage event
+        /// (no stagger, no defensive reaction). Used by ambient population
+        /// streaming: an unload/reload must never heal an enemy for free.
+        /// </summary>
+        public void RestoreNormalizedHealth(float normalized)
+        {
+            health?.SetHealth(Mathf.Clamp01(normalized) * MaxHealth);
+        }
+
         public DamageResult TakeDamage(DamageRequest request)
         {
             if (IsDead)

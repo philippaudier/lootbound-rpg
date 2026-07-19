@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Lootbound.Gameplay.World;
+using Lootbound.Gameplay.World.Population;
 using Lootbound.Gameplay.World.Progression;
 using Lootbound.Gameplay.World.Spawning;
 
@@ -20,6 +21,7 @@ namespace Lootbound.Debugging
         [SerializeField] private EncounterRegistry encounterRegistry;
         [SerializeField] private ResourceSpawnRegistry resourceRegistry;
         [SerializeField] private LandmarkRegistry landmarkRegistry;
+        [SerializeField] private AmbientPopulationController ambientController;
         [SerializeField] private Key toggleKey = Key.F7;
 
         [SerializeField]
@@ -64,6 +66,8 @@ namespace Lootbound.Debugging
 
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
 
+            DrawAmbientSection();
+
             if (TryGetAimedPoint(out Vector3 aimedPoint))
             {
                 var aimed = progression.GetContext(aimedPoint);
@@ -77,6 +81,42 @@ namespace Lootbound.Debugging
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        private void DrawAmbientSection()
+        {
+            if (ambientController == null)
+            {
+                return;
+            }
+
+            GUILayout.Label("<b>Ambient Population</b>", RichLabel());
+
+            if (!ambientController.IsActive)
+            {
+                GUILayout.Label("  inactive (waiting for terrain + navigation)");
+                return;
+            }
+
+            var registry = ambientController.Registry;
+            GUILayout.Label(
+                $"  alive {registry.TotalAlive}/{ambientController.GlobalBudget}   cells planned {registry.PlannedCellCount}   " +
+                $"spawned {registry.TotalSpawned}   despawned {registry.TotalDespawned}   deaths {registry.TotalDeaths}");
+
+            if (ambientController.TryGetCurrentCellInfo(out var cell, out int cellSeed, out var cellContext))
+            {
+                GUILayout.Label($"  current cell ({cell.x},{cell.y})  seed {cellSeed}  " +
+                                $"{cellContext.Ring}  depth {cellContext.Depth01:F2}");
+            }
+
+            if (ambientController.RecentRejections.Count > 0)
+            {
+                GUILayout.Label("  <b>Recent rejections</b>", RichLabel());
+                foreach (var rejection in ambientController.RecentRejections)
+                {
+                    GUILayout.Label($"    {rejection.Reason} ({rejection.Kind}) at ({rejection.Position.x:F0},{rejection.Position.z:F0})");
+                }
+            }
         }
 
         private bool TryGetAimedPoint(out Vector3 point)

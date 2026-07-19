@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d751003b4846ca341a8ff6539c2dd1bd, type: 3}
+  m_Name: DefaultAmbientPopulationConfig
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.Population.AmbientPopulationConfig
+  definitions:
+  - {fileID: 11400000, guid: 5a675e8544ebe9c498b6fc6f80f7293a, type: 2}
+  cellSize: 48
+  maxPlansPerCell: 2
+  candidatesPerAnchor: 6
+  evaluationInterval: 1.5
+  maxCellActivationsPerTick: 3
+  spawnAttemptsPerTick: 4
+  spawnRadiusMin: 35
+  spawnRadiusMax: 100
+  despawnRadius: 150
+  minimumDistanceFromPlayer: 30
+  minimumDistanceBetweenIndividuals: 10
+  minimumDistanceFromRefuge: 20
+  globalPopulationBudget: 20
+  despawnGraceDuration: 10
+  respawnAfterDeath: 0
+  respawnCooldown: 600
+  rejectInsideCameraFrustum: 1
+  useLineOfSightRejection: 0
