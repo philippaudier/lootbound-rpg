@@ -64,6 +64,10 @@ namespace Lootbound.Gameplay.World.Population
         [Tooltip("Reject spawn points inside the camera frustum")]
         private bool rejectInsideCameraFrustum = true;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("Frustum rejection only applies within this distance of the player: a far spawn in view is imperceptible. MinimumDistanceFromPlayer remains the absolute protection.")]
+        private float visibleSpawnProtectionDistance = 55f;
+
         [SerializeField]
         [Tooltip("Optional extra line-of-sight raycast rejection (off by default)")]
         private bool useLineOfSightRejection;
@@ -86,6 +90,7 @@ namespace Lootbound.Gameplay.World.Population
         public bool RespawnAfterDeath => respawnAfterDeath;
         public float RespawnCooldown => respawnCooldown;
         public bool RejectInsideCameraFrustum => rejectInsideCameraFrustum;
+        public float VisibleSpawnProtectionDistance => visibleSpawnProtectionDistance;
         public bool UseLineOfSightRejection => useLineOfSightRejection;
 
         private void OnValidate()
@@ -93,6 +98,7 @@ namespace Lootbound.Gameplay.World.Population
             spawnRadiusMax = Mathf.Max(spawnRadiusMax, spawnRadiusMin + 1f);
             despawnRadius = Mathf.Max(despawnRadius, spawnRadiusMax + 10f);
             minimumDistanceFromPlayer = Mathf.Min(minimumDistanceFromPlayer, spawnRadiusMin);
+            visibleSpawnProtectionDistance = Mathf.Max(visibleSpawnProtectionDistance, minimumDistanceFromPlayer);
         }
     }
 }

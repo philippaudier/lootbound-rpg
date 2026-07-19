@@ -447,7 +447,12 @@ namespace Lootbound.Gameplay.World.Population
                 if (validationContext.PlayerPosition.HasValue &&
                     Vector3.Distance(position, validationContext.PlayerPosition.Value) < config.MinimumDistanceFromPlayer) return false;
                 if (validationContext.FrustumPlanes != null &&
-                    AmbientSpawnValidator.IsInsideFrustum(position, validationContext.FrustumPlanes)) return false;
+                    AmbientSpawnValidator.IsInsideFrustum(position, validationContext.FrustumPlanes))
+                {
+                    bool withinProtection = !validationContext.PlayerPosition.HasValue ||
+                        Vector3.Distance(position, validationContext.PlayerPosition.Value) < config.VisibleSpawnProtectionDistance;
+                    if (withinProtection) return false;
+                }
                 return true;
             }
 

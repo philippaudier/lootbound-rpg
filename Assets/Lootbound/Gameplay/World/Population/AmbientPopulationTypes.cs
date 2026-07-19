@@ -156,7 +156,7 @@ namespace Lootbound.Gameplay.World.Population
 
         // Transient - retry later, same intention
         PlayerTooClose,
-        InsideCameraFrustum,
+        VisibleWithinProtectionDistance,
         GlobalBudgetReached,
         DefinitionBudgetReached,
         CellBudgetReached,
@@ -187,6 +187,8 @@ namespace Lootbound.Gameplay.World.Population
                 case AmbientSpawnRejectionReason.TooCloseToRefuge:
                 case AmbientSpawnRejectionReason.TooCloseToAuthoredContent:
                     return AmbientSpawnRejectionKind.Structural;
+                // (all remaining reasons, including VisibleWithinProtectionDistance,
+                // fall through to Transient below)
 
                 default:
                     return AmbientSpawnRejectionKind.Transient;

@@ -314,7 +314,7 @@ namespace Lootbound.Tests.EditMode
             var transient = new[]
             {
                 AmbientSpawnRejectionReason.PlayerTooClose,
-                AmbientSpawnRejectionReason.InsideCameraFrustum,
+                AmbientSpawnRejectionReason.VisibleWithinProtectionDistance,
                 AmbientSpawnRejectionReason.GlobalBudgetReached,
                 AmbientSpawnRejectionReason.DefinitionBudgetReached,
                 AmbientSpawnRejectionReason.CellBudgetReached,
@@ -510,6 +510,42 @@ namespace Lootbound.Tests.EditMode
 
             Assert.AreEqual(AmbientSpawnRejectionReason.NeighborTooClose, result.RejectionReason);
             Assert.AreEqual(AmbientSpawnRejectionKind.Transient, result.RejectionKind);
+        }
+
+        [Test]
+        public void VisibleSpawn_IsProtectedOnlyWithinTheProtectionDistance()
+        {
+            var definition = CreateDefinition("walker");
+            var config = CreateConfig(definition); // defaults: protection 55m, min player 30m
+
+            // A huge inward-facing "frustum" containing the whole test area:
+            // every candidate counts as visible.
+            var everythingVisible = new[]
+            {
+                new Plane(Vector3.right, Vector3.left * 10000f),
+                new Plane(Vector3.left, Vector3.right * 10000f),
+                new Plane(Vector3.forward, Vector3.back * 10000f),
+                new Plane(Vector3.back, Vector3.forward * 10000f),
+                new Plane(Vector3.up, Vector3.down * 10000f),
+                new Plane(Vector3.down, Vector3.up * 10000f)
+            };
+
+            Vector3 playerPosition = DiscCenter + new Vector3(120f, 0f, 0f);
+            var context = CreateValidationContext(config, playerPosition: playerPosition);
+            context.FrustumPlanes = everythingVisible;
+
+            // Visible at 40m (inside the 55m protection): transient rejection.
+            var near = AmbientSpawnValidator.Validate(
+                PlanAt(playerPosition + new Vector3(0f, 0f, 40f)), definition, context);
+            Assert.IsFalse(near.IsValid);
+            Assert.AreEqual(AmbientSpawnRejectionReason.VisibleWithinProtectionDistance, near.RejectionReason);
+            Assert.AreEqual(AmbientSpawnRejectionKind.Transient, near.RejectionKind);
+
+            // Visible at 80m (beyond the protection): allowed when everything
+            // else is valid - a far spawn in view is imperceptible.
+            var far = AmbientSpawnValidator.Validate(
+                PlanAt(playerPosition + new Vector3(0f, 0f, 80f)), definition, context);
+            Assert.IsTrue(far.IsValid, "Beyond the protection distance, visibility must not block the spawn");
         }
 
         [Test]

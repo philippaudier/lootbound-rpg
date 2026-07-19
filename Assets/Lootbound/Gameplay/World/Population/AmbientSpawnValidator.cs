@@ -148,10 +148,19 @@ namespace Lootbound.Gameplay.World.Population
                 }
             }
 
+            // The frustum only protects up to VisibleSpawnProtectionDistance:
+            // a far spawn in view is imperceptible, and blocking it would
+            // sterilize the whole corridor a forward-looking player walks.
+            // MinimumDistanceFromPlayer (above) remains the absolute rule.
             if (config.RejectInsideCameraFrustum && context.FrustumPlanes != null &&
                 IsInsideFrustum(resolved, context.FrustumPlanes))
             {
-                return AmbientSpawnRejectionReason.InsideCameraFrustum;
+                bool withinProtection = !context.PlayerPosition.HasValue ||
+                    Vector3.Distance(resolved, context.PlayerPosition.Value) < config.VisibleSpawnProtectionDistance;
+                if (withinProtection)
+                {
+                    return AmbientSpawnRejectionReason.VisibleWithinProtectionDistance;
+                }
             }
 
             if (context.Registry != null &&

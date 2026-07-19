@@ -57,8 +57,12 @@ AmbientPopulationRegistry     what happened to this presence (local memory)
 
 ## Anti-pop rules
 
-`MinimumDistanceFromPlayer` + camera frustum rejection (optional
-line-of-sight raycast exists, off by default). The initial pass PLANS every
+`MinimumDistanceFromPlayer` is the absolute protection. The camera-frustum
+rejection only applies within `VisibleSpawnProtectionDistance` (55 m by
+default): a far spawn in view is imperceptible, and blocking it would
+sterilize the corridor a forward-looking player walks toward. Rejection
+reason: `VisibleWithinProtectionDistance` (transient). An optional
+line-of-sight raycast exists, off by default. The initial pass PLANS every
 nearby cell but MATERIALIZES only what passes these rules: a nearby cell can
 hold an intention without a creature popping next to the player.
 
