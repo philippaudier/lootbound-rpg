@@ -16,6 +16,25 @@ The world is divided into 7 concentric rings:
 | **Edgelands** | 0.75 - 0.90 | The boundary between known and unknown |
 | **Void** | 0.90+ | Future expansion territory |
 
+### Designer reading (since slice 0.9.7)
+
+The emotional progression maps onto the fine partition — balance itself
+uses the continuous `Depth01` through `WorldProgression`
+(see `WORLD_PROGRESSION.md`):
+
+| Feeling | Rings |
+|---------|-------|
+| Refuge — safety | Refuge |
+| Near — first steps | Nearlands |
+| Exploration — the wild begins | Wildlands |
+| Distant — preparation required | Farlands, Outerlands |
+| Deep — respect | Edgelands (+ Void, outside the playable disc by default) |
+
+Content definition ring windows (`MinimumRing`/`MaximumRing`) are
+**inclusive on both ends** and default to ending at Edgelands: Void must be
+opted into explicitly. The spatial thresholds below keep their own
+min-inclusive / max-exclusive rule.
+
 ## Technical Implementation
 
 ### Boundary Rule

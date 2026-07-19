@@ -49,6 +49,22 @@ namespace Lootbound.Gameplay.World.Layout
         /// </summary>
         public WorldRingConfig RingConfig { get; }
 
+        /// <summary>
+        /// Progression authority for this world (attached after layout
+        /// validation). Every consumer reads position context through it;
+        /// nobody computes refuge distance or depth locally.
+        /// </summary>
+        public Progression.WorldProgression Progression { get; private set; }
+
+        /// <summary>
+        /// Attach the progression authority (called once by the generator
+        /// after the layout is published).
+        /// </summary>
+        public void AttachProgression(Progression.WorldProgression progression)
+        {
+            Progression = progression;
+        }
+
         #endregion
 
         #region Nodes and Edges

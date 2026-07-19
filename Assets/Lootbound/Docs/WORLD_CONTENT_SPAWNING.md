@@ -41,8 +41,13 @@ All runtime code lives in `Assets/Lootbound/Gameplay/World/Spawning/`
 
 - **The Refuge ring never hosts encounters.** This is a hard guard in the
   planner, applied before and regardless of any definition's `MinimumRing`.
-- Definitions declare an innermost allowed ring; a reservation only receives
-  a definition whose `MinimumRing` is at or inside the reservation's ring.
+- Since slice 0.9.7, definitions declare an inclusive ring window
+  (`MinimumRing`..`MaximumRing`, Void opt-in only) plus a `SelectionWeight`
+  and a `WeightByDepth` curve evaluated at the global `Depth01`; the planner
+  draws among compatible definitions with a deterministic weighted pick
+  (`WorldContentCompatibility` is the shared rule, also displayed by the F7
+  panel). The progression authority is injected from
+  `WorldLayoutContext.Progression` (see `WORLD_PROGRESSION.md`).
 - Placement validation: terrain bounds, slope ≤ `MaxPlacementSlope` (default
   matches the layout generator's 40°).
 - Failure tolerance: a reservation without compatible definition, a missing

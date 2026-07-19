@@ -141,6 +141,14 @@ namespace Lootbound.Gameplay.World
                 else
                 {
                     context.LayoutContext = layoutResult.Layout;
+
+                    // Attach the progression authority: from here on, every
+                    // consumer reads position context through it.
+                    layoutResult.Layout.AttachProgression(new Progression.WorldProgression(
+                        layoutResult.Layout.RefugePosition,
+                        worldDiscRadius,
+                        config.RingConfig,
+                        config.ProgressionConfig));
                     Debug.Log($"[ProceduralTerrainGenerator] Layout generated with {layoutResult.Layout.NodesOrdered.Count} nodes, " +
                               $"{layoutResult.Layout.EdgesOrdered.Count} edges, {layoutResult.Layout.RadialPaths.Count} radial paths " +
                               $"(attempt {layoutResult.Layout.GenerationAttempt + 1})");

@@ -38,8 +38,31 @@ namespace Lootbound.Gameplay.World.Spawning
         private float spawnSpreadRadius = 4f;
 
         [SerializeField]
-        [Tooltip("Innermost ring where this encounter may appear. The Refuge ring is always excluded for encounters, regardless of this value.")]
+        [Tooltip("Innermost ring where this encounter may appear (inclusive). The Refuge ring is always excluded for encounters, regardless of this value.")]
         private WorldRing minimumRing = WorldRing.Nearlands;
+
+        [SerializeField]
+        [Tooltip("Outermost ring where this encounter may appear (inclusive). Void is outside the playable disc by default - opt in explicitly.")]
+        private WorldRing maximumRing = WorldRing.Edgelands;
+
+        [Header("Selection")]
+        [SerializeField]
+        [Min(0f)]
+        [Tooltip("Relative selection weight among compatible definitions (0 excludes)")]
+        private float selectionWeight = 1f;
+
+        [SerializeField]
+        [Tooltip("Weight multiplier evaluated at the GLOBAL world depth (Depth01: 0 = Refuge, 1 = disc edge), multiplied with Selection Weight")]
+        private AnimationCurve weightByDepth = AnimationCurve.Constant(0f, 1f, 1f);
+
+        [Header("Progression Metadata (V1: authoring/debug only, not yet consumed by balance)")]
+        [SerializeField]
+        [Min(0f)]
+        private float difficultyRating = 1f;
+
+        [SerializeField]
+        [Min(0f)]
+        private float lootValue = 1f;
 
         public string EncounterId => string.IsNullOrEmpty(encounterId) ? name : encounterId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? name : displayName;
@@ -48,5 +71,10 @@ namespace Lootbound.Gameplay.World.Spawning
         public int MaximumEnemyCount => Mathf.Max(minimumEnemyCount, maximumEnemyCount);
         public float SpawnSpreadRadius => spawnSpreadRadius;
         public WorldRing MinimumRing => minimumRing;
+        public WorldRing MaximumRing => maximumRing;
+        public float SelectionWeight => selectionWeight;
+        public AnimationCurve WeightByDepth => weightByDepth;
+        public float DifficultyRating => difficultyRating;
+        public float LootValue => lootValue;
     }
 }

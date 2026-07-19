@@ -111,6 +111,9 @@ namespace Lootbound.Gameplay.World
         [Tooltip("Configuration for world ring thresholds")]
         [SerializeField] private WorldRingConfig ringConfig;
 
+        [Tooltip("Depth-to-progression curves (difficulty, loot tier, ambience). Built-in linear defaults apply when empty.")]
+        [SerializeField] private Progression.WorldProgressionConfig progressionConfig;
+
         [Header("Generation Settings")]
         [Tooltip("Generate terrain when entering Play Mode")]
         [SerializeField] private bool generateOnStart = true;
@@ -153,6 +156,7 @@ namespace Lootbound.Gameplay.World
 
         public WorldLayoutConfig LayoutConfig => layoutConfig;
         public WorldRingConfig RingConfig => ringConfig;
+        public Progression.WorldProgressionConfig ProgressionConfig => progressionConfig;
 
         /// <summary>
         /// Validate configuration values.

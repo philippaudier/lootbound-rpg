@@ -62,4 +62,5 @@ MonoBehaviour:
   steepSlopeThreshold: 35
   layoutConfig: {fileID: 11400000, guid: b0a12e1407653a04696e2b48de38ace6, type: 2}
   ringConfig: {fileID: 11400000, guid: 9f80ba39e5992df48b6254a1ad198428, type: 2}
+  progressionConfig: {fileID: 11400000, guid: eda955d4bc5277f408b735999cde7b2f, type: 2}
   generateOnStart: 1

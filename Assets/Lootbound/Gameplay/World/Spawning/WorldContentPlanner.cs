@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Lootbound.Gameplay.World.Layout;
+using Lootbound.Gameplay.World.Progression;
 
 namespace Lootbound.Gameplay.World.Spawning
 {
@@ -35,7 +36,8 @@ namespace Lootbound.Gameplay.World.Spawning
             ResourceSpawnRegistry resourceRegistry,
             LandmarkRegistry landmarkRegistry,
             ITerrainSampler sampler,
-            WorldContentPlannerSettings settings = null)
+            WorldContentPlannerSettings settings = null,
+            WorldProgression progression = null)
         {
             settings = settings ?? new WorldContentPlannerSettings();
 
@@ -48,7 +50,7 @@ namespace Lootbound.Gameplay.World.Spawning
                 foreach (var reservation in encounterReservations)
                 {
                     totalReservations++;
-                    PlanEncounter(worldSeed, reservation, encounterRegistry, sampler, settings, recipes, rejections);
+                    PlanEncounter(worldSeed, reservation, encounterRegistry, sampler, settings, progression, recipes, rejections);
                 }
             }
 
@@ -57,7 +59,7 @@ namespace Lootbound.Gameplay.World.Spawning
                 foreach (var reservation in resourceReservations)
                 {
                     totalReservations++;
-                    PlanResource(worldSeed, reservation, resourceRegistry, sampler, settings, recipes, rejections);
+                    PlanResource(worldSeed, reservation, resourceRegistry, sampler, settings, progression, recipes, rejections);
                 }
             }
 
@@ -66,11 +68,43 @@ namespace Lootbound.Gameplay.World.Spawning
                 foreach (var reservation in landmarkReservations)
                 {
                     totalReservations++;
-                    PlanLandmark(worldSeed, reservation, landmarkRegistry, sampler, settings, recipes, rejections);
+                    PlanLandmark(worldSeed, reservation, landmarkRegistry, sampler, settings, progression, recipes, rejections);
                 }
             }
 
             return new WorldContentPlan(recipes, rejections, totalReservations);
+        }
+
+        /// <summary>
+        /// Global depth (Depth01) at a reservation. The progression authority
+        /// is preferred; without it, the reservation's recorded normalized
+        /// radius (produced by the same ring evaluator at layout time) is
+        /// clamped - never a local distance recomputation.
+        /// </summary>
+        private static float DepthAt(float distanceFromRefuge, float normalizedWorldRadius, WorldProgression progression)
+        {
+            return progression != null
+                ? progression.GetContextFromDistance(distanceFromRefuge).Depth01
+                : Mathf.Clamp01(normalizedWorldRadius);
+        }
+
+        /// <summary>
+        /// Deterministic weighted pick. Consumes exactly one random draw.
+        /// </summary>
+        private static T SelectWeighted<T>(List<(T item, float weight)> candidates, double totalWeight, System.Random random)
+        {
+            double roll = random.NextDouble() * totalWeight;
+            double accumulated = 0;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                accumulated += candidates[i].weight;
+                if (roll < accumulated)
+                {
+                    return candidates[i].item;
+                }
+            }
+
+            return candidates[candidates.Count - 1].item;
         }
 
         #region Encounters
@@ -81,6 +115,7 @@ namespace Lootbound.Gameplay.World.Spawning
             EncounterRegistry registry,
             ITerrainSampler sampler,
             WorldContentPlannerSettings settings,
+            WorldProgression progression,
             List<SpawnRecipe> recipes,
             List<SpawnRejection> rejections)
         {
@@ -106,24 +141,28 @@ namespace Lootbound.Gameplay.World.Spawning
                 return;
             }
 
-            var compatible = new List<EncounterDefinition>();
+            float depth = DepthAt(reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius, progression);
+            var compatible = new List<(EncounterDefinition item, float weight)>();
+            double totalWeight = 0;
             foreach (var definition in registry.Definitions)
             {
-                if (definition != null && reservation.Ring >= definition.MinimumRing)
+                if (definition != null &&
+                    WorldContentCompatibility.Evaluate(definition, reservation.Ring, depth, out float weight, out _))
                 {
-                    compatible.Add(definition);
+                    compatible.Add((definition, weight));
+                    totalWeight += weight;
                 }
             }
 
             if (compatible.Count == 0)
             {
                 rejections.Add(new SpawnRejection(reservation.ReservationId, WorldContentCategory.Encounter,
-                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}"));
+                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}, depth {depth:F2}"));
                 return;
             }
 
             var random = CreateReservationRandom(worldSeed, reservation.ReservationId);
-            var selected = compatible[random.Next(compatible.Count)];
+            var selected = SelectWeighted(compatible, totalWeight, random);
 
             if (selected.EnemyPrefab == null)
             {
@@ -182,6 +221,7 @@ namespace Lootbound.Gameplay.World.Spawning
             ResourceSpawnRegistry registry,
             ITerrainSampler sampler,
             WorldContentPlannerSettings settings,
+            WorldProgression progression,
             List<SpawnRecipe> recipes,
             List<SpawnRejection> rejections)
         {
@@ -198,24 +238,28 @@ namespace Lootbound.Gameplay.World.Spawning
                 return;
             }
 
-            var compatible = new List<ResourceSpawnDefinition>();
+            float depth = DepthAt(reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius, progression);
+            var compatible = new List<(ResourceSpawnDefinition item, float weight)>();
+            double totalWeight = 0;
             foreach (var definition in registry.Definitions)
             {
-                if (definition != null && reservation.Ring >= definition.MinimumRing)
+                if (definition != null &&
+                    WorldContentCompatibility.Evaluate(definition, reservation.Ring, depth, out float weight, out _))
                 {
-                    compatible.Add(definition);
+                    compatible.Add((definition, weight));
+                    totalWeight += weight;
                 }
             }
 
             if (compatible.Count == 0)
             {
                 rejections.Add(new SpawnRejection(reservation.ReservationId, WorldContentCategory.Resource,
-                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}"));
+                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}, depth {depth:F2}"));
                 return;
             }
 
             var random = CreateReservationRandom(worldSeed, reservation.ReservationId);
-            var selected = compatible[random.Next(compatible.Count)];
+            var selected = SelectWeighted(compatible, totalWeight, random);
 
             if (selected.Item == null)
             {
@@ -247,6 +291,7 @@ namespace Lootbound.Gameplay.World.Spawning
             LandmarkRegistry registry,
             ITerrainSampler sampler,
             WorldContentPlannerSettings settings,
+            WorldProgression progression,
             List<SpawnRecipe> recipes,
             List<SpawnRejection> rejections)
         {
@@ -263,24 +308,28 @@ namespace Lootbound.Gameplay.World.Spawning
                 return;
             }
 
-            var compatible = new List<LandmarkDefinition>();
+            float depth = DepthAt(reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius, progression);
+            var compatible = new List<(LandmarkDefinition item, float weight)>();
+            double totalWeight = 0;
             foreach (var definition in registry.Definitions)
             {
-                if (definition != null && reservation.Ring >= definition.MinimumRing)
+                if (definition != null &&
+                    WorldContentCompatibility.Evaluate(definition, reservation.Ring, depth, out float weight, out _))
                 {
-                    compatible.Add(definition);
+                    compatible.Add((definition, weight));
+                    totalWeight += weight;
                 }
             }
 
             if (compatible.Count == 0)
             {
                 rejections.Add(new SpawnRejection(reservation.ReservationId, WorldContentCategory.Landmark,
-                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}"));
+                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}, depth {depth:F2}"));
                 return;
             }
 
             var random = CreateReservationRandom(worldSeed, reservation.ReservationId);
-            var selected = compatible[random.Next(compatible.Count)];
+            var selected = SelectWeighted(compatible, totalWeight, random);
 
             // A landmark definition without prefab is valid: the spawner
             // substitutes a clearly named placeholder primitive.

@@ -223,7 +223,8 @@ namespace Lootbound.Gameplay.World.Spawning
                 resourceRegistry,
                 landmarkRegistry,
                 sampler,
-                settings);
+                settings,
+                layout.Progression);
 
             contentRoot = new GameObject("WorldContent_Spawned");
             var encounterParent = CreateContainer("Encounters");
