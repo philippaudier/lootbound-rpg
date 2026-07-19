@@ -8,13 +8,13 @@
         </ui:VisualElement>
         <ui:VisualElement class="inventory-content">
             <ui:VisualElement name="slots-container" class="slots-container" />
-            <ui:VisualElement name="item-details" class="item-details">
+            <ui:ScrollView name="item-details" class="item-details" mode="Vertical">
                 <ui:VisualElement name="details-icon" class="details-icon" />
                 <ui:Label name="details-name" text="" class="details-name" />
                 <ui:Label name="details-description" text="" class="details-description" />
                 <ui:Label name="details-quantity" text="" class="details-quantity" />
                 <ui:Button name="drop-button" text="Drop" class="drop-button" />
-            </ui:VisualElement>
+            </ui:ScrollView>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -12,10 +12,15 @@
     padding: 16px;
     /* Width for slots (370px) + details panel (180px) + margins */
     width: 600px;
+    /* The panel must NEVER exceed the screen: tall item details scroll
+       inside their column instead of overflowing the bottom edge. */
+    max-height: 92%;
 }
 
 .inventory-content {
     flex-direction: row;
+    flex-shrink: 1;
+    min-height: 0;
 }
 
 .inventory-header {
@@ -26,6 +31,7 @@
     padding-bottom: 12px;
     border-bottom-width: 1px;
     border-bottom-color: rgba(100, 100, 120, 0.3);
+    flex-shrink: 0;
 }
 
 .inventory-title {
@@ -63,6 +69,7 @@
     align-content: flex-start;
     /* 5 columns: (64px slot + 8px margin) * 5 = 360px */
     max-width: 370px;
+    flex-shrink: 0;
 }
 
 /* Slot Styles */
@@ -159,6 +166,13 @@
 
 .item-details.has-selection {
     display: flex;
+}
+
+/* When the details fit, the content fills the column so the drop button
+   keeps sticking to the bottom (margin-top: auto); when they do not fit,
+   the ScrollView scrolls instead of overflowing the screen. */
+.item-details #unity-content-container {
+    flex-grow: 1;
 }
 
 .details-icon {
