@@ -400,7 +400,8 @@ namespace Lootbound.Tests.EditMode
             var current = WorldAmbienceState.AtBaseline(SkyBaseline);
             var target = new WorldAmbienceState(
                 160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
-                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, 0.1f, true);
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, 0.1f, true,
+                0.05f, 0f, 0.85f, 0.3f);
 
             var atOne = WorldAmbienceState.Interpolate(current, target, 1f);
             Assert.AreEqual(target.SkyZenithTint, atOne.SkyZenithTint);
@@ -458,7 +459,8 @@ namespace Lootbound.Tests.EditMode
             var current = WorldAmbienceState.AtBaseline(SceneBaseline);
             var target = new WorldAmbienceState(
                 160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
-                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false);
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false,
+                0.05f, 0f, 0.85f, 0.3f);
 
             var atZero = WorldAmbienceState.Interpolate(current, target, 0f);
             Assert.AreEqual(current.MeanFreePath, atZero.MeanFreePath, EPSILON);
@@ -475,7 +477,8 @@ namespace Lootbound.Tests.EditMode
             var current = WorldAmbienceState.AtBaseline(SceneBaseline);
             var target = new WorldAmbienceState(
                 160f, Color.grey, 900f, false, 0.7f, 0.6f, -30f, -7f, 4f,
-                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false);
+                new Color(0.94f, 0.96f, 1f), new Color(0.9f, 0.92f, 0.95f), 0.9f, -0.2f, false,
+                0.05f, 0f, 0.85f, 0.3f);
 
             var beyond = WorldAmbienceState.Interpolate(current, target, 2.5f);
             Assert.AreEqual(target.MeanFreePath, beyond.MeanFreePath, EPSILON);

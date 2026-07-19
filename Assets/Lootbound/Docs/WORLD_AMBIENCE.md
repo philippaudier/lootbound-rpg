@@ -1,4 +1,4 @@
-# World Ambience (slices 0.9.9 / 0.9.9.1)
+# World Ambience (slices 0.9.9 / 0.9.9.1 / 0.9.9.2)
 
 ## Purpose
 
@@ -108,6 +108,57 @@ triggered:
   parameters stay strictly untouched.
 - F7 shows the driven sky values (baseline / current → target, and
   "Exposure: off (global profile)" when uncontrolled).
+
+## Ambient event foundation (slice 0.9.9.2)
+
+> Sound belongs to the world. It never follows the player's head.
+
+`WorldAmbienceState` carries four activity intents (0..1), evaluated by
+depth like every other value and smoothed identically:
+
+| Activity | Refuge (depth 0) | Edgelands (depth 1) |
+|---|---|---|
+| `BirdActivity` | 1.00 | 0.05 |
+| `InsectActivity` | 1.00 | 0.00 |
+| `WindActivity` | 0.20 | 0.85 |
+| `RareEventActivity` | 0.02 | 0.30 |
+
+An activity drives event **frequency and eligibility** — never a final
+audio gain. Real loudness will come from 3D sources, distance and rolloff
+in a future audio slice.
+
+`AmbientEventDirector` (`Gameplay/World/Ambience/Events/`) turns these
+intents into temporary, world-anchored events around the player:
+
+- **Profiles** (`AmbientEventProfile` SO): id, category (Birds / Insects /
+  Wind / Environmental / Rare — Environmental shares the rare intent),
+  weight, activity response curve, cooldown / lifetime / distance /
+  height-offset ranges, max concurrent, avoid-player-view flag.
+- **Selection formula** (applied exactly once, documented in
+  `AmbientEventSelector`): `effectiveWeight = weight ×
+  clamp01(activityResponse(activity))`; one bounded attempt roll per
+  evaluation (`baseChance × min(1, Σ effectiveWeights)`), then a
+  proportional weighted pick.
+- **Placement** (`AmbientEventPlacement`): area-uniform radius
+  (`sqrt(lerp(min², max², u))`), uniform angle (or the arc outside a ±35°
+  frontal cone), ground via `SampleHeightAtWorld` (fallback: player
+  height) plus the profile's height offset.
+- **Cadence**: configurable interval (never per frame), at most one spawn
+  per tick, missed time discarded (no catch-up bursts), global spawn
+  spacing, per-profile cooldowns, per-profile and global concurrency caps.
+  No coroutines — expiration is a time comparison in `Update`.
+- **Lifecycle**: a spawned instance is a bare marker GameObject under
+  `AmbientEvents_Active` plus a pure `AmbientEventInstance` record.
+  `OnEventSpawned` / `OnEventReleased` expose instances to future
+  presentation layers (audio, visuals). Disable releases everything —
+  no orphans, no dead registry entries.
+- **Debug**: F7 "Ambient Events" section (activities, active instances,
+  last spawn, next evaluation, cooldowns, rejection reasons) and optional
+  gizmos (rings, per-category colored spheres, lines to the player,
+  remaining lifetime) — editor-only.
+
+The Gameplay assembly references no AudioSource, AudioClip, Shader or
+PBSky type anywhere in this system.
 
 ## Timing
 

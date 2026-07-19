@@ -75,10 +75,19 @@ namespace Lootbound.Gameplay.World.Ambience
                 ? baseline.SkyExposure + Mathf.Lerp(0f, config.MinimumSkyExposureOffset, attenuationIntent)
                 : baseline.SkyExposure;
 
+            // Ambient activity intents: life fades with depth, wind and rare
+            // manifestations grow. Frequency/eligibility drivers only - the
+            // final audio gain will come from real 3D sources later.
+            float birdActivity = Mathf.Clamp01(Mathf.Lerp(1f, config.BirdActivityMinimum, depth));
+            float insectActivity = Mathf.Clamp01(Mathf.Lerp(1f, config.InsectActivityMinimum, depth));
+            float windActivity = Mathf.Clamp01(Mathf.Lerp(config.WindActivityMinimum, config.WindActivityMaximum, depth));
+            float rareActivity = Mathf.Clamp01(Mathf.Lerp(config.RareActivityMinimum, config.RareActivityMaximum, depth));
+
             return new WorldAmbienceState(
                 meanFreePath, fogTint, maxFogDistance, config.ControlMaxFogDistance,
                 directional, ambient, saturation, temperature, contrast,
-                skyZenith, skyHorizon, skySaturation, skyExposure, config.ControlSkyExposure);
+                skyZenith, skyHorizon, skySaturation, skyExposure, config.ControlSkyExposure,
+                birdActivity, insectActivity, windActivity, rareActivity);
         }
 
         private static float Sane01(float value, float fallback = 0f)

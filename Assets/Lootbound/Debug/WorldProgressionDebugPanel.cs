@@ -1,7 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 using Lootbound.Gameplay.World;
 using Lootbound.Gameplay.World.Ambience;
+using Lootbound.Gameplay.World.Ambience.Events;
 using Lootbound.Gameplay.World.Population;
 using Lootbound.Gameplay.World.Progression;
 using Lootbound.Gameplay.World.Spawning;
@@ -24,6 +26,7 @@ namespace Lootbound.Debugging
         [SerializeField] private LandmarkRegistry landmarkRegistry;
         [SerializeField] private AmbientPopulationController ambientController;
         [SerializeField] private WorldAmbienceController ambienceController;
+        [SerializeField] private AmbientEventDirector eventDirector;
         [SerializeField] private Key toggleKey = Key.F7;
 
         [SerializeField]
@@ -69,6 +72,7 @@ namespace Lootbound.Debugging
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
 
             DrawAmbienceSection();
+            DrawAmbientEventsSection();
             DrawAmbientSection();
 
             if (TryGetAimedPoint(out Vector3 aimedPoint))
@@ -161,6 +165,63 @@ namespace Lootbound.Debugging
                 : "Exposure: off (global profile)";
             GUILayout.Label($"  Sky sat {current.SkyColorSaturation:F2} -> {target.SkyColorSaturation:F2} " +
                             $"(baseline {baseline.SkyColorSaturation:F2})   {skyExposure}");
+            GUILayout.Space(6f);
+        }
+
+        private readonly List<(string eventId, float remaining)> cooldownScratch = new List<(string, float)>();
+
+        private void DrawAmbientEventsSection()
+        {
+            if (eventDirector == null)
+            {
+                return;
+            }
+
+            GUILayout.Label("<b>Ambient Events</b>", RichLabel());
+
+            if (ambienceController != null && ambienceController.IsReady)
+            {
+                var current = ambienceController.CurrentState;
+                var target = ambienceController.TargetState;
+                GUILayout.Label($"  Birds {current.BirdActivity:F2} -> {target.BirdActivity:F2}   " +
+                                $"Insects {current.InsectActivity:F2} -> {target.InsectActivity:F2}   " +
+                                $"Wind {current.WindActivity:F2} -> {target.WindActivity:F2}   " +
+                                $"Rare {current.RareEventActivity:F2} -> {target.RareEventActivity:F2}");
+            }
+
+            float now = Time.time;
+            string lastSpawn = eventDirector.HasSpawned ? $"{now - eventDirector.LastSpawnTime:F1}s ago" : "never";
+            GUILayout.Label($"  active {eventDirector.ActiveInstances.Count}   last spawn {lastSpawn}   " +
+                            $"next evaluation in {Mathf.Max(0f, eventDirector.NextEvaluationAt - now):F1}s");
+
+            foreach (var instance in eventDirector.ActiveInstances)
+            {
+                float distance = player != null
+                    ? Vector3.Distance(player.position, instance.Position)
+                    : 0f;
+                GUILayout.Label($"    {instance.Profile?.EventId} ({instance.Profile?.Category})  " +
+                                $"{distance:F0}m  {instance.RemainingSeconds(now):F1}s left");
+            }
+
+            eventDirector.CollectCooldowns(now, cooldownScratch);
+            if (cooldownScratch.Count > 0)
+            {
+                GUILayout.Label("  <b>Cooldowns</b>", RichLabel());
+                foreach (var (eventId, remaining) in cooldownScratch)
+                {
+                    GUILayout.Label($"    {eventId}: {remaining:F1}s");
+                }
+            }
+
+            if (eventDirector.RecentRejections.Count > 0)
+            {
+                GUILayout.Label("  <b>Recent rejections</b>", RichLabel());
+                foreach (var rejection in eventDirector.RecentRejections)
+                {
+                    GUILayout.Label($"    [{now - rejection.Time:F0}s ago] {rejection.Reason}");
+                }
+            }
+
             GUILayout.Space(6f);
         }
 

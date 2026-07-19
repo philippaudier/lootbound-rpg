@@ -103,6 +103,31 @@ namespace Lootbound.Gameplay.World.Ambience
         [Tooltip("Sky exposure offset in EV at FULL attenuation intent (only when controlled)")]
         private float minimumSkyExposureOffset = -0.20f;
 
+        [Header("Ambient Activities (0..1 intents consumed by the ambient event system)")]
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Bird activity at Depth01 = 1 (Refuge is always 1). Drives event frequency, never a final gain.")]
+        private float birdActivityMinimum = 0.05f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Insect activity at Depth01 = 1 (Refuge is always 1)")]
+        private float insectActivityMinimum = 0f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Wind activity at Depth01 = 0 (the Refuge keeps a faint breeze)")]
+        private float windActivityMinimum = 0.20f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Wind activity at Depth01 = 1")]
+        private float windActivityMaximum = 0.85f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Rare/environmental event activity at Depth01 = 0 (nearly absent at the Refuge)")]
+        private float rareActivityMinimum = 0.02f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("Rare/environmental event activity at Depth01 = 1")]
+        private float rareActivityMaximum = 0.30f;
+
         [Header("Timing")]
         [SerializeField, Range(0.05f, 2f)]
         [Tooltip("Seconds between context evaluations at the player position")]
@@ -131,6 +156,12 @@ namespace Lootbound.Gameplay.World.Ambience
         public float MinimumSkyColorSaturation => minimumSkyColorSaturation;
         public bool ControlSkyExposure => controlSkyExposure;
         public float MinimumSkyExposureOffset => minimumSkyExposureOffset;
+        public float BirdActivityMinimum => birdActivityMinimum;
+        public float InsectActivityMinimum => insectActivityMinimum;
+        public float WindActivityMinimum => windActivityMinimum;
+        public float WindActivityMaximum => windActivityMaximum;
+        public float RareActivityMinimum => rareActivityMinimum;
+        public float RareActivityMaximum => rareActivityMaximum;
         public float EvaluationInterval => evaluationInterval;
         public float TransitionSpeed => transitionSpeed;
 

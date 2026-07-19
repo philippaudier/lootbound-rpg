@@ -81,12 +81,21 @@ namespace Lootbound.Gameplay.World.Ambience
         public float SkyExposure { get; }
         public bool ControlSkyExposure { get; }
 
+        // Ambient activity intents (0..1) consumed by the ambient event
+        // system: they drive the frequency and eligibility of spatial
+        // events, never a final audio gain.
+        public float BirdActivity { get; }
+        public float InsectActivity { get; }
+        public float WindActivity { get; }
+        public float RareEventActivity { get; }
+
         public WorldAmbienceState(
             float meanFreePath, Color fogTint, float maxFogDistance, bool controlMaxFogDistance,
             float directionalMultiplier, float ambientMultiplier,
             float saturationOffset, float temperatureOffset, float contrastOffset,
             Color skyZenithTint, Color skyHorizonTint, float skyColorSaturation,
-            float skyExposure, bool controlSkyExposure)
+            float skyExposure, bool controlSkyExposure,
+            float birdActivity, float insectActivity, float windActivity, float rareEventActivity)
         {
             MeanFreePath = meanFreePath;
             FogTint = fogTint;
@@ -102,16 +111,25 @@ namespace Lootbound.Gameplay.World.Ambience
             SkyColorSaturation = skyColorSaturation;
             SkyExposure = skyExposure;
             ControlSkyExposure = controlSkyExposure;
+            BirdActivity = Mathf.Clamp01(birdActivity);
+            InsectActivity = Mathf.Clamp01(insectActivity);
+            WindActivity = Mathf.Clamp01(windActivity);
+            RareEventActivity = Mathf.Clamp01(rareEventActivity);
         }
 
-        /// <summary>The neutral state: exactly the captured baseline.</summary>
+        /// <summary>
+        /// The neutral state: exactly the captured baseline. Activities start
+        /// at their calm neutral (full life, no wind); the first evaluation
+        /// smooths them to the refuge values within seconds.
+        /// </summary>
         public static WorldAmbienceState AtBaseline(in WorldAmbienceBaseline baseline)
         {
             return new WorldAmbienceState(
                 baseline.MeanFreePath, baseline.FogTint, baseline.MaxFogDistance, false,
                 1f, 1f, 0f, 0f, 0f,
                 baseline.SkyZenithTint, baseline.SkyHorizonTint, baseline.SkyColorSaturation,
-                baseline.SkyExposure, false);
+                baseline.SkyExposure, false,
+                1f, 1f, 0f, 0f);
         }
 
         /// <summary>Per-field linear interpolation (factor 0 = current, 1 = target).</summary>
@@ -132,7 +150,11 @@ namespace Lootbound.Gameplay.World.Ambience
                 Color.Lerp(current.SkyHorizonTint, target.SkyHorizonTint, t),
                 Mathf.Lerp(current.SkyColorSaturation, target.SkyColorSaturation, t),
                 Mathf.Lerp(current.SkyExposure, target.SkyExposure, t),
-                target.ControlSkyExposure);
+                target.ControlSkyExposure,
+                Mathf.Lerp(current.BirdActivity, target.BirdActivity, t),
+                Mathf.Lerp(current.InsectActivity, target.InsectActivity, t),
+                Mathf.Lerp(current.WindActivity, target.WindActivity, t),
+                Mathf.Lerp(current.RareEventActivity, target.RareEventActivity, t));
         }
     }
 
