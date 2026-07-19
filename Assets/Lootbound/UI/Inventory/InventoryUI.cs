@@ -405,28 +405,40 @@ namespace Lootbound.UI
             equipButton.style.color = Color.white;
             equipButton.style.display = DisplayStyle.None;
 
-            // Insert elements before the drop button
+            // Two-column layout: the equipment info is too rich for one
+            // endless column. Stats/condition/repair on the left,
+            // attunement/affixes/history/comparison on the right; the
+            // buttons keep the full width below the columns.
+            var columns = new VisualElement();
+            columns.name = "details-columns";
+            columns.AddToClassList("details-columns");
+
+            var leftColumn = new VisualElement();
+            leftColumn.AddToClassList("details-column");
+            var rightColumn = new VisualElement();
+            rightColumn.AddToClassList("details-column");
+            rightColumn.AddToClassList("details-column-right");
+            columns.Add(leftColumn);
+            columns.Add(rightColumn);
+
+            leftColumn.Add(equipmentStatsContainer);
+            leftColumn.Add(conditionContainer);
+            leftColumn.Add(repairContainer);
+            rightColumn.Add(attunementContainer);
+            rightColumn.Add(affixesContainer);
+            rightColumn.Add(historyContainer);
+            rightColumn.Add(comparisonContainer);
+
+            // Insert before the drop button
             int dropIndex = itemDetails.IndexOf(dropButton);
             if (dropIndex >= 0)
             {
-                itemDetails.Insert(dropIndex, equipmentStatsContainer);
-                itemDetails.Insert(dropIndex + 1, conditionContainer);
-                itemDetails.Insert(dropIndex + 2, attunementContainer);
-                itemDetails.Insert(dropIndex + 3, repairContainer);
-                itemDetails.Insert(dropIndex + 4, affixesContainer);
-                itemDetails.Insert(dropIndex + 5, historyContainer);
-                itemDetails.Insert(dropIndex + 6, comparisonContainer);
-                itemDetails.Insert(dropIndex + 7, equipButton);
+                itemDetails.Insert(dropIndex, columns);
+                itemDetails.Insert(dropIndex + 1, equipButton);
             }
             else
             {
-                itemDetails.Add(equipmentStatsContainer);
-                itemDetails.Add(conditionContainer);
-                itemDetails.Add(attunementContainer);
-                itemDetails.Add(repairContainer);
-                itemDetails.Add(affixesContainer);
-                itemDetails.Add(historyContainer);
-                itemDetails.Add(comparisonContainer);
+                itemDetails.Add(columns);
                 itemDetails.Add(equipButton);
             }
         }

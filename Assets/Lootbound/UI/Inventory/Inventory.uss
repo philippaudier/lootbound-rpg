@@ -10,8 +10,8 @@
     border-width: 2px;
     border-color: rgba(100, 100, 120, 0.5);
     padding: 16px;
-    /* Width for slots (370px) + details panel (180px) + margins */
-    width: 600px;
+    /* Width for slots (370px) + two-column details panel (360px) + margins */
+    width: 780px;
     /* The panel must NEVER exceed the screen: tall item details scroll
        inside their column instead of overflowing the bottom edge. */
     max-height: 92%;
@@ -152,8 +152,8 @@
 /* Item Details Panel */
 
 .item-details {
-    width: 180px;
-    min-width: 180px;
+    width: 360px;
+    min-width: 360px;
     margin-left: 16px;
     padding: 12px;
     background-color: rgba(40, 40, 50, 0.8);
@@ -173,6 +173,23 @@
    the ScrollView scrolls instead of overflowing the screen. */
 .item-details #unity-content-container {
     flex-grow: 1;
+}
+
+/* Two-column equipment info */
+
+.details-columns {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.details-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+.details-column-right {
+    margin-left: 10px;
 }
 
 .details-icon {
