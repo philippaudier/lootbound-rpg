@@ -1,4 +1,4 @@
-# World Ambience (slices 0.9.9 / 0.9.9.1 / 0.9.9.2 / 0.9.9.3)
+# World Ambience (slices 0.9.9 / 0.9.9.1 / 0.9.9.2 / 0.9.9.3 / 0.9.9.4)
 
 ## Purpose
 
@@ -189,6 +189,52 @@ references it.
 Asset: `ScriptableObjects/Audio/DefaultBirdAudioLibrary.asset` ships with
 an **empty clip list** — import bird recordings and fill it to hear the
 world.
+
+## Ambient wildlife (slice 0.9.9.4)
+
+`Lootbound.Presentation.Wildlife` (`Assets/Lootbound/Presentation/Wildlife/`)
+is the first VISUAL presentation of the ambient events - same decoupling
+as audio and PBSky: Gameplay never references it; both presenters observe
+the same Birds events independently (no reference between the Audio and
+Wildlife assemblies; the shared event and seed keep them roughly in sync).
+
+- `AmbientWildlifePresenter` subscribes to the director. Each Birds event
+  produces at most ONE small flock (2-6 birds, configurable) flying a
+  quadratic-Bezier path around the event position: **Crossing**, **Rising**
+  or **Circling**. Flock roots live under `AmbientWildlife_Active` on the
+  presenter (never under the director's markers).
+- **Determinism**: `BirdFlockPlanner` is pure. The seed is FNV-1a over the
+  event id, quantized position and spawn time; the same seed reproduces
+  the variant, bird count, trajectory, duration, formation offsets,
+  phases and scales. `UnityEngine.Random` is never touched. Camera
+  avoidance is a global path translation applied AFTER planning.
+- **Lifecycle**: event released -> flock released. Flight finished before
+  the event -> flock released early (the birds flew away) and the
+  instance is tombstoned so rescans and re-enables never replay it; the
+  tombstone is cleared when the event is released. No duplicates, no
+  leaks; `Release()` is idempotent.
+- **Movement**: one central `Tick` per presenter (no per-bird Update),
+  progression = elapsed/duration per bird (framerate independent), loose
+  formation (irregular offsets, staggered starts, near-but-different
+  speeds), vertical bob, orientation along the flight direction.
+- **Library**: `BirdVisualLibrary` (variants: prefab, weight, scale and
+  flap ranges; flock: group size, duration, radius, heights, bob). Null
+  prefabs and invalid weights are ignored. `DefaultBirdVisualLibrary.asset`
+  (`ScriptableObjects/Wildlife/`) ships EMPTY: add a light bird prefab to
+  see flights. With no valid variant the presenter shows nothing - unless
+  `EnableDevelopmentFallback` (OFF by default) is checked, which allows a
+  tiny quad silhouette sharing one presenter-owned material (a dev tool,
+  never a silent data fix; abandoned cleanly if no compatible shader).
+- **Pooling decision**: instantiate/destroy in V1 - spawn frequency is a
+  handful of short flights; `Release()` is the single seam where a pool
+  could later be inserted.
+- Deliberate V1 limits: birds only, no other species, no NavMesh, no
+  interactions, no persistence, no LoD/occlusion, flights do not loop.
+
+Scene setup: add `AmbientWildlifePresenter`, assign `eventDirector`,
+`birdLibrary` (+ optional `terrainGenerator` for minimum height and
+`cameraTransform` for spawn avoidance), then drop bird prefabs into the
+library.
 
 ## Timing
 

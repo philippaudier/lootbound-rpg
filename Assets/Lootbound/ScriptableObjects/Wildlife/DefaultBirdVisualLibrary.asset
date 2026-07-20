@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77b19d128d402974da18e8c0dd31e304, type: 3}
+  m_Name: DefaultBirdVisualLibrary
+  m_EditorClassIdentifier: Lootbound.Presentation.Wildlife::Lootbound.Presentation.Wildlife.BirdVisualLibrary
+  variants: []
+  groupSizeRange: {x: 2, y: 6}
+  flightDurationRange: {x: 6, y: 12}
+  flightRadius: 18
+  flightHeightRange: {x: 4, y: 14}
+  bobAmplitude: 0.35

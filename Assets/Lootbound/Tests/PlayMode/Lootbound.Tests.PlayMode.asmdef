@@ -8,6 +8,7 @@
         "Lootbound.Gameplay",
         "Lootbound.Rendering.PBSky",
         "Lootbound.Presentation.Audio",
+        "Lootbound.Presentation.Wildlife",
         "Unity.AI.Navigation",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime",

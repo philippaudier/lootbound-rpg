@@ -1,0 +1,17 @@
+{
+    "name": "Lootbound.Presentation.Wildlife",
+    "rootNamespace": "Lootbound.Presentation.Wildlife",
+    "references": [
+        "Lootbound.Core",
+        "Lootbound.Gameplay"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

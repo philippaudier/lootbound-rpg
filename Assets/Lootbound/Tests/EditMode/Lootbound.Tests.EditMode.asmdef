@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "Lootbound.Core",
         "Lootbound.Gameplay",
-        "Lootbound.Presentation.Audio"
+        "Lootbound.Presentation.Audio",
+        "Lootbound.Presentation.Wildlife"
     ],
     "includePlatforms": [
         "Editor"
