@@ -10,19 +10,16 @@ using Lootbound.Gameplay.World;
 namespace Lootbound.UI
 {
     /// <summary>
-    /// UI controller for the Attunement Table interface.
-    /// Displays attuneable equipment and handles attunement operations using stones.
-    /// </summary>
-    /// <remarks>
-    /// The Attunement Table UI allows players to:
-    /// - Select a weapon from their inventory
-    /// - View current attunement level and stats
-    /// - Preview the results of deepening attunement
-    /// - Consume Attunement Stones to increase level
+    /// Attunement Table UI - the "deepen" page of the expedition journal.
+    /// Left: every piece of equipment (equipped first). Right: the selected
+    /// piece, its attunement level as a brass segmented track, current
+    /// bonuses, the next attunement preview, materials, the accord outlook
+    /// (real chance and resonance rules) and the item's history. The window
+    /// footer (status + Cancel + Attune) never scrolls.
     ///
-    /// Unlike the Repair Station which restores equipment,
-    /// the Attunement Table reveals what equipment can become.
-    /// </remarks>
+    /// The attunement transaction resolves BEFORE the ritual presentation
+    /// starts (unchanged); the result overlay reports the outcome.
+    /// </summary>
     public class AttunementTableUI : MonoBehaviour
     {
         [Header("UI Document")]
@@ -39,6 +36,15 @@ namespace Lootbound.UI
         [Header("Ritual")]
         [SerializeField] private AttunementRitualController ritualController;
 
+        [Header("Visuals")]
+        [SerializeField]
+        [Tooltip("Optional icon shown next to Attunement Stones in the materials list")]
+        private Sprite stoneIcon;
+
+        private const float MaxWindowWidth = 1180f;
+        private const float MaxWindowHeight = 720f;
+        private const float CompactWidthThreshold = 780f;
+
         // Cached attunement tables in scene
         private AttunementTable[] cachedTables;
 
@@ -47,28 +53,36 @@ namespace Lootbound.UI
         private VisualElement tablePanel;
         private VisualElement equipmentListContainer;
         private VisualElement previewPanel;
+        private Label detailEmptyLabel;
         private VisualElement resultPanel;
         private Button attuneButton;
+        private Button cancelButton;
         private Button closeButton;
 
         // Preview elements
+        private VisualElement previewIcon;
         private Label previewName;
         private Label previewRarity;
-        private VisualElement affixesContainer;
         private Label previewCondition;
-        private Label previewCurrentLevel;
-        private Label previewNextLevel;
-        private Label previewMaxLevel;
+        private Label brokenWarningLabel;
+        private Label attuneRank;
+        private VisualElement attuneTrack;
+        private Label attuneProgressNote;
+        private VisualElement currentBonusesContainer;
+        private VisualElement sectionNext;
+        private VisualElement statPreviewContainer;
         private Label previewSuccessChance;
+        private VisualElement resonanceRow;
+        private Label resonanceBonus;
         private Label previewStoneCost;
         private Label previewStonesAvailable;
-        private Label previewCurrentDamage;
-        private Label previewNextDamage;
+        private VisualElement stoneIconElement;
+        private VisualElement sectionAffixes;
+        private VisualElement affixesContainer;
+        private VisualElement historyEntriesContainer;
         private Label noEquipmentLabel;
         private Label failureReasonLabel;
-        private VisualElement statPreviewContainer;
-        private Label brokenWarningLabel;
-        private Label historyLabel;
+        private Label footerStatusLabel;
 
         // Result panel elements
         private Label resultTitle;
@@ -78,8 +92,10 @@ namespace Lootbound.UI
 
         // State
         private bool isOpen;
+        private bool isCompact;
         private AttunementTable currentTable;
         private EquipmentData selectedEquipment;
+        private ItemInstance selectedItem;
         private int selectedSlotIndex = -1;
         private List<int> attuneableSlotIndices = new List<int>();
         private List<VisualElement> equipmentElements = new List<VisualElement>();
@@ -192,28 +208,35 @@ namespace Lootbound.UI
             tablePanel = root.Q<VisualElement>("attunement-table-panel");
             equipmentListContainer = root.Q<VisualElement>("equipment-list");
             previewPanel = root.Q<VisualElement>("attunement-preview");
+            detailEmptyLabel = root.Q<Label>("detail-empty");
             resultPanel = root.Q<VisualElement>("result-panel");
             attuneButton = root.Q<Button>("attune-button");
+            cancelButton = root.Q<Button>("cancel-button");
             closeButton = root.Q<Button>("close-button");
 
-            // Preview elements
+            previewIcon = root.Q<VisualElement>("preview-icon");
             previewName = root.Q<Label>("preview-name");
             previewRarity = root.Q<Label>("preview-rarity");
-            affixesContainer = root.Q<VisualElement>("preview-affixes");
             previewCondition = root.Q<Label>("preview-condition");
-            previewCurrentLevel = root.Q<Label>("current-level");
-            previewNextLevel = root.Q<Label>("next-level");
-            previewMaxLevel = root.Q<Label>("max-level");
+            brokenWarningLabel = root.Q<Label>("broken-warning");
+            attuneRank = root.Q<Label>("attune-rank");
+            attuneTrack = root.Q<VisualElement>("attune-track");
+            attuneProgressNote = root.Q<Label>("attune-progress-note");
+            currentBonusesContainer = root.Q<VisualElement>("current-bonuses");
+            sectionNext = root.Q<VisualElement>("section-next");
+            statPreviewContainer = root.Q<VisualElement>("stat-preview");
             previewSuccessChance = root.Q<Label>("success-chance");
+            resonanceRow = root.Q<VisualElement>("resonance-row");
+            resonanceBonus = root.Q<Label>("resonance-bonus");
             previewStoneCost = root.Q<Label>("stone-cost");
             previewStonesAvailable = root.Q<Label>("stones-available");
-            previewCurrentDamage = root.Q<Label>("current-damage");
-            previewNextDamage = root.Q<Label>("next-damage");
+            stoneIconElement = root.Q<VisualElement>("stone-icon");
+            sectionAffixes = root.Q<VisualElement>("section-affixes");
+            affixesContainer = root.Q<VisualElement>("preview-affixes");
+            historyEntriesContainer = root.Q<VisualElement>("history-entries");
             noEquipmentLabel = root.Q<Label>("no-equipment-label");
             failureReasonLabel = root.Q<Label>("failure-reason");
-            statPreviewContainer = root.Q<VisualElement>("stat-preview");
-            brokenWarningLabel = root.Q<Label>("broken-warning");
-            historyLabel = root.Q<Label>("equipment-history");
+            footerStatusLabel = root.Q<Label>("footer-status");
 
             // Result panel elements
             resultTitle = root.Q<Label>("result-title");
@@ -221,10 +244,20 @@ namespace Lootbound.UI
             resultStats = root.Q<Label>("result-stats");
             resultDismissButton = root.Q<Button>("result-dismiss-button");
 
+            if (stoneIconElement != null && stoneIcon != null)
+            {
+                stoneIconElement.style.backgroundImage = new StyleBackground(stoneIcon);
+            }
+
             // Button callbacks
             if (closeButton != null)
             {
                 closeButton.clicked += Close;
+            }
+
+            if (cancelButton != null)
+            {
+                cancelButton.clicked += Close;
             }
 
             if (attuneButton != null)
@@ -237,10 +270,32 @@ namespace Lootbound.UI
                 resultDismissButton.clicked += DismissResult;
             }
 
+            // Compact mode: stack the detail columns on narrow windows.
+            tablePanel?.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                bool shouldBeCompact = evt.newRect.width < CompactWidthThreshold;
+                if (shouldBeCompact != isCompact)
+                {
+                    isCompact = shouldBeCompact;
+                    tablePanel.EnableInClassList("compact", isCompact);
+                }
+            });
+
             // Hide by default
             if (tablePanel != null)
             {
                 tablePanel.style.display = DisplayStyle.None;
+
+                // Stretch the intermediate containers and enforce the window
+                // bounds in pixels (same fix as the inventory: percent sizes
+                // never resolve under the TemplateContainer).
+                for (var element = tablePanel.parent; element != null && element != root; element = element.parent)
+                {
+                    element.style.flexGrow = 1;
+                }
+
+                root.RegisterCallback<GeometryChangedEvent>(_ => ApplyWindowBounds());
+                ApplyWindowBounds();
             }
 
             if (resultPanel != null)
@@ -250,6 +305,19 @@ namespace Lootbound.UI
 
             // Start with picking disabled
             root.pickingMode = PickingMode.Ignore;
+        }
+
+        private void ApplyWindowBounds()
+        {
+            if (tablePanel == null || root == null) return;
+
+            float rootWidth = root.resolvedStyle.width;
+            float rootHeight = root.resolvedStyle.height;
+            if (float.IsNaN(rootWidth) || rootWidth <= 0f) return;
+            if (float.IsNaN(rootHeight) || rootHeight <= 0f) return;
+
+            tablePanel.style.width = Mathf.Min(MaxWindowWidth, rootWidth * 0.92f);
+            tablePanel.style.height = Mathf.Min(MaxWindowHeight, rootHeight * 0.92f);
         }
 
         /// <summary>
@@ -298,7 +366,6 @@ namespace Lootbound.UI
             // Populate equipment list
             RefreshEquipmentList();
             ClearSelection();
-            UpdateStoneCount();
             HideResult();
 
             // Select default equipment
@@ -422,60 +489,46 @@ namespace Lootbound.UI
             var definition = item.Definition;
 
             var element = new VisualElement();
-            element.AddToClassList("equipment-item");
-            if (isEquipped)
-            {
-                element.AddToClassList("equipment-equipped");
-            }
-            if (equipData.IsAtMaximumAttunement)
-            {
-                element.AddToClassList("equipment-maximum");
-            }
+            element.AddToClassList("select-entry");
             element.userData = slotIndex;
 
-            // Icon
             var icon = new VisualElement();
-            icon.AddToClassList("equipment-icon");
+            icon.AddToClassList("select-entry-icon");
             if (definition?.Icon != null)
             {
                 icon.style.backgroundImage = new StyleBackground(definition.Icon);
             }
             element.Add(icon);
 
-            // Info container
             var info = new VisualElement();
-            info.AddToClassList("equipment-info");
+            info.AddToClassList("select-entry-text");
 
             // Name (use attuned display name)
             string displayName = equipData.IsAttuned
                 ? equipData.GetAttunedDisplayName(equipmentRegistry)
                 : (equipData.CustomName ?? definition?.DisplayName ?? "Equipment");
             var nameLabel = new Label(displayName);
-            nameLabel.AddToClassList("equipment-name");
+            nameLabel.AddToClassList("select-entry-name");
             nameLabel.style.color = GetRarityColor(equipData.Rarity);
             info.Add(nameLabel);
-
-            // Attunement level indicator
-            var levelContainer = new VisualElement();
-            levelContainer.AddToClassList("equipment-level-container");
-
-            var levelLabel = new Label($"+{equipData.AttunementLevel}");
-            levelLabel.AddToClassList("equipment-level");
-            if (equipData.IsAtMaximumAttunement)
-            {
-                levelLabel.AddToClassList("equipment-level-maximum");
-            }
-            levelContainer.Add(levelLabel);
 
             if (isEquipped)
             {
                 var equippedLabel = new Label("Equipped");
-                equippedLabel.AddToClassList("equipped-badge");
-                levelContainer.Add(equippedLabel);
+                equippedLabel.AddToClassList("select-entry-sub");
+                info.Add(equippedLabel);
             }
 
-            info.Add(levelContainer);
             element.Add(info);
+
+            // Attunement level badge
+            var levelLabel = new Label($"+{equipData.AttunementLevel}");
+            levelLabel.AddToClassList("select-entry-badge");
+            if (equipData.IsAtMaximumAttunement)
+            {
+                levelLabel.AddToClassList("level-maximum");
+            }
+            element.Add(levelLabel);
 
             // Click handler
             element.RegisterCallback<ClickEvent>(evt => SelectEquipment(slotIndex));
@@ -530,7 +583,7 @@ namespace Lootbound.UI
                 int elementIndex = attuneableSlotIndices.IndexOf(selectedSlotIndex);
                 if (elementIndex >= 0 && elementIndex < equipmentElements.Count)
                 {
-                    equipmentElements[elementIndex].RemoveFromClassList("equipment-selected");
+                    equipmentElements[elementIndex].RemoveFromClassList("selected");
                 }
             }
 
@@ -547,13 +600,14 @@ namespace Lootbound.UI
             int newElementIndex = attuneableSlotIndices.IndexOf(slotIndex);
             if (newElementIndex >= 0 && newElementIndex < equipmentElements.Count)
             {
-                equipmentElements[newElementIndex].AddToClassList("equipment-selected");
+                equipmentElements[newElementIndex].AddToClassList("selected");
             }
 
             // Get equipment data
             var slot = playerInventory.Inventory.GetSlot(slotIndex);
             if (slot != null && !slot.IsEmpty && slot.Item.HasEquipmentData)
             {
+                selectedItem = slot.Item;
                 selectedEquipment = slot.Item.EquipmentData;
                 UpdatePreview();
             }
@@ -566,12 +620,13 @@ namespace Lootbound.UI
                 int elementIndex = attuneableSlotIndices.IndexOf(selectedSlotIndex);
                 if (elementIndex >= 0 && elementIndex < equipmentElements.Count)
                 {
-                    equipmentElements[elementIndex].RemoveFromClassList("equipment-selected");
+                    equipmentElements[elementIndex].RemoveFromClassList("selected");
                 }
             }
 
             selectedSlotIndex = -1;
             selectedEquipment = null;
+            selectedItem = null;
             HidePreview();
         }
 
@@ -580,19 +635,27 @@ namespace Lootbound.UI
             if (previewPanel == null || selectedEquipment == null) return;
 
             previewPanel.style.display = DisplayStyle.Flex;
+            if (detailEmptyLabel != null)
+            {
+                detailEmptyLabel.style.display = DisplayStyle.None;
+            }
 
             // Get attunement service and preview
             var service = playerEquipment?.GetAttunementService();
             var preview = service?.PreviewAttempt(selectedEquipment)
                 ?? AttunementAttemptPreview.CannotAttempt(AttunementFailureReason.InvalidConfiguration);
 
-            // Name and rarity
+            // --- Item preview header ---
+            if (previewIcon != null && selectedItem?.Definition?.Icon != null)
+            {
+                previewIcon.style.backgroundImage = new StyleBackground(selectedItem.Definition.Icon);
+            }
+
             if (previewName != null)
             {
                 previewName.text = selectedEquipment.IsAttuned
                     ? selectedEquipment.GetAttunedDisplayName(equipmentRegistry)
-                    : (selectedEquipment.CustomName ?? "Equipment");
-                previewName.style.color = GetRarityColor(selectedEquipment.Rarity);
+                    : (selectedEquipment.CustomName ?? selectedItem?.Definition?.DisplayName ?? "Equipment");
             }
 
             if (previewRarity != null)
@@ -601,110 +664,97 @@ namespace Lootbound.UI
                 previewRarity.style.color = GetRarityColor(selectedEquipment.Rarity);
             }
 
-            // Affixes
-            UpdateAffixesDisplay();
-
-            // Condition
             if (previewCondition != null)
             {
                 previewCondition.text = selectedEquipment.Condition.ToString();
                 previewCondition.style.color = EquipmentConditionHelper.GetConditionColor(selectedEquipment.Condition);
             }
 
-            // Broken warning
             if (brokenWarningLabel != null)
             {
                 bool isBroken = selectedEquipment.Condition == EquipmentCondition.Broken;
                 brokenWarningLabel.style.display = isBroken ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            // History
-            UpdateHistoryDisplay();
-
-            // Attunement levels
+            // --- Attunement level (brass segmented track) ---
             int currentLevel = selectedEquipment.AttunementLevel;
             int maxLevel = preview.MaximumLevel;
 
-            if (previewCurrentLevel != null)
+            if (attuneRank != null)
             {
-                previewCurrentLevel.text = $"+{currentLevel}";
+                attuneRank.text = preview.IsAtMaximum
+                    ? $"+{currentLevel} · Maximum"
+                    : $"+{currentLevel} → +{preview.ResultingLevelOnSuccess}";
             }
 
-            if (previewNextLevel != null)
+            RebuildAttunementTrack(currentLevel, maxLevel, preview.IsAtMaximum);
+
+            if (attuneProgressNote != null)
             {
-                if (preview.IsAtMaximum)
-                {
-                    previewNextLevel.text = "Maximum";
-                    previewNextLevel.style.color = new Color(1f, 0.8f, 0.3f);
-                }
-                else
-                {
-                    previewNextLevel.text = $"+{preview.ResultingLevelOnSuccess}";
-                    previewNextLevel.style.color = new Color(0.6f, 0.9f, 0.6f);
-                }
+                attuneProgressNote.text = preview.IsAtMaximum
+                    ? "The bond runs as deep as it can."
+                    : $"+{currentLevel} of +{maxLevel}";
             }
 
-            if (previewMaxLevel != null)
+            // --- Current bonuses (real values only) ---
+            UpdateCurrentBonuses();
+
+            // --- Next attunement ---
+            UpdateStatPreview(preview);
+
+            // --- Materials ---
+            int stones = playerEquipment?.GetAvailableAttunementStones() ?? 0;
+            if (previewStonesAvailable != null)
             {
-                previewMaxLevel.text = $"/ +{maxLevel}";
+                previewStonesAvailable.text = stones.ToString();
+                previewStonesAvailable.EnableInClassList("short",
+                    stones < Mathf.Max(1, preview.RequiredStones));
+            }
+            if (previewStoneCost != null)
+            {
+                previewStoneCost.text = Mathf.Max(preview.RequiredStones, 1).ToString();
             }
 
-            // Success chance with protection breakdown
+            // --- Accord outlook ---
+            string chanceText = "";
             if (previewSuccessChance != null)
             {
                 if (preview.IsGuaranteed)
                 {
-                    previewSuccessChance.text = "GUARANTEED";
+                    chanceText = "GUARANTEED";
                     previewSuccessChance.style.color = new Color(0.4f, 0.9f, 1f);
-                }
-                else if (preview.HasProtection)
-                {
-                    // Show breakdown: base + protection = total
-                    previewSuccessChance.text = $"{preview.SuccessChance:P0} ({preview.BaseChance:P0} + {preview.ProtectionBonusPercent:F0}%)";
-                    previewSuccessChance.style.color = new Color(0.9f, 0.7f, 0.3f);
                 }
                 else
                 {
-                    previewSuccessChance.text = $"{preview.SuccessChance:P0}";
+                    chanceText = $"{preview.SuccessChance:P0}";
                     previewSuccessChance.style.color = preview.SuccessChance >= 1f
                         ? new Color(0.5f, 0.9f, 0.5f)
                         : new Color(1f, 0.8f, 0.4f);
                 }
+                previewSuccessChance.text = chanceText;
             }
 
-            // Stone cost
-            if (previewStoneCost != null)
+            if (resonanceRow != null)
             {
-                previewStoneCost.text = $"{preview.RequiredStones}";
+                resonanceRow.style.display = preview.HasProtection ? DisplayStyle.Flex : DisplayStyle.None;
+                if (preview.HasProtection && resonanceBonus != null)
+                {
+                    resonanceBonus.text = $"+{preview.ProtectionBonusPercent:F0}% (base {preview.BaseChance:P0})";
+                }
             }
 
-            // Stones available
-            UpdateStoneCount();
+            // --- Affixes and history ---
+            UpdateAffixesDisplay();
+            UpdateHistoryDisplay();
 
-            // Stat preview
-            UpdateStatPreview(preview);
-
-            // Button state
+            // --- Button and footer status ---
             if (attuneButton != null)
             {
                 bool canAttempt = preview.CanAttempt && !isAttemptInProgress;
                 attuneButton.SetEnabled(canAttempt);
-
-                if (preview.IsAtMaximum)
-                {
-                    attuneButton.text = "Maximum Reached";
-                }
-                else if (!preview.HasEnoughStones)
-                {
-                    attuneButton.text = "Not Enough Stones";
-                }
-                else
-                {
-                    attuneButton.text = $"Deepen Attunement - {preview.RequiredStones} Stone";
-                }
+                attuneButton.text = "Attune";
             }
 
-            // Failure reason
             if (failureReasonLabel != null)
             {
                 if (!preview.CanAttempt && !preview.IsAtMaximum)
@@ -717,65 +767,76 @@ namespace Lootbound.UI
                     failureReasonLabel.style.display = DisplayStyle.None;
                 }
             }
-        }
 
-        private void UpdateAffixesDisplay()
-        {
-            if (affixesContainer == null || selectedEquipment == null) return;
-
-            affixesContainer.Clear();
-
-            if (selectedEquipment.Affixes == null || selectedEquipment.Affixes.Count == 0)
+            if (preview.IsAtMaximum)
             {
-                affixesContainer.style.display = DisplayStyle.None;
-                return;
+                SetFooterStatus("Maximum attunement reached");
             }
-
-            affixesContainer.style.display = DisplayStyle.Flex;
-
-            foreach (var affix in selectedEquipment.Affixes)
+            else if (preview.CanAttempt)
             {
-                var affixDef = equipmentRegistry?.GetAffixDefinition(affix.DefinitionId);
-                if (affixDef == null) continue;
-
-                var label = new Label($"+ {affix.RolledValue:F0}% {affixDef.DisplayName}");
-                label.AddToClassList("affix-label");
-                label.style.color = new Color(0.5f, 0.8f, 0.5f);
-                affixesContainer.Add(label);
-            }
-        }
-
-        private void UpdateHistoryDisplay()
-        {
-            if (historyLabel == null || selectedEquipment == null) return;
-
-            var history = selectedEquipment.History;
-            if (history != null && !string.IsNullOrEmpty(history.FoundLocation))
-            {
-                var parts = new List<string>();
-                parts.Add($"Found in {history.FoundLocation}");
-                if (history.EnemiesDefeated > 0)
-                {
-                    parts.Add($"{history.EnemiesDefeated} enemies defeated");
-                }
-
-                // Add attunement history summary (discrete)
-                if (history.HasAttunementHistory)
-                {
-                    var attunement = history.Attunement;
-                    parts.Add($"{attunement.TotalAttempts} attunement attempt{(attunement.TotalAttempts == 1 ? "" : "s")}");
-                    if (attunement.FailedAttempts > 0)
-                    {
-                        parts.Add($"{attunement.FailedAttempts} failed");
-                    }
-                }
-
-                historyLabel.text = string.Join(" | ", parts);
-                historyLabel.style.display = DisplayStyle.Flex;
+                SetFooterStatus(preview.IsGuaranteed
+                    ? "Ready to attune · the accord is guaranteed"
+                    : $"Ready to attune · {chanceText} to deepen the bond");
             }
             else
             {
-                historyLabel.style.display = DisplayStyle.None;
+                SetFooterStatus(GetFailureReasonText(preview.FailureReason));
+            }
+        }
+
+        private void RebuildAttunementTrack(int currentLevel, int maxLevel, bool isAtMaximum)
+        {
+            if (attuneTrack == null) return;
+
+            attuneTrack.Clear();
+            if (maxLevel <= 0) return;
+
+            for (int level = 1; level <= maxLevel; level++)
+            {
+                var segment = new VisualElement();
+                segment.AddToClassList("attune-seg");
+
+                if (level < currentLevel)
+                {
+                    segment.AddToClassList("filled");
+                    segment.AddToClassList("dim");
+                }
+                else if (level == currentLevel)
+                {
+                    segment.AddToClassList("filled");
+                }
+                else if (level == currentLevel + 1 && !isAtMaximum)
+                {
+                    segment.AddToClassList("next");
+                }
+
+                attuneTrack.Add(segment);
+            }
+        }
+
+        private void UpdateCurrentBonuses()
+        {
+            if (currentBonusesContainer == null || selectedEquipment == null) return;
+
+            currentBonusesContainer.Clear();
+
+            var attunementConfig = playerEquipment?.AttunementConfig;
+            var brokenConfig = playerEquipment?.BrokenConfig;
+            var stats = selectedEquipment.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig);
+
+            if (stats.IsValid)
+            {
+                AddValueRow(currentBonusesContainer, "Damage", $"{stats.Damage:F1}", null);
+            }
+
+            if (selectedEquipment.IsAttuned && attunementConfig != null)
+            {
+                float bonusPercent = attunementConfig.GetDamageBonusPercent(selectedEquipment.AttunementLevel);
+                if (bonusPercent > 0)
+                {
+                    AddValueRow(currentBonusesContainer, "Attunement bonus",
+                        $"+{bonusPercent:F0}%", new Color(0.4f, 0.85f, 0.4f));
+                }
             }
         }
 
@@ -785,13 +846,9 @@ namespace Lootbound.UI
 
             statPreviewContainer.Clear();
 
-            if (preview.IsAtMaximum)
-            {
-                statPreviewContainer.style.display = DisplayStyle.None;
-                return;
-            }
-
-            statPreviewContainer.style.display = DisplayStyle.Flex;
+            bool showNext = !preview.IsAtMaximum;
+            sectionNext?.EnableInClassList("hidden", !showNext);
+            if (!showNext) return;
 
             // Calculate current and next stats
             var attunementConfig = playerEquipment?.AttunementConfig;
@@ -799,56 +856,137 @@ namespace Lootbound.UI
 
             var currentStats = selectedEquipment.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig);
 
-            // Temporarily calculate next level stats
             int nextLevel = selectedEquipment.AttunementLevel + 1;
             float currentDamageMultiplier = attunementConfig?.GetDamageMultiplier(selectedEquipment.AttunementLevel) ?? 1f;
             float nextDamageMultiplier = attunementConfig?.GetDamageMultiplier(nextLevel) ?? 1f;
 
-            // Calculate the damage increase
-            float damageRatio = nextDamageMultiplier / currentDamageMultiplier;
+            float damageRatio = currentDamageMultiplier > 0f ? nextDamageMultiplier / currentDamageMultiplier : 1f;
             float nextDamage = currentStats.Damage * damageRatio;
 
-            // Only show stats that change
-            if (Math.Abs(nextDamage - currentStats.Damage) > 0.01f)
-            {
-                var damageRow = CreateStatRow("Damage", $"{currentStats.Damage:F1}", $"{nextDamage:F1}");
-                statPreviewContainer.Add(damageRow);
-            }
-
-            // Update simple labels if they exist
-            if (previewCurrentDamage != null)
-            {
-                previewCurrentDamage.text = $"{currentStats.Damage:F1}";
-            }
-
-            if (previewNextDamage != null)
-            {
-                previewNextDamage.text = $"{nextDamage:F1}";
-            }
+            AddBeforeAfterRow(statPreviewContainer, "Damage",
+                $"{currentStats.Damage:F1}", $"{nextDamage:F1}",
+                Math.Abs(nextDamage - currentStats.Damage) > 0.01f);
         }
 
-        private VisualElement CreateStatRow(string statName, string currentValue, string nextValue)
+        private static void AddValueRow(VisualElement container, string label, string value, Color? valueColor)
         {
             var row = new VisualElement();
             row.AddToClassList("stat-row");
 
-            var nameLabel = new Label(statName);
-            nameLabel.AddToClassList("stat-name");
-            row.Add(nameLabel);
+            var nameLabel = new Label(label);
+            nameLabel.AddToClassList("stat-label");
 
-            var currentLabel = new Label(currentValue);
-            currentLabel.AddToClassList("stat-current");
-            row.Add(currentLabel);
+            var valueLabel = new Label(value);
+            valueLabel.AddToClassList("stat-value");
+            if (valueColor.HasValue)
+            {
+                valueLabel.style.color = valueColor.Value;
+            }
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            container.Add(row);
+        }
+
+        private static void AddBeforeAfterRow(VisualElement container, string label,
+            string before, string after, bool improves)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("delta-row");
+
+            var nameLabel = new Label(label);
+            nameLabel.AddToClassList("delta-label");
+
+            var beforeLabel = new Label(before);
+            beforeLabel.AddToClassList("next-before");
 
             var arrowLabel = new Label("→");
-            arrowLabel.AddToClassList("stat-arrow");
+            arrowLabel.AddToClassList("next-arrow");
+
+            var afterLabel = new Label(after);
+            afterLabel.AddToClassList("next-after");
+            if (!improves)
+            {
+                afterLabel.AddToClassList("neutral");
+            }
+
+            row.Add(nameLabel);
+            row.Add(beforeLabel);
             row.Add(arrowLabel);
+            row.Add(afterLabel);
+            container.Add(row);
+        }
 
-            var nextLabel = new Label(nextValue);
-            nextLabel.AddToClassList("stat-next");
-            row.Add(nextLabel);
+        private void UpdateAffixesDisplay()
+        {
+            if (affixesContainer == null || selectedEquipment == null) return;
 
-            return row;
+            affixesContainer.Clear();
+
+            bool hasAffixes = selectedEquipment.Affixes != null && selectedEquipment.Affixes.Count > 0;
+            sectionAffixes?.EnableInClassList("hidden", !hasAffixes);
+            if (!hasAffixes) return;
+
+            foreach (var affix in selectedEquipment.Affixes)
+            {
+                var affixDef = equipmentRegistry?.GetAffixDefinition(affix.DefinitionId);
+                if (affixDef == null) continue;
+
+                var block = new VisualElement();
+                block.AddToClassList("affix");
+
+                var label = new Label($"+ {affix.RolledValue:F0}% {affixDef.DisplayName}");
+                label.AddToClassList("affix-name");
+                block.Add(label);
+
+                affixesContainer.Add(block);
+            }
+        }
+
+        private void UpdateHistoryDisplay()
+        {
+            if (historyEntriesContainer == null || selectedEquipment == null) return;
+
+            historyEntriesContainer.Clear();
+
+            var history = selectedEquipment.History;
+            if (history == null) return;
+
+            if (!string.IsNullOrEmpty(history.FoundLocation))
+            {
+                AddHistoryEntry($"Found in {history.FoundLocation}.");
+            }
+
+            if (history.EnemiesDefeated > 0)
+            {
+                AddHistoryEntry($"{history.EnemiesDefeated} enemies defeated together.");
+            }
+
+            if (history.HasAttunementHistory)
+            {
+                var attunement = history.Attunement;
+                string attempts = attunement.TotalAttempts == 1
+                    ? "1 attunement attempt"
+                    : $"{attunement.TotalAttempts} attunement attempts";
+                string failures = attunement.FailedAttempts > 0
+                    ? $" ({attunement.FailedAttempts} failed)"
+                    : "";
+                AddHistoryEntry($"{attempts}{failures}.");
+            }
+        }
+
+        private void AddHistoryEntry(string fact)
+        {
+            if (string.IsNullOrEmpty(fact) || historyEntriesContainer == null) return;
+
+            var entry = new VisualElement();
+            entry.AddToClassList("history-entry");
+
+            var factLabel = new Label(fact);
+            factLabel.AddToClassList("history-fact");
+            entry.Add(factLabel);
+
+            historyEntriesContainer.Add(entry);
         }
 
         private void HidePreview()
@@ -858,26 +996,26 @@ namespace Lootbound.UI
                 previewPanel.style.display = DisplayStyle.None;
             }
 
+            if (detailEmptyLabel != null)
+            {
+                detailEmptyLabel.style.display = DisplayStyle.Flex;
+            }
+
             if (attuneButton != null)
             {
                 attuneButton.SetEnabled(false);
             }
+
+            SetFooterStatus(attuneableSlotIndices.Count == 0
+                ? "No equipment to attune"
+                : "Select equipment to deepen the bond");
         }
 
-        private void UpdateStoneCount()
+        private void SetFooterStatus(string text)
         {
-            if (previewStonesAvailable == null) return;
-
-            int stones = playerEquipment?.GetAvailableAttunementStones() ?? 0;
-            previewStonesAvailable.text = $"Available: {stones}";
-
-            if (stones == 0)
+            if (footerStatusLabel != null)
             {
-                previewStonesAvailable.style.color = new Color(0.9f, 0.5f, 0.5f);
-            }
-            else
-            {
-                previewStonesAvailable.style.color = new Color(0.6f, 0.8f, 0.6f);
+                footerStatusLabel.text = text;
             }
         }
 
@@ -1000,7 +1138,6 @@ namespace Lootbound.UI
 
             // Refresh UI
             RefreshEquipmentList();
-            UpdateStoneCount();
 
             // Re-select the equipment if it still exists
             if (attuneableSlotIndices.Contains(selectedSlotIndex))
@@ -1008,7 +1145,7 @@ namespace Lootbound.UI
                 int elementIndex = attuneableSlotIndices.IndexOf(selectedSlotIndex);
                 if (elementIndex >= 0 && elementIndex < equipmentElements.Count)
                 {
-                    equipmentElements[elementIndex].AddToClassList("equipment-selected");
+                    equipmentElements[elementIndex].AddToClassList("selected");
                 }
                 UpdatePreview();
             }
@@ -1025,7 +1162,6 @@ namespace Lootbound.UI
 
             // Refresh UI to show current state
             RefreshEquipmentList();
-            UpdateStoneCount();
 
             if (attuneableSlotIndices.Contains(selectedSlotIndex))
             {
@@ -1116,8 +1252,6 @@ namespace Lootbound.UI
         {
             if (!isOpen) return;
 
-            UpdateStoneCount();
-
             // Refresh preview if we have a selection
             if (selectedEquipment != null)
             {
@@ -1157,10 +1291,10 @@ namespace Lootbound.UI
             return rarity switch
             {
                 ItemRarity.Common => new Color(0.8f, 0.8f, 0.8f),
-                ItemRarity.Uncommon => new Color(0.2f, 0.8f, 0.2f),
-                ItemRarity.Rare => new Color(0.2f, 0.4f, 1f),
-                ItemRarity.Epic => new Color(0.6f, 0.2f, 0.8f),
-                ItemRarity.Legendary => new Color(1f, 0.6f, 0.1f),
+                ItemRarity.Uncommon => new Color(0.3f, 0.85f, 0.3f),
+                ItemRarity.Rare => new Color(0.3f, 0.5f, 1f),
+                ItemRarity.Epic => new Color(0.65f, 0.3f, 0.85f),
+                ItemRarity.Legendary => new Color(1f, 0.65f, 0.15f),
                 _ => Color.white
             };
         }
