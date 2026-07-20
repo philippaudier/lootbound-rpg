@@ -1,94 +1,8 @@
 /* ============================================================
-   Lootbound Inventory - "expedition journal" style.
-   Flexbox only; no percent heights (window bounds are applied in
-   pixels from InventoryUI via GeometryChangedEvent).
+   Inventory-specific styles. Shared journal tokens and components
+   (window frame, header, sections, rows, buttons, history...)
+   live in ../Common/Journal.uss.
    ============================================================ */
-
-:root {
-    --ink-window: rgb(26, 30, 37);
-    --ink-panel: rgb(32, 37, 46);
-    --ink-raise: rgb(42, 49, 60);
-    --line: rgb(49, 57, 71);
-    --line-soft: rgb(39, 46, 57);
-    --paper: rgb(231, 226, 214);
-    --muted: rgb(144, 154, 168);
-    --faint: rgb(93, 101, 114);
-    --brass: rgb(173, 146, 101);
-    --delta-pos: rgb(111, 191, 115);
-    --delta-neg: rgb(201, 106, 106);
-}
-
-/* ============ Overlay + window ============ */
-
-.inventory-overlay {
-    flex-grow: 1;
-    align-items: center;
-    justify-content: center;
-}
-
-.inventory-window {
-    /* width/height bounds are set in pixels by InventoryUI */
-    flex-direction: column;
-    background-color: var(--ink-window);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-/* --- Window header: never shrinks --- */
-
-.window-header {
-    flex-shrink: 0;
-    flex-direction: row;
-    align-items: center;
-    padding: 12px 18px;
-    border-bottom-width: 1px;
-    border-bottom-color: var(--line);
-}
-
-.window-title {
-    color: var(--paper);
-    font-size: 17px;
-    -unity-font-style: bold;
-}
-
-.window-capacity {
-    margin-left: 14px;
-    font-size: 11px;
-    color: var(--muted);
-}
-
-.header-spacer {
-    flex-grow: 1;
-}
-
-.close-btn {
-    margin-left: 14px;
-    width: 28px;
-    height: 28px;
-    color: var(--muted);
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 4px;
-    font-size: 13px;
-    -unity-text-align: middle-center;
-    padding: 0;
-}
-
-.close-btn:hover {
-    color: var(--paper);
-    border-color: var(--muted);
-}
-
-/* --- Main content: grows, may shrink --- */
-
-.window-main {
-    flex-grow: 1;
-    min-height: 0;
-    flex-direction: row;
-}
 
 /* ============ Slot grid (left) ============ */
 
@@ -194,7 +108,7 @@
     display: none;
 }
 
-/* --- 1. Equipment header: fixed --- */
+/* --- Equipment header: fixed --- */
 
 .eq-header {
     flex-shrink: 0;
@@ -238,26 +152,7 @@
     align-items: center;
 }
 
-.subtitle-rarity {
-    font-size: 12px;
-    -unity-font-style: bold;
-}
-
-.subtitle-dot {
-    margin: 0 6px;
-    font-size: 12px;
-    color: var(--faint);
-}
-
-.subtitle-kind {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.subtitle-attuned {
-    font-size: 12px;
-    color: var(--brass);
-}
+/* Mini condition bar (inventory header variant of the shared bar) */
 
 .eq-condition-mini {
     margin-top: 6px;
@@ -265,28 +160,10 @@
     align-items: center;
 }
 
-.cond-track {
+.eq-condition-mini .cond-track {
     width: 110px;
     height: 4px;
     margin-right: 8px;
-    background-color: var(--ink-raise);
-    border-radius: 2px;
-    overflow: hidden;
-    flex-direction: row;
-}
-
-.cond-fill {
-    height: 100%;
-    border-radius: 2px;
-    background-color: var(--delta-pos);
-}
-
-.cond-fill.warn {
-    background-color: var(--brass);
-}
-
-.cond-fill.bad {
-    background-color: var(--delta-neg);
 }
 
 .cond-mini-label {
@@ -301,7 +178,7 @@
     color: var(--muted);
 }
 
-/* --- 2. Equipment body: single ScrollView --- */
+/* --- Equipment body: single ScrollView --- */
 
 .eq-body {
     flex-grow: 1;
@@ -317,6 +194,7 @@
 
 .eq-scroll #unity-content-container {
     padding: 14px 18px;
+    flex-grow: 1;
 }
 
 .eq-columns {
@@ -349,75 +227,7 @@
     padding-right: 0;
 }
 
-/* --- Reusable info sections --- */
-
-.info-section {
-    margin-bottom: 16px;
-}
-
-.info-section.hidden {
-    display: none;
-}
-
-.section-header {
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    color: var(--faint);
-    padding-bottom: 5px;
-    margin-bottom: 8px;
-    border-bottom-width: 1px;
-    border-bottom-color: var(--line-soft);
-}
-
-/* Stat rows: label / value */
-
-.stat-row {
-    flex-direction: row;
-    align-items: center;
-    padding: 2px 0;
-}
-
-.stat-label {
-    flex-grow: 1;
-    color: var(--muted);
-    font-size: 12px;
-}
-
-.stat-value {
-    font-size: 13px;
-    color: var(--paper);
-}
-
-.stat-value-penalty {
-    font-size: 13px;
-    color: var(--delta-neg);
-}
-
-.stat-penalty-note {
-    font-size: 10px;
-    color: var(--delta-neg);
-    margin-left: 4px;
-}
-
-/* Broken warning */
-
-.broken-badge {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(128, 38, 38, 0.9);
-    padding: 4px 8px;
-    margin-bottom: 6px;
-    border-radius: 4px;
-}
-
-.broken-badge-label {
-    font-size: 11px;
-    color: rgb(255, 178, 178);
-    -unity-font-style: bold;
-}
-
-/* Durability bar (condition section) */
+/* Durability bar inside the CONDITION section */
 
 .cond-bar {
     height: 4px;
@@ -433,77 +243,7 @@
     border-radius: 2px;
 }
 
-/* Comparison: deltas only */
-
-.compare-vs {
-    font-size: 11px;
-    color: var(--faint);
-    -unity-font-style: italic;
-    margin-bottom: 6px;
-}
-
-.delta-row {
-    flex-direction: row;
-    align-items: center;
-    padding: 2px 0;
-}
-
-.delta-label {
-    flex-grow: 1;
-    color: var(--muted);
-    font-size: 12px;
-}
-
-.delta-value {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.delta-value.pos {
-    color: var(--delta-pos);
-}
-
-.delta-value.neg {
-    color: var(--delta-neg);
-}
-
-/* Affixes */
-
-.affix {
-    margin-bottom: 8px;
-}
-
-.affix-name {
-    font-size: 12px;
-    color: var(--paper);
-    -unity-font-style: bold;
-}
-
-.affix-desc {
-    font-size: 11px;
-    color: var(--muted);
-    white-space: normal;
-    margin-top: 1px;
-}
-
-/* Item history: journal entries */
-
-.history-entry {
-    border-left-width: 2px;
-    border-left-color: var(--line);
-    padding: 1px 0 1px 10px;
-    margin-bottom: 8px;
-}
-
-.history-fact {
-    font-size: 12px;
-    -unity-font-style: italic;
-    color: var(--paper);
-    opacity: 0.85;
-    white-space: normal;
-}
-
-/* Details section */
+/* Details section description */
 
 .item-desc {
     font-size: 12px;
@@ -512,7 +252,7 @@
     white-space: normal;
 }
 
-/* Repair block */
+/* Repair block (inside the CONDITION section) */
 
 .repair-header {
     font-size: 12px;
@@ -549,39 +289,15 @@
     display: none;
 }
 
-/* --- 3. Actions footer: never scrolls, never hidden by content --- */
+/* --- Actions footer of the equipment panel --- */
 
 .eq-actions {
     flex-shrink: 0;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     padding: 12px 18px 8px 18px;
     border-top-width: 1px;
     border-top-color: var(--line);
-}
-
-.action-btn {
-    padding: 7px 16px;
-    margin: 0 8px 6px 0;
-    font-size: 12px;
-    color: var(--paper);
-    background-color: var(--ink-panel);
-    border-width: 1px;
-    border-color: var(--line);
-    border-radius: 4px;
-}
-
-.action-btn:hover {
-    background-color: var(--ink-raise);
-    border-color: var(--muted);
-}
-
-.action-btn.primary {
-    border-color: var(--brass);
-    color: var(--brass);
-}
-
-.action-btn.primary:hover {
-    background-color: var(--ink-raise);
 }

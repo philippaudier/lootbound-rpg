@@ -1,7 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="../Common/Journal.uss" />
     <Style src="Inventory.uss" />
-    <ui:VisualElement name="inventory-overlay" class="inventory-overlay" picking-mode="Ignore">
-        <ui:VisualElement name="inventory-panel" class="inventory-window" style="display: none;">
+    <ui:VisualElement name="inventory-overlay" class="journal-overlay" picking-mode="Ignore">
+        <ui:VisualElement name="inventory-panel" class="journal-window" style="display: none;">
 
             <ui:VisualElement name="window-header" class="window-header">
                 <ui:Label name="inventory-title" text="Inventory" class="window-title" />

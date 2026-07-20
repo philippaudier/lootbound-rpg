@@ -1,0 +1,717 @@
+/* ============================================================
+   Lootbound "Expedition Journal" - shared UI family tokens and
+   components. Three pages of one journal:
+     Inventory       -> observe an item
+     Repair Station  -> preserve its story
+     Attunement Table-> deepen the bond
+   Referenced by every journal window UXML alongside its own USS.
+   Fonts: project default for now; hierarchy comes from sizes,
+   weights and italics (dedicated fonts may land later).
+   ============================================================ */
+
+:root {
+    --ink-window: rgb(26, 30, 37);
+    --ink-panel: rgb(32, 37, 46);
+    --ink-raise: rgb(42, 49, 60);
+    --line: rgb(49, 57, 71);
+    --line-soft: rgb(39, 46, 57);
+    --paper: rgb(231, 226, 214);
+    --muted: rgb(144, 154, 168);
+    --faint: rgb(93, 101, 114);
+    --brass: rgb(173, 146, 101);
+    --brass-soft: rgb(110, 94, 63);
+    --delta-pos: rgb(111, 191, 115);
+    --delta-neg: rgb(201, 106, 106);
+}
+
+/* ============ Overlay + window frame ============ */
+
+.journal-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.journal-window {
+    /* width/height bounds are applied in pixels from code */
+    flex-direction: column;
+    background-color: var(--ink-window);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* ============ Window header ============ */
+
+.window-header {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line);
+}
+
+.window-title {
+    color: var(--paper);
+    font-size: 17px;
+    letter-spacing: 0.5px;
+    -unity-font-style: bold;
+}
+
+.window-capacity {
+    margin-left: 14px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.header-spacer {
+    flex-grow: 1;
+}
+
+.header-motto {
+    font-size: 12px;
+    color: var(--muted);
+    -unity-font-style: italic;
+    margin-right: 14px;
+}
+
+.close-btn {
+    margin-left: 14px;
+    width: 28px;
+    height: 28px;
+    color: var(--muted);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+
+.close-btn:hover {
+    color: var(--paper);
+    border-color: var(--muted);
+}
+
+/* ============ Main content ============ */
+
+.window-main {
+    flex-grow: 1;
+    min-height: 0;
+    flex-direction: row;
+}
+
+/* ============ Window footer (never scrolls) ============ */
+
+.window-footer {
+    flex-shrink: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 18px 8px 18px;
+    border-top-width: 1px;
+    border-top-color: var(--line);
+}
+
+.footer-status {
+    flex-grow: 1;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+/* ============ Action buttons ============ */
+
+.action-btn {
+    padding: 7px 16px;
+    margin: 0 0 6px 8px;
+    font-size: 12px;
+    color: var(--paper);
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+}
+
+.action-btn:hover {
+    background-color: var(--ink-raise);
+    border-color: var(--muted);
+}
+
+.action-btn.primary {
+    border-color: var(--brass);
+    color: var(--brass);
+}
+
+.action-btn.primary:hover {
+    background-color: var(--ink-raise);
+}
+
+/* Filled brass variant: the one deliberate emphasis (Attune) */
+
+.action-btn.primary-filled {
+    border-color: var(--brass);
+    background-color: var(--brass);
+    color: var(--ink-window);
+    -unity-font-style: bold;
+}
+
+.action-btn.primary-filled:hover {
+    background-color: rgb(188, 160, 116);
+    border-color: rgb(188, 160, 116);
+}
+
+.action-btn:disabled {
+    color: var(--faint);
+    border-color: var(--line);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* ============ Reusable info sections ============ */
+
+.info-section {
+    margin-bottom: 16px;
+}
+
+.info-section.hidden {
+    display: none;
+}
+
+.section-header {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--faint);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line-soft);
+}
+
+/* ============ Item preview (large header block) ============ */
+
+.item-preview {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.item-icon {
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    margin-right: 14px;
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.item-text {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.item-name {
+    color: var(--paper);
+    font-size: 20px;
+    -unity-font-style: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.item-subtitle {
+    margin-top: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.subtitle-rarity {
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.subtitle-dot {
+    margin: 0 6px;
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.subtitle-kind {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.subtitle-attuned {
+    font-size: 12px;
+    color: var(--brass);
+}
+
+.item-summary {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    -unity-font-style: italic;
+    white-space: normal;
+}
+
+/* ============ Stat / delta / fact rows ============ */
+
+.stat-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.stat-label {
+    flex-grow: 1;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.stat-value {
+    font-size: 13px;
+    color: var(--paper);
+}
+
+.stat-value-penalty {
+    font-size: 13px;
+    color: var(--delta-neg);
+}
+
+.stat-penalty-note {
+    font-size: 10px;
+    color: var(--delta-neg);
+    margin-left: 4px;
+}
+
+.delta-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.delta-label {
+    flex-grow: 1;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.delta-value {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.delta-value.pos {
+    color: var(--delta-pos);
+}
+
+.delta-value.neg {
+    color: var(--delta-neg);
+}
+
+.compare-vs {
+    font-size: 11px;
+    color: var(--faint);
+    -unity-font-style: italic;
+    margin-bottom: 6px;
+}
+
+/* before -> after rows */
+
+.next-arrow {
+    color: var(--faint);
+    margin: 0 8px;
+    font-size: 12px;
+}
+
+.next-before {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.next-after {
+    font-size: 13px;
+    color: var(--delta-pos);
+}
+
+.next-after.neutral {
+    color: var(--paper);
+}
+
+/* ============ Materials ============ */
+
+.mat-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line-soft);
+}
+
+.mat-icon {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    margin-right: 10px;
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line-soft);
+    border-radius: 3px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.mat-name {
+    flex-grow: 1;
+    font-size: 12px;
+    color: var(--paper);
+}
+
+.mat-count {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--paper);
+}
+
+.mat-count.short {
+    color: var(--delta-neg);
+}
+
+.mat-need {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.mat-sep {
+    font-size: 12px;
+    color: var(--faint);
+    margin: 0 3px;
+}
+
+/* ============ Summary boxes (repair preview / accord outlook) ============ */
+
+.preview-box {
+    border-width: 1px;
+    border-color: var(--line-soft);
+    border-radius: 4px;
+    padding: 12px 14px;
+    background-color: var(--ink-panel);
+}
+
+.preview-value-brass {
+    color: var(--brass);
+}
+
+.box-note {
+    font-size: 11px;
+    color: var(--faint);
+    -unity-font-style: italic;
+    white-space: normal;
+    margin-top: 8px;
+}
+
+/* ============ Condition bars ============ */
+
+.cond-line {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.cond-line-label {
+    flex-shrink: 0;
+    width: 78px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--faint);
+}
+
+.cond-track {
+    height: 8px;
+    background-color: var(--ink-raise);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-direction: row;
+}
+
+.cond-line .cond-track {
+    flex-grow: 1;
+    margin-right: 12px;
+}
+
+.cond-fill {
+    height: 100%;
+    background-color: var(--delta-pos);
+}
+
+.cond-fill.warn {
+    background-color: var(--brass);
+}
+
+.cond-fill.bad {
+    background-color: var(--delta-neg);
+}
+
+.cond-fill.after-current {
+    opacity: 0.55;
+}
+
+.cond-fill.after-gain {
+    background-color: var(--brass);
+}
+
+.cond-line-value {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--paper);
+    min-width: 56px;
+    -unity-text-align: middle-right;
+}
+
+.cond-line-value.gain {
+    color: var(--brass);
+}
+
+/* ============ History ============ */
+
+.fact-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.fact-label {
+    flex-grow: 1;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.fact-value {
+    font-size: 13px;
+    color: var(--paper);
+}
+
+.history-entry {
+    border-left-width: 2px;
+    border-left-color: var(--line);
+    padding: 1px 0 1px 10px;
+    margin-bottom: 8px;
+}
+
+.history-fact {
+    font-size: 12px;
+    -unity-font-style: italic;
+    color: var(--paper);
+    opacity: 0.85;
+    white-space: normal;
+}
+
+/* ============ Affixes ============ */
+
+.affix {
+    margin-bottom: 8px;
+}
+
+.affix-name {
+    font-size: 12px;
+    color: var(--paper);
+    -unity-font-style: bold;
+}
+
+.affix-desc {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: normal;
+    margin-top: 1px;
+}
+
+/* ============ Journal prose (notes / philosophy) ============ */
+
+.journal-prose {
+    font-size: 12px;
+    color: var(--muted);
+    -unity-font-style: italic;
+    white-space: normal;
+    margin-bottom: 6px;
+}
+
+/* ============ Two-column detail bodies ============ */
+
+.detail-columns {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.detail-col-left {
+    width: 50%;
+    flex-shrink: 0;
+    padding-right: 14px;
+    min-width: 0;
+}
+
+.detail-col-right {
+    width: 50%;
+    flex-shrink: 0;
+    padding-left: 14px;
+    min-width: 0;
+    border-left-width: 1px;
+    border-left-color: var(--line-soft);
+}
+
+/* Compact: columns stack (class applied from code) */
+
+.compact .detail-columns {
+    flex-direction: column;
+}
+
+.compact .detail-col-left,
+.compact .detail-col-right {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    border-left-width: 0;
+}
+
+.compact .detail-col-right {
+    border-top-width: 1px;
+    border-top-color: var(--line-soft);
+    margin-top: 14px;
+    padding-top: 14px;
+}
+
+/* ============ Selection lists (repair / attunement) ============ */
+
+.select-list {
+    flex-shrink: 0;
+    width: 260px;
+    min-width: 220px;
+    flex-direction: column;
+    min-height: 0;
+    padding: 14px;
+    border-right-width: 1px;
+    border-right-color: var(--line);
+}
+
+.select-scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.select-entry {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px;
+    margin-bottom: 6px;
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line-soft);
+    border-radius: 4px;
+}
+
+.select-entry:hover {
+    background-color: var(--ink-raise);
+}
+
+.select-entry.selected {
+    border-color: var(--brass);
+}
+
+.select-entry-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    margin-right: 10px;
+    background-color: var(--ink-raise);
+    border-radius: 3px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.select-entry-text {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.select-entry-name {
+    font-size: 12px;
+    color: var(--paper);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.select-entry-sub {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 1px;
+}
+
+.select-entry-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--brass);
+    margin-left: 6px;
+}
+
+.select-empty {
+    font-size: 11px;
+    color: var(--faint);
+    -unity-font-style: italic;
+    white-space: normal;
+    margin-top: 4px;
+}
+
+/* ============ Detail area next to a selection list ============ */
+
+.detail-panel {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.detail-scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.detail-scroll #unity-content-container {
+    padding: 18px;
+}
+
+.detail-empty {
+    flex-grow: 1;
+    color: var(--faint);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    -unity-text-align: middle-center;
+}
+
+/* ============ Status / warnings ============ */
+
+.broken-badge {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(128, 38, 38, 0.9);
+    padding: 4px 8px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+}
+
+.broken-badge-label {
+    font-size: 11px;
+    color: rgb(255, 178, 178);
+    -unity-font-style: bold;
+}
+
+.warning-text {
+    font-size: 11px;
+    color: rgb(229, 153, 102);
+    white-space: normal;
+    margin-top: 4px;
+}
