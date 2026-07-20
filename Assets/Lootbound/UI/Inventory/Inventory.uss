@@ -243,6 +243,33 @@
     border-radius: 2px;
 }
 
+/* Attunement composition note on the Damage stat: "24.8 (20 +24%)" */
+
+.stat-composition {
+    font-size: 10px;
+    color: var(--brass);
+    margin-left: 6px;
+}
+
+/* Comparison rows: equipped -> selected + signed delta */
+
+.next-after.worse {
+    color: var(--delta-neg);
+}
+
+.compare-delta {
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.compare-delta.pos {
+    color: var(--delta-pos);
+}
+
+.compare-delta.neg {
+    color: var(--delta-neg);
+}
+
 /* Details section description */
 
 .item-desc {

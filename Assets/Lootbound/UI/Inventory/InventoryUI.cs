@@ -589,7 +589,25 @@ namespace Lootbound.UI
                     }
                     else
                     {
-                        AddStatRow(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
+                        // Damage is the EFFECTIVE value; when an attunement
+                        // bonus applies, its composition is shown inline so
+                        // the bonus never reads as "still to be added".
+                        float bonusPercent = equipData.IsAttuned && attunementConfig != null
+                            ? attunementConfig.GetDamageBonusPercent(equipData.AttunementLevel)
+                            : 0f;
+
+                        if (bonusPercent > 0f)
+                        {
+                            float preAttunement = stats.Damage / (1f + bonusPercent / 100f);
+                            AddStatRowWithNote(equipmentStatsContainer, "Damage",
+                                stats.Damage.ToString("F1"),
+                                $"({preAttunement:F0} +{bonusPercent:F0}%)");
+                        }
+                        else
+                        {
+                            AddStatRow(equipmentStatsContainer, "Damage", stats.Damage.ToString("F1"));
+                        }
+
                         AddStatRow(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
                         AddStatRow(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
                     }
@@ -658,18 +676,11 @@ namespace Lootbound.UI
                     attunementColor = new Color(0.6f, 0.6f, 0.65f); // Gray for unattuned
                 }
 
+                // The attunement damage bonus is shown inside the Damage
+                // stat itself (already applied) - no separate "bonus" row
+                // that could read as something still to be added.
                 AddStatRow(attunementContainer, "Attunement",
                     $"+{equipData.AttunementLevel} / +{maxLevel}", attunementColor);
-
-                if (equipData.IsAttuned && playerEquipment?.AttunementConfig != null)
-                {
-                    float bonusPercent = playerEquipment.AttunementConfig.GetDamageBonusPercent(equipData.AttunementLevel);
-                    if (bonusPercent > 0)
-                    {
-                        AddStatRow(attunementContainer, "Damage Bonus",
-                            $"+{bonusPercent:F0}%", new Color(0.4f, 0.85f, 0.4f));
-                    }
-                }
             }
 
             // --- Repair (inside the CONDITION section) ---
@@ -746,7 +757,7 @@ namespace Lootbound.UI
             comparisonContainer.Clear();
             SetSectionVisible(sectionCompare, true);
 
-            var headerLabel = new Label("vs equipped weapon");
+            var headerLabel = new Label("equipped → this item");
             headerLabel.AddToClassList("compare-vs");
             comparisonContainer.Add(headerLabel);
 
@@ -754,11 +765,13 @@ namespace Lootbound.UI
 
             int equippedAttunement = playerEquipment.CurrentEquipment?.AttunementLevel ?? 0;
             int selectedAttunement = selectedItem.EquipmentData?.AttunementLevel ?? 0;
-            AddAttunementDelta(comparisonContainer, equippedAttunement, selectedAttunement);
+            AddAttunementComparisonRow(comparisonContainer, equippedAttunement, selectedAttunement);
 
-            AddStatDelta(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage);
-            AddStatDelta(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed);
-            AddStatDelta(comparisonContainer, "Range", currentStats.Range, selectedStats.Range);
+            // Effective values on both sides (same resolution pipeline), so
+            // the delta is verifiable at a glance: 24.8 → 30.0  +5.2.
+            AddComparisonRow(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage, "F1");
+            AddComparisonRow(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed, "F2");
+            AddComparisonRow(comparisonContainer, "Range", currentStats.Range, selectedStats.Range, "F1");
         }
 
         private void HideEquipmentUI()
@@ -791,6 +804,16 @@ namespace Lootbound.UI
         #endregion
 
         #region Row builders
+
+        /// <summary>Stat row with a small brass composition note, e.g. "24.8 (20 +24%)".</summary>
+        private static void AddStatRowWithNote(VisualElement container, string label, string value, string note)
+        {
+            var row = AddStatRow(container, label, value);
+
+            var noteLabel = new Label(note);
+            noteLabel.AddToClassList("stat-composition");
+            row.Add(noteLabel);
+        }
 
         private static VisualElement AddStatRow(VisualElement container, string label, string value, Color? valueColor = null)
         {
@@ -834,10 +857,15 @@ namespace Lootbound.UI
             container.Add(row);
         }
 
-        private void AddStatDelta(VisualElement container, string statName, float current, float selected)
+        /// <summary>
+        /// Comparison row: equipped value, arrow, selected value, then the
+        /// signed delta - the change is verifiable at a glance.
+        /// </summary>
+        private static void AddComparisonRow(VisualElement container, string statName,
+            float current, float selected, string format)
         {
             float diff = selected - current;
-            if (Mathf.Abs(diff) < 0.01f) return; // Deltas only
+            if (Mathf.Abs(diff) < 0.01f) return; // Meaningful changes only
 
             var row = new VisualElement();
             row.AddToClassList("delta-row");
@@ -845,16 +873,32 @@ namespace Lootbound.UI
             var nameLabel = new Label(statName);
             nameLabel.AddToClassList("delta-label");
 
-            var diffLabel = new Label(diff > 0 ? $"+{diff:F1}" : $"{diff:F1}");
-            diffLabel.AddToClassList("delta-value");
-            diffLabel.AddToClassList(diff > 0 ? "pos" : "neg");
+            var beforeLabel = new Label(current.ToString(format));
+            beforeLabel.AddToClassList("next-before");
+
+            var arrowLabel = new Label("→");
+            arrowLabel.AddToClassList("next-arrow");
+
+            var afterLabel = new Label(selected.ToString(format));
+            afterLabel.AddToClassList("next-after");
+            if (diff < 0f)
+            {
+                afterLabel.AddToClassList("worse");
+            }
+
+            var deltaLabel = new Label(diff > 0f ? $"+{diff.ToString(format)}" : diff.ToString(format));
+            deltaLabel.AddToClassList("compare-delta");
+            deltaLabel.AddToClassList(diff > 0f ? "pos" : "neg");
 
             row.Add(nameLabel);
-            row.Add(diffLabel);
+            row.Add(beforeLabel);
+            row.Add(arrowLabel);
+            row.Add(afterLabel);
+            row.Add(deltaLabel);
             container.Add(row);
         }
 
-        private void AddAttunementDelta(VisualElement container, int equippedLevel, int selectedLevel)
+        private static void AddAttunementComparisonRow(VisualElement container, int equippedLevel, int selectedLevel)
         {
             var row = new VisualElement();
             row.AddToClassList("delta-row");
@@ -862,19 +906,27 @@ namespace Lootbound.UI
             var nameLabel = new Label("Attunement");
             nameLabel.AddToClassList("delta-label");
 
-            var valueLabel = new Label($"+{selectedLevel}");
-            valueLabel.AddToClassList("delta-value");
-            if (selectedLevel > equippedLevel)
+            var beforeLabel = new Label($"+{equippedLevel}");
+            beforeLabel.AddToClassList("next-before");
+
+            var arrowLabel = new Label("→");
+            arrowLabel.AddToClassList("next-arrow");
+
+            var afterLabel = new Label($"+{selectedLevel}");
+            afterLabel.AddToClassList("next-after");
+            if (selectedLevel < equippedLevel)
             {
-                valueLabel.AddToClassList("pos");
+                afterLabel.AddToClassList("worse");
             }
-            else if (selectedLevel < equippedLevel)
+            else if (selectedLevel == equippedLevel)
             {
-                valueLabel.AddToClassList("neg");
+                afterLabel.AddToClassList("neutral");
             }
 
             row.Add(nameLabel);
-            row.Add(valueLabel);
+            row.Add(beforeLabel);
+            row.Add(arrowLabel);
+            row.Add(afterLabel);
             container.Add(row);
         }
 
