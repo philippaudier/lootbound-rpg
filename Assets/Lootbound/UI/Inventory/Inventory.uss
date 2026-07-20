@@ -1,97 +1,146 @@
-/* Inventory Panel Styles */
+/* ============================================================
+   Lootbound Inventory - "expedition journal" style.
+   Flexbox only; no percent heights (window bounds are applied in
+   pixels from InventoryUI via GeometryChangedEvent).
+   ============================================================ */
 
-.inventory-panel {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    translate: -50% -50%;
-    background-color: rgba(30, 30, 35, 0.95);
-    border-radius: 12px;
-    border-width: 2px;
-    border-color: rgba(100, 100, 120, 0.5);
-    padding: 16px;
-    /* Width for slots (370px) + two-column details panel (360px) + margins */
-    width: 780px;
-    /* The panel must NEVER exceed the screen: tall item details scroll
-       inside their column instead of overflowing the bottom edge. */
-    max-height: 92%;
+:root {
+    --ink-window: rgb(26, 30, 37);
+    --ink-panel: rgb(32, 37, 46);
+    --ink-raise: rgb(42, 49, 60);
+    --line: rgb(49, 57, 71);
+    --line-soft: rgb(39, 46, 57);
+    --paper: rgb(231, 226, 214);
+    --muted: rgb(144, 154, 168);
+    --faint: rgb(93, 101, 114);
+    --brass: rgb(173, 146, 101);
+    --delta-pos: rgb(111, 191, 115);
+    --delta-neg: rgb(201, 106, 106);
 }
 
-.inventory-content {
+/* ============ Overlay + window ============ */
+
+.inventory-overlay {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.inventory-window {
+    /* width/height bounds are set in pixels by InventoryUI */
+    flex-direction: column;
+    background-color: var(--ink-window);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* --- Window header: never shrinks --- */
+
+.window-header {
+    flex-shrink: 0;
     flex-direction: row;
-    flex-shrink: 1;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line);
+}
+
+.window-title {
+    color: var(--paper);
+    font-size: 17px;
+    -unity-font-style: bold;
+}
+
+.window-capacity {
+    margin-left: 14px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.header-spacer {
+    flex-grow: 1;
+}
+
+.close-btn {
+    margin-left: 14px;
+    width: 28px;
+    height: 28px;
+    color: var(--muted);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+
+.close-btn:hover {
+    color: var(--paper);
+    border-color: var(--muted);
+}
+
+/* --- Main content: grows, may shrink --- */
+
+.window-main {
+    flex-grow: 1;
+    min-height: 0;
+    flex-direction: row;
+}
+
+/* ============ Slot grid (left) ============ */
+
+.inventory-left {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    padding: 14px;
+    border-right-width: 1px;
+    border-right-color: var(--line);
+}
+
+.slot-scroll {
+    flex-grow: 1;
     min-height: 0;
 }
 
-.inventory-header {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom-width: 1px;
-    border-bottom-color: rgba(100, 100, 120, 0.3);
-    flex-shrink: 0;
-}
-
-.inventory-title {
-    color: rgb(255, 255, 255);
-    font-size: 20px;
-    -unity-font-style: bold;
-}
-
-.capacity-label {
-    color: rgb(180, 180, 180);
-    font-size: 14px;
-    margin-left: auto;
-    margin-right: 16px;
-}
-
-.close-button {
-    width: 28px;
-    height: 28px;
-    background-color: rgba(200, 60, 60, 0.6);
-    border-radius: 4px;
-    border-width: 0;
-    color: rgb(255, 255, 255);
-    font-size: 14px;
-    -unity-font-style: bold;
-}
-
-.close-button:hover {
-    background-color: rgba(220, 80, 80, 0.8);
-}
-
-.slots-container {
+.slot-grid {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-start;
     align-content: flex-start;
-    /* 5 columns: (64px slot + 8px margin) * 5 = 360px */
-    max-width: 370px;
-    flex-shrink: 0;
 }
-
-/* Slot Styles */
 
 .inventory-slot {
     width: 64px;
     height: 64px;
-    margin: 4px;
-    background-color: rgba(50, 50, 60, 0.8);
-    border-radius: 6px;
-    border-width: 2px;
-    border-color: rgba(80, 80, 100, 0.5);
+    margin: 0 8px 8px 0;
+    background-color: var(--ink-panel);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: var(--line-soft);
     position: relative;
 }
 
 .inventory-slot:hover {
-    border-color: rgba(150, 150, 180, 0.8);
-    background-color: rgba(60, 60, 75, 0.9);
+    background-color: var(--ink-raise);
 }
 
 .inventory-slot.slot-filled {
-    border-bottom-width: 3px;
+    border-bottom-width: 2px;
+}
+
+.inventory-slot.slot-selected {
+    border-color: var(--brass);
+    border-width: 2px;
+}
+
+.inventory-slot.slot-equipped {
+    border-left-width: 3px;
+    border-left-color: rgb(100, 200, 100);
 }
 
 .slot-icon {
@@ -107,205 +156,432 @@
     position: absolute;
     right: 4px;
     bottom: 2px;
-    color: rgb(255, 255, 255);
+    color: var(--paper);
     font-size: 12px;
     -unity-font-style: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-/* Rarity Colors */
+/* ============ Equipment panel (right) ============ */
 
-.rarity-common {
-    border-bottom-color: rgb(180, 180, 180);
+.equipment-panel {
+    flex-shrink: 0;
+    width: 46%;
+    min-width: 400px;
+    max-width: 560px;
+    flex-direction: column;
+    min-height: 0;
 }
 
-.rarity-uncommon {
-    border-bottom-color: rgb(50, 200, 50);
-}
+/* Empty state */
 
-.rarity-rare {
-    border-bottom-color: rgb(50, 100, 255);
-}
-
-.rarity-epic {
-    border-bottom-color: rgb(150, 50, 200);
-}
-
-.rarity-legendary {
-    border-bottom-color: rgb(255, 150, 25);
-}
-
-/* Selected Slot */
-
-.inventory-slot.slot-selected {
-    border-color: rgb(255, 200, 100);
-    border-width: 3px;
-}
-
-/* Equipped Slot */
-
-.inventory-slot.slot-equipped {
-    border-left-width: 3px;
-    border-left-color: rgb(100, 200, 100);
-}
-
-/* Item Details Panel */
-
-.item-details {
-    width: 360px;
-    min-width: 360px;
-    margin-left: 16px;
-    padding: 12px;
-    background-color: rgba(40, 40, 50, 0.8);
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: rgba(80, 80, 100, 0.5);
+.eq-empty {
+    flex-grow: 1;
+    color: var(--faint);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    -unity-text-align: middle-center;
     display: none;
-    overflow: hidden;
 }
 
-.item-details.has-selection {
+.equipment-panel.no-selection .eq-empty {
     display: flex;
 }
 
-/* When the details fit, the content fills the column so the drop button
-   keeps sticking to the bottom (margin-top: auto); when they do not fit,
-   the ScrollView scrolls instead of overflowing the screen. */
-.item-details #unity-content-container {
-    flex-grow: 1;
+.equipment-panel.no-selection .eq-header,
+.equipment-panel.no-selection .eq-body,
+.equipment-panel.no-selection .eq-preview-status,
+.equipment-panel.no-selection .eq-actions {
+    display: none;
 }
 
-/* Two-column equipment info */
+/* --- 1. Equipment header: fixed --- */
 
-.details-columns {
+.eq-header {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 16px 18px 14px 18px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line);
+}
+
+.eq-header-icon {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    margin-right: 14px;
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.eq-header-text {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.eq-name {
+    color: var(--paper);
+    font-size: 18px;
+    -unity-font-style: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eq-subtitle {
+    margin-top: 3px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.subtitle-rarity {
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.subtitle-dot {
+    margin: 0 6px;
+    font-size: 12px;
+    color: var(--faint);
+}
+
+.subtitle-kind {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.subtitle-attuned {
+    font-size: 12px;
+    color: var(--brass);
+}
+
+.eq-condition-mini {
+    margin-top: 6px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.cond-track {
+    width: 110px;
+    height: 4px;
+    margin-right: 8px;
+    background-color: var(--ink-raise);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-direction: row;
+}
+
+.cond-fill {
+    height: 100%;
+    border-radius: 2px;
+    background-color: var(--delta-pos);
+}
+
+.cond-fill.warn {
+    background-color: var(--brass);
+}
+
+.cond-fill.bad {
+    background-color: var(--delta-neg);
+}
+
+.cond-mini-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+}
+
+.details-quantity {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+/* --- 2. Equipment body: single ScrollView --- */
+
+.eq-body {
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.eq-scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.eq-scroll #unity-content-container {
+    padding: 14px 18px;
+}
+
+.eq-columns {
     flex-direction: row;
     align-items: flex-start;
 }
 
-.details-column {
-    flex-grow: 1;
-    flex-basis: 0;
+.col-left {
+    width: 45%;
+    flex-shrink: 0;
+    padding-right: 16px;
     min-width: 0;
 }
 
-.details-column-right {
-    margin-left: 10px;
-}
-
-.details-icon {
-    width: 64px;
-    height: 64px;
-    align-self: center;
-    margin-bottom: 12px;
-    background-color: rgba(50, 50, 60, 0.8);
-    border-radius: 6px;
-    -unity-background-scale-mode: scale-to-fit;
+.col-right {
+    width: 55%;
     flex-shrink: 0;
+    min-width: 0;
 }
 
-.details-name {
-    color: rgb(255, 255, 255);
-    font-size: 14px;
+/* Compact mode (class applied from code below ~410px panel width) */
+
+.equipment-panel.compact .eq-columns {
+    flex-direction: column;
+}
+
+.equipment-panel.compact .col-left,
+.equipment-panel.compact .col-right {
+    width: 100%;
+    padding-right: 0;
+}
+
+/* --- Reusable info sections --- */
+
+.info-section {
+    margin-bottom: 16px;
+}
+
+.info-section.hidden {
+    display: none;
+}
+
+.section-header {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--faint);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line-soft);
+}
+
+/* Stat rows: label / value */
+
+.stat-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.stat-label {
+    flex-grow: 1;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.stat-value {
+    font-size: 13px;
+    color: var(--paper);
+}
+
+.stat-value-penalty {
+    font-size: 13px;
+    color: var(--delta-neg);
+}
+
+.stat-penalty-note {
+    font-size: 10px;
+    color: var(--delta-neg);
+    margin-left: 4px;
+}
+
+/* Broken warning */
+
+.broken-badge {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(128, 38, 38, 0.9);
+    padding: 4px 8px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+}
+
+.broken-badge-label {
+    font-size: 11px;
+    color: rgb(255, 178, 178);
     -unity-font-style: bold;
-    margin-bottom: 8px;
-    -unity-text-align: middle-center;
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.details-description {
-    color: rgb(180, 180, 180);
-    font-size: 11px;
-    margin-bottom: 8px;
-    white-space: normal;
+/* Durability bar (condition section) */
+
+.cond-bar {
+    height: 4px;
+    margin-top: 2px;
+    background-color: var(--ink-raise);
+    border-radius: 2px;
+    flex-direction: row;
     overflow: hidden;
 }
 
-.details-quantity {
-    color: rgb(150, 200, 150);
+.cond-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+/* Comparison: deltas only */
+
+.compare-vs {
     font-size: 11px;
+    color: var(--faint);
+    -unity-font-style: italic;
+    margin-bottom: 6px;
+}
+
+.delta-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.delta-label {
+    flex-grow: 1;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.delta-value {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.delta-value.pos {
+    color: var(--delta-pos);
+}
+
+.delta-value.neg {
+    color: var(--delta-neg);
+}
+
+/* Affixes */
+
+.affix {
     margin-bottom: 8px;
-    -unity-text-align: middle-center;
 }
 
-.drop-button {
-    height: 32px;
-    background-color: rgba(180, 80, 80, 0.6);
-    border-radius: 4px;
-    border-width: 0;
-    color: rgb(255, 255, 255);
-    font-size: 14px;
-    margin-top: auto;
+.affix-name {
+    font-size: 12px;
+    color: var(--paper);
+    -unity-font-style: bold;
 }
 
-.drop-button:hover {
-    background-color: rgba(200, 100, 100, 0.8);
-}
-
-/* Equipment Stats Section */
-
-#equipment-stats {
-    margin-top: 8px;
-    margin-bottom: 8px;
-    padding: 8px;
-    background-color: rgba(50, 50, 60, 0.5);
-    border-radius: 4px;
-}
-
-#equipment-stats Label {
+.affix-desc {
     font-size: 11px;
+    color: var(--muted);
+    white-space: normal;
+    margin-top: 1px;
 }
 
-/* Affixes Section */
+/* Item history: journal entries */
 
-#affixes {
+.history-entry {
+    border-left-width: 2px;
+    border-left-color: var(--line);
+    padding: 1px 0 1px 10px;
     margin-bottom: 8px;
 }
 
-#affixes Label {
-    font-size: 10px;
+.history-fact {
+    font-size: 12px;
+    -unity-font-style: italic;
+    color: var(--paper);
+    opacity: 0.85;
     white-space: normal;
-    margin-bottom: 2px;
 }
 
-/* History Section */
+/* Details section */
 
-#history {
-    margin-bottom: 8px;
-}
-
-#history Label {
-    font-size: 10px;
+.item-desc {
+    font-size: 12px;
+    color: var(--muted);
+    -unity-font-style: italic;
     white-space: normal;
-    color: rgb(140, 140, 150);
 }
 
-/* Comparison Section */
+/* Repair block */
 
-#comparison {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top-width: 1px;
-    border-top-color: rgba(100, 100, 120, 0.4);
+.repair-header {
+    font-size: 12px;
+    color: rgb(178, 216, 178);
+    -unity-font-style: bold;
+    margin-top: 6px;
+    margin-bottom: 6px;
 }
 
-#comparison Label {
-    font-size: 10px;
-}
-
-/* Equip Button */
-
-#equip-button {
-    height: 32px;
-    border-radius: 4px;
-    border-width: 0;
-    color: rgb(255, 255, 255);
-    font-size: 14px;
+.repair-reason {
+    font-size: 11px;
+    color: rgb(229, 153, 102);
+    white-space: normal;
     margin-top: 4px;
-    margin-bottom: 4px;
 }
 
-#equip-button:hover {
-    opacity: 0.9;
+/* --- Preview status --- */
+
+.eq-preview-status {
+    flex-shrink: 0;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--brass);
+    -unity-text-align: middle-center;
+    padding: 6px 0 0 0;
+    display: none;
+}
+
+.equipment-panel.preview .eq-preview-status {
+    display: flex;
+}
+
+.equipment-panel.preview .eq-actions {
+    display: none;
+}
+
+/* --- 3. Actions footer: never scrolls, never hidden by content --- */
+
+.eq-actions {
+    flex-shrink: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 18px 8px 18px;
+    border-top-width: 1px;
+    border-top-color: var(--line);
+}
+
+.action-btn {
+    padding: 7px 16px;
+    margin: 0 8px 6px 0;
+    font-size: 12px;
+    color: var(--paper);
+    background-color: var(--ink-panel);
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: 4px;
+}
+
+.action-btn:hover {
+    background-color: var(--ink-raise);
+    border-color: var(--muted);
+}
+
+.action-btn.primary {
+    border-color: var(--brass);
+    color: var(--brass);
+}
+
+.action-btn.primary:hover {
+    background-color: var(--ink-raise);
 }

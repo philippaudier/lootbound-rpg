@@ -1,20 +1,97 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="Inventory.uss" />
-    <ui:VisualElement name="inventory-panel" class="inventory-panel" style="display: none;">
-        <ui:VisualElement class="inventory-header">
-            <ui:Label name="inventory-title" text="Inventory" class="inventory-title" />
-            <ui:Label name="capacity-label" text="0/20" class="capacity-label" />
-            <ui:Button name="close-button" text="X" class="close-button" />
-        </ui:VisualElement>
-        <ui:VisualElement class="inventory-content">
-            <ui:VisualElement name="slots-container" class="slots-container" />
-            <ui:ScrollView name="item-details" class="item-details" mode="Vertical" horizontal-scroller-visibility="Hidden">
-                <ui:VisualElement name="details-icon" class="details-icon" />
-                <ui:Label name="details-name" text="" class="details-name" />
-                <ui:Label name="details-description" text="" class="details-description" />
-                <ui:Label name="details-quantity" text="" class="details-quantity" />
-                <ui:Button name="drop-button" text="Drop" class="drop-button" />
-            </ui:ScrollView>
+    <ui:VisualElement name="inventory-overlay" class="inventory-overlay" picking-mode="Ignore">
+        <ui:VisualElement name="inventory-panel" class="inventory-window" style="display: none;">
+
+            <ui:VisualElement name="window-header" class="window-header">
+                <ui:Label name="inventory-title" text="Inventory" class="window-title" />
+                <ui:Label name="capacity-label" text="0/20" class="window-capacity" />
+                <ui:VisualElement class="header-spacer" />
+                <!-- future category filters go here -->
+                <ui:Button name="close-button" text="X" class="close-btn" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="window-main" class="window-main">
+
+                <ui:VisualElement name="inventory-left" class="inventory-left">
+                    <ui:ScrollView name="slot-scroll" class="slot-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden">
+                        <ui:VisualElement name="slots-container" class="slot-grid" />
+                    </ui:ScrollView>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="equipment-panel" class="equipment-panel no-selection">
+                    <ui:Label name="eq-empty" text="SELECT AN ITEM" class="eq-empty" />
+
+                    <ui:VisualElement name="eq-header" class="eq-header">
+                        <ui:VisualElement name="details-icon" class="eq-header-icon" />
+                        <ui:VisualElement class="eq-header-text">
+                            <ui:Label name="details-name" text="" class="eq-name" />
+                            <ui:VisualElement name="eq-subtitle" class="eq-subtitle">
+                                <ui:Label name="subtitle-rarity" text="" class="subtitle-rarity" />
+                                <ui:Label name="subtitle-dot" text="·" class="subtitle-dot" />
+                                <ui:Label name="subtitle-kind" text="" class="subtitle-kind" />
+                                <ui:Label name="subtitle-attuned-dot" text="·" class="subtitle-dot" />
+                                <ui:Label name="subtitle-attuned" text="Attuned" class="subtitle-attuned" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="eq-condition-mini" class="eq-condition-mini">
+                                <ui:VisualElement name="cond-track" class="cond-track">
+                                    <ui:VisualElement name="cond-fill" class="cond-fill" />
+                                </ui:VisualElement>
+                                <ui:Label name="cond-mini-label" text="" class="cond-mini-label" />
+                            </ui:VisualElement>
+                            <ui:Label name="details-quantity" text="" class="details-quantity" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="eq-body" class="eq-body">
+                        <ui:ScrollView name="eq-scroll" class="eq-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden">
+                            <ui:VisualElement name="eq-columns" class="eq-columns">
+
+                                <ui:VisualElement name="col-left" class="col-left">
+                                    <ui:VisualElement name="section-stats" class="info-section hidden">
+                                        <ui:Label text="PRIMARY STATS" class="section-header" />
+                                        <ui:VisualElement name="equipment-stats" class="section-content" />
+                                    </ui:VisualElement>
+                                    <ui:VisualElement name="section-condition" class="info-section hidden">
+                                        <ui:Label text="CONDITION" class="section-header" />
+                                        <ui:VisualElement name="condition" class="section-content" />
+                                        <ui:VisualElement name="attunement" class="section-content" />
+                                        <ui:VisualElement name="repair" class="section-content" />
+                                    </ui:VisualElement>
+                                    <ui:VisualElement name="section-compare" class="info-section hidden">
+                                        <ui:Label text="COMPARISON" class="section-header" />
+                                        <ui:VisualElement name="comparison" class="section-content" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+
+                                <ui:VisualElement name="col-right" class="col-right">
+                                    <ui:VisualElement name="section-affixes" class="info-section hidden">
+                                        <ui:Label text="AFFIXES" class="section-header" />
+                                        <ui:VisualElement name="affixes" class="section-content" />
+                                    </ui:VisualElement>
+                                    <ui:VisualElement name="section-history" class="info-section hidden">
+                                        <ui:Label text="ITEM HISTORY" class="section-header" />
+                                        <ui:VisualElement name="history" class="section-content" />
+                                    </ui:VisualElement>
+                                    <ui:VisualElement name="section-details" class="info-section hidden">
+                                        <ui:Label text="DETAILS" class="section-header" />
+                                        <ui:Label name="details-description" text="" class="item-desc" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+
+                    <ui:Label name="eq-preview-status" text="PREVIEW — CLICK TO SELECT" class="eq-preview-status" />
+
+                    <ui:VisualElement name="eq-actions" class="eq-actions">
+                        <ui:Button name="equip-button" text="Equip" class="action-btn primary" />
+                        <ui:Button name="drop-button" text="Drop" class="action-btn" />
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

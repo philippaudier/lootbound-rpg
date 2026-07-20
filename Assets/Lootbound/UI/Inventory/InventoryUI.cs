@@ -8,9 +8,18 @@ using Lootbound.Gameplay.Equipment;
 namespace Lootbound.UI
 {
     /// <summary>
-    /// Inventory UI using UI Toolkit.
-    /// Displays the player's inventory in a grid layout with item details and drop functionality.
-    /// Supports equipment display with stats, affixes, and comparison.
+    /// Inventory UI using UI Toolkit - "expedition journal" layout.
+    ///
+    /// Structure (declared in Inventory.uxml):
+    ///   window header (fixed) / main content / slot grid + equipment panel.
+    ///   The equipment panel is header (fixed) / body (single ScrollView with
+    ///   two info columns) / actions footer (fixed, never scrolled away).
+    ///
+    /// Hovering a slot previews its item (actions hidden, PREVIEW banner);
+    /// clicking selects it. Actions always target the real selection.
+    /// Window bounds are enforced in pixels from the resolved root size -
+    /// never through percent heights, which do not resolve under the
+    /// UIDocument TemplateContainer.
     /// </summary>
     public class InventoryUI : MonoBehaviour
     {
@@ -36,6 +45,10 @@ namespace Lootbound.UI
         [SerializeField] private float dropDistance = 1.5f;
         [SerializeField] private float dropHeightOffset = 0.5f;
 
+        private const float CompactWidthThreshold = 410f;
+        private const float MaxWindowWidth = 1180f;
+        private const float MaxWindowHeight = 720f;
+
         private VisualElement root;
         private VisualElement inventoryPanel;
         private VisualElement slotsContainer;
@@ -43,16 +56,29 @@ namespace Lootbound.UI
         private Label capacityLabel;
         private Button closeButton;
 
-        // Item details panel
-        private VisualElement itemDetails;
+        // Equipment panel (all declared in Inventory.uxml)
+        private VisualElement equipmentPanel;
         private VisualElement detailsIcon;
         private Label detailsName;
         private Label detailsDescription;
         private Label detailsQuantity;
+        private Label subtitleRarity;
+        private Label subtitleKind;
+        private Label subtitleAttunedDot;
+        private Label subtitleAttuned;
+        private VisualElement condMiniRoot;
+        private VisualElement condFill;
+        private Label condMiniLabel;
         private Button dropButton;
         private Button equipButton;
 
-        // Equipment-specific elements (created dynamically)
+        // Section roots (info-section wrappers) and their content containers
+        private VisualElement sectionStats;
+        private VisualElement sectionCondition;
+        private VisualElement sectionCompare;
+        private VisualElement sectionAffixes;
+        private VisualElement sectionHistory;
+        private VisualElement sectionDetails;
         private VisualElement equipmentStatsContainer;
         private VisualElement conditionContainer;
         private VisualElement attunementContainer;
@@ -64,6 +90,8 @@ namespace Lootbound.UI
 
         private VisualElement[] slotElements;
         private int selectedSlotIndex = -1;
+        private int previewSlotIndex = -1;
+        private bool isCompact;
         private bool isOpen;
 
         public bool IsOpen => isOpen;
@@ -146,13 +174,35 @@ namespace Lootbound.UI
             capacityLabel = root.Q<Label>("capacity-label");
             closeButton = root.Q<Button>("close-button");
 
-            // Item details panel
-            itemDetails = root.Q<VisualElement>("item-details");
+            equipmentPanel = root.Q<VisualElement>("equipment-panel");
             detailsIcon = root.Q<VisualElement>("details-icon");
             detailsName = root.Q<Label>("details-name");
             detailsDescription = root.Q<Label>("details-description");
             detailsQuantity = root.Q<Label>("details-quantity");
+            subtitleRarity = root.Q<Label>("subtitle-rarity");
+            subtitleKind = root.Q<Label>("subtitle-kind");
+            subtitleAttunedDot = root.Q<Label>("subtitle-attuned-dot");
+            subtitleAttuned = root.Q<Label>("subtitle-attuned");
+            condMiniRoot = root.Q<VisualElement>("eq-condition-mini");
+            condFill = root.Q<VisualElement>("cond-fill");
+            condMiniLabel = root.Q<Label>("cond-mini-label");
+
+            sectionStats = root.Q<VisualElement>("section-stats");
+            sectionCondition = root.Q<VisualElement>("section-condition");
+            sectionCompare = root.Q<VisualElement>("section-compare");
+            sectionAffixes = root.Q<VisualElement>("section-affixes");
+            sectionHistory = root.Q<VisualElement>("section-history");
+            sectionDetails = root.Q<VisualElement>("section-details");
+            equipmentStatsContainer = root.Q<VisualElement>("equipment-stats");
+            conditionContainer = root.Q<VisualElement>("condition");
+            attunementContainer = root.Q<VisualElement>("attunement");
+            repairContainer = root.Q<VisualElement>("repair");
+            affixesContainer = root.Q<VisualElement>("affixes");
+            historyContainer = root.Q<VisualElement>("history");
+            comparisonContainer = root.Q<VisualElement>("comparison");
+
             dropButton = root.Q<Button>("drop-button");
+            equipButton = root.Q<Button>("equip-button");
 
             if (closeButton != null)
             {
@@ -164,35 +214,41 @@ namespace Lootbound.UI
                 dropButton.clicked += HandleDropClicked;
             }
 
-            // Try to find equip button, or create one if it doesn't exist
-            equipButton = root.Q<Button>("equip-button");
-            if (equipButton == null && itemDetails != null)
-            {
-                CreateEquipmentUI();
-            }
-
             if (equipButton != null)
             {
                 equipButton.clicked += HandleEquipClicked;
             }
 
-            // Hide by default
+            // Leaving the grid always ends a hover preview.
+            slotsContainer?.RegisterCallback<PointerLeaveEvent>(_ => EndPreview());
+
+            // Compact mode: stack the two info columns when the panel gets
+            // narrow. The class is only touched when the state changes.
+            equipmentPanel?.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                bool shouldBeCompact = evt.newRect.width < CompactWidthThreshold;
+                if (shouldBeCompact != isCompact)
+                {
+                    isCompact = shouldBeCompact;
+                    equipmentPanel.EnableInClassList("compact", isCompact);
+                }
+            });
+
             if (inventoryPanel != null)
             {
                 inventoryPanel.style.display = DisplayStyle.None;
 
                 // The cloned TemplateContainer between the document root and
-                // the panel has no definite height, so percent-based bounds
-                // (max-height: 92%) never resolve and the centered panel can
-                // overflow the screen. Stretch every intermediate container
-                // and enforce the bound in pixels from the real root height.
+                // the overlay has no definite height, so percent-based sizes
+                // never resolve. Stretch every intermediate container and
+                // enforce the window bounds in pixels from the root size.
                 for (var element = inventoryPanel.parent; element != null && element != root; element = element.parent)
                 {
                     element.style.flexGrow = 1;
                 }
 
-                root.RegisterCallback<GeometryChangedEvent>(_ => ApplyPanelHeightBound());
-                ApplyPanelHeightBound();
+                root.RegisterCallback<GeometryChangedEvent>(_ => ApplyWindowBounds());
+                ApplyWindowBounds();
             }
 
             // Start with picking disabled - will enable when opened
@@ -200,19 +256,21 @@ namespace Lootbound.UI
         }
 
         /// <summary>
-        /// Caps the panel height in pixels (92% of the resolved root height)
-        /// so item details can never spill past the screen edge; the details
-        /// column scrolls instead. Re-applied on every root geometry change
-        /// (resolution or aspect switches).
+        /// Caps the window size in pixels (92% of the resolved root, bounded
+        /// by the design maximums) so the window can never exceed the screen
+        /// at any resolution or aspect. Re-applied on root geometry changes.
         /// </summary>
-        private void ApplyPanelHeightBound()
+        private void ApplyWindowBounds()
         {
             if (inventoryPanel == null || root == null) return;
 
+            float rootWidth = root.resolvedStyle.width;
             float rootHeight = root.resolvedStyle.height;
+            if (float.IsNaN(rootWidth) || rootWidth <= 0f) return;
             if (float.IsNaN(rootHeight) || rootHeight <= 0f) return;
 
-            inventoryPanel.style.maxHeight = rootHeight * 0.92f;
+            inventoryPanel.style.width = Mathf.Min(MaxWindowWidth, rootWidth * 0.92f);
+            inventoryPanel.style.height = Mathf.Min(MaxWindowHeight, rootHeight * 0.92f);
         }
 
         private void Start()
@@ -235,12 +293,6 @@ namespace Lootbound.UI
             slotElements = new VisualElement[slotCount];
             slotsContainer.Clear();
 
-            // Set grid columns from config
-            if (playerInventory.Config != null)
-            {
-                slotsContainer.style.flexWrap = Wrap.Wrap;
-            }
-
             for (int i = 0; i < slotCount; i++)
             {
                 VisualElement slotElement;
@@ -258,9 +310,9 @@ namespace Lootbound.UI
                 slotElement.name = $"slot-{i}";
                 slotElement.userData = i;
 
-                // Add click handler
                 int slotIndex = i;
                 slotElement.RegisterCallback<ClickEvent>(evt => HandleSlotClicked(slotIndex));
+                slotElement.RegisterCallback<PointerEnterEvent>(_ => HandleSlotHovered(slotIndex));
 
                 slotsContainer.Add(slotElement);
                 slotElements[i] = slotElement;
@@ -284,6 +336,8 @@ namespace Lootbound.UI
 
             return slot;
         }
+
+        #region Selection and preview
 
         private void HandleSlotClicked(int slotIndex)
         {
@@ -311,7 +365,6 @@ namespace Lootbound.UI
 
             selectedSlotIndex = slotIndex;
 
-            // Add selection class
             if (slotIndex >= 0 && slotIndex < slotElements.Length)
             {
                 slotElements[slotIndex].AddToClassList("slot-selected");
@@ -331,142 +384,73 @@ namespace Lootbound.UI
             UpdateItemDetails();
         }
 
-        private void CreateEquipmentUI()
+        private void HandleSlotHovered(int slotIndex)
         {
-            if (itemDetails == null) return;
+            if (!isOpen || playerInventory?.Inventory == null) return;
 
-            // Create equipment stats container
-            equipmentStatsContainer = new VisualElement();
-            equipmentStatsContainer.name = "equipment-stats";
-            equipmentStatsContainer.style.marginTop = 8;
-            equipmentStatsContainer.style.marginBottom = 8;
-            equipmentStatsContainer.style.display = DisplayStyle.None;
-
-            // Create condition container (durability bar + condition label)
-            conditionContainer = new VisualElement();
-            conditionContainer.name = "condition";
-            conditionContainer.style.marginBottom = 8;
-            conditionContainer.style.display = DisplayStyle.None;
-
-            // Create attunement container
-            attunementContainer = new VisualElement();
-            attunementContainer.name = "attunement";
-            attunementContainer.style.marginBottom = 8;
-            attunementContainer.style.display = DisplayStyle.None;
-
-            // Create repair container
-            repairContainer = new VisualElement();
-            repairContainer.name = "repair";
-            repairContainer.style.marginBottom = 8;
-            repairContainer.style.paddingTop = 8;
-            repairContainer.style.paddingBottom = 8;
-            repairContainer.style.paddingLeft = 8;
-            repairContainer.style.paddingRight = 8;
-            repairContainer.style.backgroundColor = new Color(0.15f, 0.18f, 0.15f, 0.9f);
-            repairContainer.style.borderTopLeftRadius = 4;
-            repairContainer.style.borderTopRightRadius = 4;
-            repairContainer.style.borderBottomLeftRadius = 4;
-            repairContainer.style.borderBottomRightRadius = 4;
-            repairContainer.style.display = DisplayStyle.None;
-
-            // Create affixes container
-            affixesContainer = new VisualElement();
-            affixesContainer.name = "affixes";
-            affixesContainer.style.marginBottom = 8;
-            affixesContainer.style.display = DisplayStyle.None;
-
-            // Create history container
-            historyContainer = new VisualElement();
-            historyContainer.name = "history";
-            historyContainer.style.marginBottom = 8;
-            historyContainer.style.display = DisplayStyle.None;
-
-            // Create comparison container
-            comparisonContainer = new VisualElement();
-            comparisonContainer.name = "comparison";
-            comparisonContainer.style.marginTop = 8;
-            comparisonContainer.style.paddingTop = 8;
-            comparisonContainer.style.borderTopWidth = 1;
-            comparisonContainer.style.borderTopColor = new Color(0.4f, 0.4f, 0.5f, 0.5f);
-            comparisonContainer.style.display = DisplayStyle.None;
-
-            // Create equip button
-            equipButton = new Button();
-            equipButton.name = "equip-button";
-            equipButton.text = "Equip";
-            equipButton.style.height = 32;
-            equipButton.style.marginTop = 4;
-            equipButton.style.marginBottom = 4;
-            equipButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.8f);
-            equipButton.style.borderTopLeftRadius = 4;
-            equipButton.style.borderTopRightRadius = 4;
-            equipButton.style.borderBottomLeftRadius = 4;
-            equipButton.style.borderBottomRightRadius = 4;
-            equipButton.style.color = Color.white;
-            equipButton.style.display = DisplayStyle.None;
-
-            // Two-column layout: the equipment info is too rich for one
-            // endless column. Stats/condition/repair on the left,
-            // attunement/affixes/history/comparison on the right; the
-            // buttons keep the full width below the columns.
-            var columns = new VisualElement();
-            columns.name = "details-columns";
-            columns.AddToClassList("details-columns");
-
-            var leftColumn = new VisualElement();
-            leftColumn.AddToClassList("details-column");
-            var rightColumn = new VisualElement();
-            rightColumn.AddToClassList("details-column");
-            rightColumn.AddToClassList("details-column-right");
-            columns.Add(leftColumn);
-            columns.Add(rightColumn);
-
-            leftColumn.Add(equipmentStatsContainer);
-            leftColumn.Add(conditionContainer);
-            leftColumn.Add(repairContainer);
-            rightColumn.Add(attunementContainer);
-            rightColumn.Add(affixesContainer);
-            rightColumn.Add(historyContainer);
-            rightColumn.Add(comparisonContainer);
-
-            // Insert before the drop button
-            int dropIndex = itemDetails.IndexOf(dropButton);
-            if (dropIndex >= 0)
-            {
-                itemDetails.Insert(dropIndex, columns);
-                itemDetails.Insert(dropIndex + 1, equipButton);
-            }
-            else
-            {
-                itemDetails.Add(columns);
-                itemDetails.Add(equipButton);
-            }
-        }
-
-        private void UpdateItemDetails()
-        {
-            if (itemDetails == null) return;
-
-            if (selectedSlotIndex < 0 || playerInventory?.Inventory == null)
-            {
-                itemDetails.RemoveFromClassList("has-selection");
-                HideEquipmentUI();
-                return;
-            }
-
-            var slot = playerInventory.Inventory.GetSlot(selectedSlotIndex);
+            var slot = playerInventory.Inventory.GetSlot(slotIndex);
             if (slot == null || slot.IsEmpty)
             {
-                itemDetails.RemoveFromClassList("has-selection");
-                HideEquipmentUI();
+                // Hovering empty slots keeps the current display.
                 return;
             }
+
+            if (slotIndex == selectedSlotIndex)
+            {
+                EndPreview();
+                return;
+            }
+
+            previewSlotIndex = slotIndex;
+            equipmentPanel?.AddToClassList("preview");
+            DisplayItem(slotIndex, isPreview: true);
+        }
+
+        private void EndPreview()
+        {
+            if (previewSlotIndex < 0) return;
+
+            previewSlotIndex = -1;
+            equipmentPanel?.RemoveFromClassList("preview");
+            DisplayItem(selectedSlotIndex, isPreview: false);
+        }
+
+        /// <summary>Shows the real selection (ends any hover preview).</summary>
+        private void UpdateItemDetails()
+        {
+            previewSlotIndex = -1;
+            equipmentPanel?.RemoveFromClassList("preview");
+            DisplayItem(selectedSlotIndex, isPreview: false);
+        }
+
+        #endregion
+
+        #region Equipment panel display
+
+        private void DisplayItem(int slotIndex, bool isPreview)
+        {
+            if (equipmentPanel == null) return;
+
+            if (slotIndex < 0 || playerInventory?.Inventory == null)
+            {
+                equipmentPanel.AddToClassList("no-selection");
+                return;
+            }
+
+            var slot = playerInventory.Inventory.GetSlot(slotIndex);
+            if (slot == null || slot.IsEmpty)
+            {
+                equipmentPanel.AddToClassList("no-selection");
+                return;
+            }
+
+            equipmentPanel.RemoveFromClassList("no-selection");
 
             var item = slot.Item;
             var definition = item.Definition;
+            bool isEquipment = item.HasEquipmentData;
 
-            itemDetails.AddToClassList("has-selection");
-
+            // --- Header: icon, name, subtitle, condition mini-bar, quantity ---
             if (detailsIcon != null && definition.Icon != null)
             {
                 detailsIcon.style.backgroundImage = new StyleBackground(definition.Icon);
@@ -474,9 +458,8 @@ namespace Lootbound.UI
 
             if (detailsName != null)
             {
-                // Use attuned display name if equipment is attuned, otherwise custom name or definition name
                 string displayName;
-                if (item.HasEquipmentData && item.EquipmentData.IsAttuned)
+                if (isEquipment && item.EquipmentData.IsAttuned)
                 {
                     displayName = item.EquipmentData.GetAttunedDisplayName(equipmentRegistry);
                 }
@@ -485,53 +468,103 @@ namespace Lootbound.UI
                     displayName = item.EquipmentData?.CustomName ?? definition.DisplayName;
                 }
                 detailsName.text = displayName;
-
-                // Apply rarity color to name
-                if (item.HasEquipmentData)
-                {
-                    detailsName.style.color = GetRarityColor(item.EquipmentData.Rarity);
-                }
-                else
-                {
-                    detailsName.style.color = Color.white;
-                }
             }
 
+            Color rarityColor = isEquipment
+                ? GetRarityColor(item.EquipmentData.Rarity)
+                : definition.GetRarityColor();
+
+            if (subtitleRarity != null)
+            {
+                subtitleRarity.text = (isEquipment ? item.EquipmentData.Rarity : definition.Rarity).ToString();
+                subtitleRarity.style.color = rarityColor;
+            }
+
+            if (subtitleKind != null)
+            {
+                subtitleKind.text = isEquipment ? "Equipment" : "Item";
+            }
+
+            bool isAttuned = isEquipment && item.EquipmentData.IsAttuned;
+            if (subtitleAttunedDot != null)
+            {
+                subtitleAttunedDot.style.display = isAttuned ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (subtitleAttuned != null)
+            {
+                subtitleAttuned.style.display = isAttuned ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            UpdateConditionMini(item);
+
+            if (detailsQuantity != null)
+            {
+                bool showQuantity = !isEquipment && item.Quantity > 1;
+                detailsQuantity.style.display = showQuantity ? DisplayStyle.Flex : DisplayStyle.None;
+                detailsQuantity.text = showQuantity ? $"Quantity: {item.Quantity}" : "";
+            }
+
+            // --- DETAILS section (description) ---
+            bool hasDescription = !string.IsNullOrEmpty(definition.Description);
             if (detailsDescription != null)
             {
                 detailsDescription.text = definition.Description;
             }
+            SetSectionVisible(sectionDetails, hasDescription);
 
-            if (detailsQuantity != null)
+            // --- Equipment sections ---
+            if (isEquipment)
             {
-                if (item.HasEquipmentData)
-                {
-                    // Show rarity instead of quantity for equipment
-                    detailsQuantity.text = item.EquipmentData.Rarity.ToString();
-                    detailsQuantity.style.color = GetRarityColor(item.EquipmentData.Rarity);
-                }
-                else
-                {
-                    detailsQuantity.text = item.Quantity > 1 ? $"Quantity: {item.Quantity}" : "";
-                    detailsQuantity.style.color = new Color(0.6f, 0.8f, 0.6f);
-                }
-            }
-
-            // Handle equipment-specific UI
-            if (item.HasEquipmentData)
-            {
-                UpdateEquipmentDetails(item);
+                UpdateEquipmentDetails(item, slotIndex);
             }
             else
             {
                 HideEquipmentUI();
             }
 
-            // Update drop button state
-            UpdateDropButtonState(item);
+            // Actions always describe the REAL selection; during a preview
+            // the footer is hidden by the .preview class, so we leave it as
+            // the selection configured it.
+            if (!isPreview)
+            {
+                UpdateActionButtons(item, slotIndex);
+            }
         }
 
-        private void UpdateEquipmentDetails(ItemInstance item)
+        private void UpdateConditionMini(ItemInstance item)
+        {
+            if (condMiniRoot == null) return;
+
+            if (!item.HasEquipmentData)
+            {
+                condMiniRoot.style.display = DisplayStyle.None;
+                return;
+            }
+
+            condMiniRoot.style.display = DisplayStyle.Flex;
+
+            float normalized = item.EquipmentData.NormalizedDurability;
+            if (condFill != null)
+            {
+                condFill.style.width = Length.Percent(Mathf.Clamp01(normalized) * 100f);
+                condFill.EnableInClassList("bad", normalized < 0.4f);
+                condFill.EnableInClassList("warn", normalized >= 0.4f && normalized < 0.7f);
+            }
+
+            if (condMiniLabel != null)
+            {
+                condMiniLabel.text = normalized >= 0.999f
+                    ? "CONDITION PRISTINE"
+                    : $"CONDITION {normalized * 100f:F0}%";
+            }
+        }
+
+        private static void SetSectionVisible(VisualElement section, bool visible)
+        {
+            section?.EnableInClassList("hidden", !visible);
+        }
+
+        private void UpdateEquipmentDetails(ItemInstance item, int slotIndex)
         {
             var equipData = item.EquipmentData;
             if (equipData == null) return;
@@ -539,441 +572,349 @@ namespace Lootbound.UI
             bool isBroken = EquipmentConditionHelper.IsBroken(equipData.Condition);
             var brokenConfig = playerEquipment?.BrokenConfig;
 
-            // Update stats display
+            // --- PRIMARY STATS ---
             if (equipmentStatsContainer != null)
             {
                 equipmentStatsContainer.Clear();
-                equipmentStatsContainer.style.display = DisplayStyle.Flex;
 
-                // Resolve stats with attunement bonuses and broken penalties
                 var attunementConfig = playerEquipment?.AttunementConfig;
                 var stats = equipData.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig);
                 if (stats.IsValid)
                 {
                     if (isBroken && brokenConfig != null)
                     {
-                        // Show stats with penalty indicators
-                        AddStatLabelWithPenalty(equipmentStatsContainer, "Damage", stats.Damage, brokenConfig.GetDamagePenaltyPercent());
-                        AddStatLabelWithPenalty(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed, brokenConfig.GetSpeedPenaltyPercent());
-                        AddStatLabelWithPenalty(equipmentStatsContainer, "Range", stats.Range, brokenConfig.GetRangePenaltyPercent(), "m");
+                        AddStatRowWithPenalty(equipmentStatsContainer, "Damage", stats.Damage, brokenConfig.GetDamagePenaltyPercent());
+                        AddStatRowWithPenalty(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed, brokenConfig.GetSpeedPenaltyPercent());
+                        AddStatRowWithPenalty(equipmentStatsContainer, "Range", stats.Range, brokenConfig.GetRangePenaltyPercent(), "m");
                     }
                     else
                     {
-                        AddStatLabel(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
-                        AddStatLabel(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
-                        AddStatLabel(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
+                        AddStatRow(equipmentStatsContainer, "Damage", stats.Damage.ToString("F0"));
+                        AddStatRow(equipmentStatsContainer, "Attack Speed", stats.AttackSpeed.ToString("F2"));
+                        AddStatRow(equipmentStatsContainer, "Range", $"{stats.Range:F1}m");
                     }
                 }
             }
+            SetSectionVisible(sectionStats, true);
 
-            // Update condition display
+            // --- CONDITION ---
             if (conditionContainer != null)
             {
                 conditionContainer.Clear();
-                conditionContainer.style.display = DisplayStyle.Flex;
 
                 var condition = equipData.Condition;
                 var conditionColor = EquipmentConditionHelper.GetConditionColor(condition);
-                var conditionTooltip = EquipmentConditionHelper.GetConditionTooltip(condition);
 
-                // Broken warning badge
                 if (isBroken)
                 {
                     var brokenBadge = new VisualElement();
-                    brokenBadge.style.flexDirection = FlexDirection.Row;
-                    brokenBadge.style.alignItems = Align.Center;
-                    brokenBadge.style.justifyContent = Justify.Center;
-                    brokenBadge.style.backgroundColor = new Color(0.5f, 0.15f, 0.15f, 0.9f);
-                    brokenBadge.style.paddingTop = 4;
-                    brokenBadge.style.paddingBottom = 4;
-                    brokenBadge.style.paddingLeft = 8;
-                    brokenBadge.style.paddingRight = 8;
-                    brokenBadge.style.marginBottom = 6;
-                    brokenBadge.style.borderTopLeftRadius = 4;
-                    brokenBadge.style.borderTopRightRadius = 4;
-                    brokenBadge.style.borderBottomLeftRadius = 4;
-                    brokenBadge.style.borderBottomRightRadius = 4;
+                    brokenBadge.AddToClassList("broken-badge");
                     brokenBadge.tooltip = "This weapon is broken and suffers severe combat penalties. Find a way to repair it.";
 
                     var brokenLabel = new Label("BROKEN - Severe Penalties");
-                    brokenLabel.style.fontSize = 11;
-                    brokenLabel.style.color = new Color(1f, 0.7f, 0.7f);
-                    brokenLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-
+                    brokenLabel.AddToClassList("broken-badge-label");
                     brokenBadge.Add(brokenLabel);
                     conditionContainer.Add(brokenBadge);
                 }
 
-                // Condition row with label and durability text
-                var conditionRow = new VisualElement();
-                conditionRow.style.flexDirection = FlexDirection.Row;
-                conditionRow.style.justifyContent = Justify.SpaceBetween;
-                conditionRow.style.marginBottom = 4;
-                conditionRow.tooltip = conditionTooltip;
-
-                var conditionLabel = new Label("Condition");
-                conditionLabel.style.fontSize = 11;
-                conditionLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-                var conditionValue = new Label($"{condition} ({equipData.CurrentDurability:F0}/{equipData.MaxDurability:F0})");
-                conditionValue.style.fontSize = 11;
-                conditionValue.style.color = conditionColor;
-
-                conditionRow.Add(conditionLabel);
-                conditionRow.Add(conditionValue);
-                conditionContainer.Add(conditionRow);
+                var conditionRow = AddStatRow(conditionContainer, "Condition",
+                    $"{condition} ({equipData.CurrentDurability:F0}/{equipData.MaxDurability:F0})", conditionColor);
+                conditionRow.tooltip = EquipmentConditionHelper.GetConditionTooltip(condition);
 
                 // Durability bar
                 var barContainer = new VisualElement();
-                barContainer.style.height = 4;
-                barContainer.style.backgroundColor = new Color(0.15f, 0.15f, 0.2f);
-                barContainer.style.borderTopLeftRadius = 2;
-                barContainer.style.borderTopRightRadius = 2;
-                barContainer.style.borderBottomLeftRadius = 2;
-                barContainer.style.borderBottomRightRadius = 2;
+                barContainer.AddToClassList("cond-bar");
 
                 var barFill = new VisualElement();
-                barFill.style.height = Length.Percent(100);
+                barFill.AddToClassList("cond-bar-fill");
                 barFill.style.width = Length.Percent(equipData.NormalizedDurability * 100f);
                 barFill.style.backgroundColor = conditionColor;
-                barFill.style.borderTopLeftRadius = 2;
-                barFill.style.borderBottomLeftRadius = 2;
 
                 barContainer.Add(barFill);
                 conditionContainer.Add(barContainer);
             }
 
-            // Update attunement display
+            // --- Attunement (inside the CONDITION section) ---
             if (attunementContainer != null)
             {
                 attunementContainer.Clear();
-                attunementContainer.style.display = DisplayStyle.Flex;
 
-                // Get max level from config if available
                 int maxLevel = playerEquipment?.AttunementConfig != null
                     ? playerEquipment.AttunementConfig.MaximumLevel
                     : equipData.MaximumAttunementLevel;
 
-                // Attunement row
-                var attunementRow = new VisualElement();
-                attunementRow.style.flexDirection = FlexDirection.Row;
-                attunementRow.style.justifyContent = Justify.SpaceBetween;
-                attunementRow.style.marginBottom = 4;
-
-                var attunementLabel = new Label("Attunement");
-                attunementLabel.style.fontSize = 11;
-                attunementLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-                // Show +N / +Max format
-                var attunementValue = new Label($"+{equipData.AttunementLevel} / +{maxLevel}");
-                attunementValue.style.fontSize = 11;
-                // Color based on attunement state
                 bool isAtMax = equipData.AttunementLevel >= maxLevel;
+                Color attunementColor;
                 if (isAtMax)
                 {
-                    attunementValue.style.color = new Color(0.9f, 0.75f, 0.4f); // Gold for max
+                    attunementColor = new Color(0.9f, 0.75f, 0.4f); // Gold for max
                 }
                 else if (equipData.IsAttuned)
                 {
-                    attunementValue.style.color = new Color(0.5f, 0.7f, 1f); // Blue for attuned
+                    attunementColor = new Color(0.5f, 0.7f, 1f); // Blue for attuned
                 }
                 else
                 {
-                    attunementValue.style.color = new Color(0.6f, 0.6f, 0.65f); // Gray for unattuned
+                    attunementColor = new Color(0.6f, 0.6f, 0.65f); // Gray for unattuned
                 }
 
-                attunementRow.Add(attunementLabel);
-                attunementRow.Add(attunementValue);
-                attunementContainer.Add(attunementRow);
+                AddStatRow(attunementContainer, "Attunement",
+                    $"+{equipData.AttunementLevel} / +{maxLevel}", attunementColor);
 
-                // Show damage bonus if attuned and config available
                 if (equipData.IsAttuned && playerEquipment?.AttunementConfig != null)
                 {
                     float bonusPercent = playerEquipment.AttunementConfig.GetDamageBonusPercent(equipData.AttunementLevel);
                     if (bonusPercent > 0)
                     {
-                        var bonusRow = new VisualElement();
-                        bonusRow.style.flexDirection = FlexDirection.Row;
-                        bonusRow.style.justifyContent = Justify.SpaceBetween;
-
-                        var bonusLabel = new Label("Damage Bonus");
-                        bonusLabel.style.fontSize = 11;
-                        bonusLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-                        var bonusValue = new Label($"+{bonusPercent:F0}%");
-                        bonusValue.style.fontSize = 11;
-                        bonusValue.style.color = new Color(0.4f, 0.85f, 0.4f); // Green for bonus
-
-                        bonusRow.Add(bonusLabel);
-                        bonusRow.Add(bonusValue);
-                        attunementContainer.Add(bonusRow);
+                        AddStatRow(attunementContainer, "Damage Bonus",
+                            $"+{bonusPercent:F0}%", new Color(0.4f, 0.85f, 0.4f));
                     }
                 }
             }
 
-            // Update repair panel
+            // --- Repair (inside the CONDITION section) ---
             UpdateRepairPanel(item);
+            SetSectionVisible(sectionCondition, true);
 
-            // Update affixes display
+            // --- AFFIXES ---
             if (affixesContainer != null)
             {
                 affixesContainer.Clear();
-                if (equipData.Affixes.Count > 0)
+                foreach (var affix in equipData.Affixes)
                 {
-                    affixesContainer.style.display = DisplayStyle.Flex;
-                    foreach (var affix in equipData.Affixes)
-                    {
-                        AddAffixLabel(affixesContainer, affix);
-                    }
-                }
-                else
-                {
-                    affixesContainer.style.display = DisplayStyle.None;
+                    AddAffixEntry(affixesContainer, affix);
                 }
             }
+            SetSectionVisible(sectionAffixes, equipData.Affixes.Count > 0);
 
-            // Update history display
+            // --- ITEM HISTORY (journal entries; only facts that exist) ---
             if (historyContainer != null)
             {
                 historyContainer.Clear();
-                historyContainer.style.display = DisplayStyle.Flex;
 
-                // Discovery and usage history
-                var historyLabel = new Label(equipData.History.GetSummary());
-                historyLabel.style.fontSize = 10;
-                historyLabel.style.color = new Color(0.6f, 0.6f, 0.65f);
-                historyLabel.style.whiteSpace = WhiteSpace.Normal;
-                historyContainer.Add(historyLabel);
+                AddHistoryEntry(historyContainer, equipData.History.GetSummary());
 
-                // Repair history (if any)
                 if (equipData.History.HasBeenRepaired)
                 {
-                    var repairLabel = new Label(equipData.History.GetRepairSummary());
-                    repairLabel.style.fontSize = 10;
-                    repairLabel.style.color = new Color(0.55f, 0.65f, 0.6f);
-                    repairLabel.style.whiteSpace = WhiteSpace.Normal;
-                    repairLabel.style.marginTop = 2;
-                    historyContainer.Add(repairLabel);
+                    AddHistoryEntry(historyContainer, equipData.History.GetRepairSummary());
                 }
 
-                // Attunement history (if any)
                 if (equipData.History.HasAttunementHistory)
                 {
-                    var attunementLabel = new Label(equipData.History.GetAttunementSummary());
-                    attunementLabel.style.fontSize = 10;
-                    attunementLabel.style.color = new Color(0.6f, 0.55f, 0.7f);
-                    attunementLabel.style.whiteSpace = WhiteSpace.Normal;
-                    attunementLabel.style.marginTop = 2;
-                    historyContainer.Add(attunementLabel);
+                    AddHistoryEntry(historyContainer, equipData.History.GetAttunementSummary());
 
-                    // Show last attempt details if available
                     var attunement = equipData.History.Attunement;
                     if (attunement.LastAttemptTimestamp > 0)
                     {
                         string lastAttemptSummary = attunement.GetLastAttemptSummary();
                         if (!string.IsNullOrEmpty(lastAttemptSummary))
                         {
-                            var lastAttemptLabel = new Label($"Last: {lastAttemptSummary}");
-                            lastAttemptLabel.style.fontSize = 9;
-                            lastAttemptLabel.style.color = new Color(0.55f, 0.5f, 0.6f);
-                            lastAttemptLabel.style.whiteSpace = WhiteSpace.Normal;
-                            lastAttemptLabel.style.marginTop = 1;
-                            historyContainer.Add(lastAttemptLabel);
+                            AddHistoryEntry(historyContainer, $"Last: {lastAttemptSummary}");
                         }
                     }
                 }
             }
+            SetSectionVisible(sectionHistory, true);
 
-            // Update comparison display
-            UpdateComparison(item);
-
-            // Update equip button
-            if (equipButton != null)
-            {
-                equipButton.style.display = DisplayStyle.Flex;
-                bool isEquipped = playerEquipment?.IsSlotEquipped(selectedSlotIndex) ?? false;
-
-                if (isEquipped)
-                {
-                    equipButton.text = "Unequip";
-                    equipButton.style.backgroundColor = new Color(0.5f, 0.3f, 0.2f, 0.8f);
-                }
-                else
-                {
-                    equipButton.text = "Equip";
-                    equipButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.8f);
-                }
-            }
+            // --- COMPARISON ---
+            UpdateComparison(item, slotIndex);
         }
 
-        private void UpdateComparison(ItemInstance selectedItem)
+        private void UpdateComparison(ItemInstance selectedItem, int slotIndex)
         {
             if (comparisonContainer == null) return;
 
-            // Only show comparison if player has a weapon equipped and selected item is different
-            if (playerEquipment == null || !playerEquipment.HasWeaponEquipped)
+            // Only show comparison if a weapon is equipped and the shown item
+            // is not the equipped one itself.
+            if (playerEquipment == null || !playerEquipment.HasWeaponEquipped ||
+                playerEquipment.IsSlotEquipped(slotIndex))
             {
-                comparisonContainer.style.display = DisplayStyle.None;
+                SetSectionVisible(sectionCompare, false);
                 return;
             }
 
-            // Don't compare with self
-            if (playerEquipment.IsSlotEquipped(selectedSlotIndex))
-            {
-                comparisonContainer.style.display = DisplayStyle.None;
-                return;
-            }
-
-            comparisonContainer.Clear();
-            comparisonContainer.style.display = DisplayStyle.Flex;
-
-            var currentStats = playerEquipment.CurrentStats;
             var brokenConfig = playerEquipment?.BrokenConfig;
             var attunementConfig = playerEquipment?.AttunementConfig;
             var selectedStats = selectedItem.EquipmentData?.ResolveStats(equipmentRegistry, brokenConfig, attunementConfig) ?? ResolvedWeaponStats.Invalid;
 
             if (!selectedStats.IsValid)
             {
-                comparisonContainer.style.display = DisplayStyle.None;
+                SetSectionVisible(sectionCompare, false);
                 return;
             }
 
-            var headerLabel = new Label("vs Equipped");
-            headerLabel.style.fontSize = 11;
-            headerLabel.style.color = new Color(0.7f, 0.7f, 0.8f);
-            headerLabel.style.marginBottom = 4;
+            comparisonContainer.Clear();
+            SetSectionVisible(sectionCompare, true);
+
+            var headerLabel = new Label("vs equipped weapon");
+            headerLabel.AddToClassList("compare-vs");
             comparisonContainer.Add(headerLabel);
 
-            // Compare attunement levels
+            var currentStats = playerEquipment.CurrentStats;
+
             int equippedAttunement = playerEquipment.CurrentEquipment?.AttunementLevel ?? 0;
             int selectedAttunement = selectedItem.EquipmentData?.AttunementLevel ?? 0;
-            AddAttunementComparison(comparisonContainer, equippedAttunement, selectedAttunement);
+            AddAttunementDelta(comparisonContainer, equippedAttunement, selectedAttunement);
 
-            AddComparisonStat(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage);
-            AddComparisonStat(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed);
-            AddComparisonStat(comparisonContainer, "Range", currentStats.Range, selectedStats.Range);
+            AddStatDelta(comparisonContainer, "Damage", currentStats.Damage, selectedStats.Damage);
+            AddStatDelta(comparisonContainer, "Speed", currentStats.AttackSpeed, selectedStats.AttackSpeed);
+            AddStatDelta(comparisonContainer, "Range", currentStats.Range, selectedStats.Range);
         }
 
-        private void AddAttunementComparison(VisualElement container, int equippedLevel, int selectedLevel)
+        private void HideEquipmentUI()
         {
-            var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.justifyContent = Justify.SpaceBetween;
-            row.style.marginBottom = 2;
-
-            var nameLabel = new Label("Attunement");
-            nameLabel.style.fontSize = 11;
-            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-            var valueLabel = new Label($"+{selectedLevel}");
-            valueLabel.style.fontSize = 11;
-
-            // Color based on comparison
-            if (selectedLevel > equippedLevel)
-            {
-                valueLabel.style.color = new Color(0.5f, 0.9f, 0.5f); // Green for better
-            }
-            else if (selectedLevel < equippedLevel)
-            {
-                valueLabel.style.color = new Color(0.9f, 0.5f, 0.5f); // Red for worse
-            }
-            else
-            {
-                valueLabel.style.color = new Color(0.7f, 0.7f, 0.75f); // Gray for same
-            }
-
-            row.Add(nameLabel);
-            row.Add(valueLabel);
-            container.Add(row);
+            SetSectionVisible(sectionStats, false);
+            SetSectionVisible(sectionCondition, false);
+            SetSectionVisible(sectionCompare, false);
+            SetSectionVisible(sectionAffixes, false);
+            SetSectionVisible(sectionHistory, false);
         }
 
-        private void AddStatLabel(VisualElement container, string statName, string value)
+        private void UpdateActionButtons(ItemInstance item, int slotIndex)
+        {
+            bool isEquipment = item.HasEquipmentData;
+            bool isEquipped = isEquipment && (playerEquipment?.IsSlotEquipped(slotIndex) ?? false);
+
+            if (equipButton != null)
+            {
+                equipButton.style.display = isEquipment ? DisplayStyle.Flex : DisplayStyle.None;
+                equipButton.text = isEquipped ? "Unequip" : "Equip";
+            }
+
+            if (dropButton != null)
+            {
+                dropButton.SetEnabled(!isEquipped);
+                dropButton.text = isEquipped ? "Equipped" : "Drop";
+            }
+        }
+
+        #endregion
+
+        #region Row builders
+
+        private static VisualElement AddStatRow(VisualElement container, string label, string value, Color? valueColor = null)
         {
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.justifyContent = Justify.SpaceBetween;
-            row.style.marginBottom = 2;
+            row.AddToClassList("stat-row");
 
-            var nameLabel = new Label(statName);
-            nameLabel.style.fontSize = 11;
-            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
+            var nameLabel = new Label(label);
+            nameLabel.AddToClassList("stat-label");
 
             var valueLabel = new Label(value);
-            valueLabel.style.fontSize = 11;
-            valueLabel.style.color = Color.white;
+            valueLabel.AddToClassList("stat-value");
+            if (valueColor.HasValue)
+            {
+                valueLabel.style.color = valueColor.Value;
+            }
 
             row.Add(nameLabel);
             row.Add(valueLabel);
             container.Add(row);
+            return row;
         }
 
-        private void AddStatLabelWithPenalty(VisualElement container, string statName, float value, int penaltyPercent, string suffix = "")
+        private static void AddStatRowWithPenalty(VisualElement container, string label, float value, int penaltyPercent, string suffix = "")
         {
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.justifyContent = Justify.SpaceBetween;
-            row.style.marginBottom = 2;
+            row.AddToClassList("stat-row");
 
-            var nameLabel = new Label(statName);
-            nameLabel.style.fontSize = 11;
-            nameLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-            // Value container with stat and penalty
-            var valueContainer = new VisualElement();
-            valueContainer.style.flexDirection = FlexDirection.Row;
-            valueContainer.style.alignItems = Align.Center;
+            var nameLabel = new Label(label);
+            nameLabel.AddToClassList("stat-label");
 
             string valueText = suffix == "m" ? $"{value:F1}{suffix}" : value.ToString("F0");
             var valueLabel = new Label(valueText);
-            valueLabel.style.fontSize = 11;
-            valueLabel.style.color = new Color(0.9f, 0.5f, 0.5f); // Red-tinted for penalty
+            valueLabel.AddToClassList("stat-value-penalty");
 
-            var penaltyLabel = new Label($" ({penaltyPercent}%)");
-            penaltyLabel.style.fontSize = 10;
-            penaltyLabel.style.color = new Color(0.8f, 0.4f, 0.4f);
-
-            valueContainer.Add(valueLabel);
-            valueContainer.Add(penaltyLabel);
+            var penaltyLabel = new Label($"({penaltyPercent}%)");
+            penaltyLabel.AddToClassList("stat-penalty-note");
 
             row.Add(nameLabel);
-            row.Add(valueContainer);
+            row.Add(valueLabel);
+            row.Add(penaltyLabel);
             container.Add(row);
         }
 
-        private void AddAffixLabel(VisualElement container, AffixInstance affix)
-        {
-            var label = new Label();
-            string affixName = affix.GetDisplayName(equipmentRegistry);
-            string affixDesc = affix.GetFormattedDescription(equipmentRegistry);
-            label.text = $"{affixName}: {affixDesc}";
-            label.style.fontSize = 11;
-            label.style.color = new Color(0.5f, 0.8f, 0.5f);
-            label.style.marginBottom = 2;
-            container.Add(label);
-        }
-
-        private void AddComparisonStat(VisualElement container, string statName, float current, float selected)
+        private void AddStatDelta(VisualElement container, string statName, float current, float selected)
         {
             float diff = selected - current;
-            if (Mathf.Abs(diff) < 0.01f) return; // Skip if no significant difference
+            if (Mathf.Abs(diff) < 0.01f) return; // Deltas only
 
             var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.marginBottom = 2;
+            row.AddToClassList("delta-row");
 
-            var nameLabel = new Label($"{statName}: ");
-            nameLabel.style.fontSize = 10;
-            nameLabel.style.color = new Color(0.6f, 0.6f, 0.7f);
+            var nameLabel = new Label(statName);
+            nameLabel.AddToClassList("delta-label");
 
-            string diffText = diff > 0 ? $"+{diff:F1}" : $"{diff:F1}";
-            var diffLabel = new Label(diffText);
-            diffLabel.style.fontSize = 10;
-            diffLabel.style.color = diff > 0 ? new Color(0.4f, 0.8f, 0.4f) : new Color(0.8f, 0.4f, 0.4f);
+            var diffLabel = new Label(diff > 0 ? $"+{diff:F1}" : $"{diff:F1}");
+            diffLabel.AddToClassList("delta-value");
+            diffLabel.AddToClassList(diff > 0 ? "pos" : "neg");
 
             row.Add(nameLabel);
             row.Add(diffLabel);
             container.Add(row);
         }
+
+        private void AddAttunementDelta(VisualElement container, int equippedLevel, int selectedLevel)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("delta-row");
+
+            var nameLabel = new Label("Attunement");
+            nameLabel.AddToClassList("delta-label");
+
+            var valueLabel = new Label($"+{selectedLevel}");
+            valueLabel.AddToClassList("delta-value");
+            if (selectedLevel > equippedLevel)
+            {
+                valueLabel.AddToClassList("pos");
+            }
+            else if (selectedLevel < equippedLevel)
+            {
+                valueLabel.AddToClassList("neg");
+            }
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            container.Add(row);
+        }
+
+        private void AddAffixEntry(VisualElement container, AffixInstance affix)
+        {
+            var block = new VisualElement();
+            block.AddToClassList("affix");
+
+            var nameLabel = new Label(affix.GetDisplayName(equipmentRegistry));
+            nameLabel.AddToClassList("affix-name");
+            block.Add(nameLabel);
+
+            string description = affix.GetFormattedDescription(equipmentRegistry);
+            if (!string.IsNullOrEmpty(description))
+            {
+                var descLabel = new Label(description);
+                descLabel.AddToClassList("affix-desc");
+                block.Add(descLabel);
+            }
+
+            container.Add(block);
+        }
+
+        private static void AddHistoryEntry(VisualElement container, string fact)
+        {
+            if (string.IsNullOrEmpty(fact)) return;
+
+            var entry = new VisualElement();
+            entry.AddToClassList("history-entry");
+
+            var factLabel = new Label(fact);
+            factLabel.AddToClassList("history-fact");
+            entry.Add(factLabel);
+
+            container.Add(entry);
+        }
+
+        #endregion
+
+        #region Repair
 
         private void UpdateRepairPanel(ItemInstance item)
         {
@@ -986,12 +927,11 @@ namespace Lootbound.UI
                 return;
             }
 
-            // Get repair preview
             var preview = playerRepair.PreviewRepair(equipData);
 
             repairContainer.Clear();
 
-            // Only show repair panel if equipment needs repair
+            // Only show repair block if equipment needs repair
             if (!playerRepair.NeedsRepair(equipData))
             {
                 repairContainer.style.display = DisplayStyle.None;
@@ -1000,119 +940,41 @@ namespace Lootbound.UI
 
             repairContainer.style.display = DisplayStyle.Flex;
 
-            // Header
             var headerLabel = new Label("Repair");
-            headerLabel.style.fontSize = 12;
-            headerLabel.style.color = new Color(0.7f, 0.85f, 0.7f);
-            headerLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            headerLabel.style.marginBottom = 6;
+            headerLabel.AddToClassList("repair-header");
             repairContainer.Add(headerLabel);
 
-            // Fragment count row
-            var fragmentRow = new VisualElement();
-            fragmentRow.style.flexDirection = FlexDirection.Row;
-            fragmentRow.style.justifyContent = Justify.SpaceBetween;
-            fragmentRow.style.marginBottom = 4;
+            AddStatRow(repairContainer, "Repair Fragments", preview.FragmentsAvailable.ToString(),
+                preview.FragmentsAvailable > 0 ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.9f, 0.5f, 0.5f));
 
-            var fragmentLabel = new Label("Repair Fragments");
-            fragmentLabel.style.fontSize = 11;
-            fragmentLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-            var fragmentCount = new Label($"{preview.FragmentsAvailable}");
-            fragmentCount.style.fontSize = 11;
-            fragmentCount.style.color = preview.FragmentsAvailable > 0
-                ? new Color(0.5f, 0.9f, 0.5f)
-                : new Color(0.9f, 0.5f, 0.5f);
-
-            fragmentRow.Add(fragmentLabel);
-            fragmentRow.Add(fragmentCount);
-            repairContainer.Add(fragmentRow);
-
-            // Show preview info if repair is possible
             if (preview.CanRepair)
             {
-                // Durability preview row
-                var durabilityRow = new VisualElement();
-                durabilityRow.style.flexDirection = FlexDirection.Row;
-                durabilityRow.style.justifyContent = Justify.SpaceBetween;
-                durabilityRow.style.marginBottom = 4;
+                AddStatRow(repairContainer, "Durability",
+                    $"{preview.CurrentDurability:F0} → {preview.DurabilityAfterRepair:F0}",
+                    new Color(0.5f, 0.9f, 0.5f));
 
-                var durLabel = new Label("Durability");
-                durLabel.style.fontSize = 11;
-                durLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-                var durValue = new Label($"{preview.CurrentDurability:F0} → {preview.DurabilityAfterRepair:F0}");
-                durValue.style.fontSize = 11;
-                durValue.style.color = new Color(0.5f, 0.9f, 0.5f);
-
-                durabilityRow.Add(durLabel);
-                durabilityRow.Add(durValue);
-                repairContainer.Add(durabilityRow);
-
-                // Condition preview (if changing)
                 if (preview.WillChangeCondition)
                 {
-                    var condRow = new VisualElement();
-                    condRow.style.flexDirection = FlexDirection.Row;
-                    condRow.style.justifyContent = Justify.SpaceBetween;
-                    condRow.style.marginBottom = 4;
-
-                    var condLabel = new Label("Condition");
-                    condLabel.style.fontSize = 11;
-                    condLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
-
-                    var condAfterColor = EquipmentConditionHelper.GetConditionColor(preview.ConditionAfter);
-                    var condValue = new Label($"{preview.ConditionBefore} → {preview.ConditionAfter}");
-                    condValue.style.fontSize = 11;
-                    condValue.style.color = condAfterColor;
-
-                    condRow.Add(condLabel);
-                    condRow.Add(condValue);
-                    repairContainer.Add(condRow);
+                    AddStatRow(repairContainer, "Condition",
+                        $"{preview.ConditionBefore} → {preview.ConditionAfter}",
+                        EquipmentConditionHelper.GetConditionColor(preview.ConditionAfter));
                 }
-
-                // Fragments needed row
-                var neededRow = new VisualElement();
-                neededRow.style.flexDirection = FlexDirection.Row;
-                neededRow.style.justifyContent = Justify.SpaceBetween;
-                neededRow.style.marginBottom = 8;
-
-                var neededLabel = new Label("Fragments to use");
-                neededLabel.style.fontSize = 11;
-                neededLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
 
                 string fragmentsText = preview.FragmentsToConsume == preview.FragmentsForFullRepair
                     ? $"{preview.FragmentsToConsume} (full repair)"
                     : $"{preview.FragmentsToConsume} / {preview.FragmentsForFullRepair} needed";
-                var neededValue = new Label(fragmentsText);
-                neededValue.style.fontSize = 11;
-                neededValue.style.color = Color.white;
+                AddStatRow(repairContainer, "Fragments to use", fragmentsText);
 
-                neededRow.Add(neededLabel);
-                neededRow.Add(neededValue);
-                repairContainer.Add(neededRow);
-
-                // Repair button
                 repairButton = new Button(HandleRepairClicked);
                 repairButton.text = preview.IsFullRepair ? "Full Repair" : "Repair";
-                repairButton.style.height = 28;
-                repairButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.3f, 0.9f);
-                repairButton.style.borderTopLeftRadius = 4;
-                repairButton.style.borderTopRightRadius = 4;
-                repairButton.style.borderBottomLeftRadius = 4;
-                repairButton.style.borderBottomRightRadius = 4;
-                repairButton.style.color = Color.white;
+                repairButton.AddToClassList("action-btn");
+                repairButton.AddToClassList("primary");
                 repairContainer.Add(repairButton);
             }
             else
             {
-                // Show why repair cannot proceed
-                string reason = GetRepairFailureMessage(preview.FailureReason);
-                var reasonLabel = new Label(reason);
-                reasonLabel.style.fontSize = 11;
-                reasonLabel.style.color = new Color(0.9f, 0.6f, 0.4f);
-                reasonLabel.style.whiteSpace = WhiteSpace.Normal;
-                reasonLabel.style.marginTop = 4;
+                var reasonLabel = new Label(GetRepairFailureMessage(preview.FailureReason));
+                reasonLabel.AddToClassList("repair-reason");
                 repairContainer.Add(reasonLabel);
             }
         }
@@ -1152,7 +1014,6 @@ namespace Lootbound.UI
                     $"{result.DurabilityBefore:F0} → {result.DurabilityAfter:F0} " +
                     $"(used {result.FragmentsConsumed} fragments)");
 
-                // Refresh the UI to show updated condition
                 UpdateItemDetails();
                 RefreshAllSlots();
             }
@@ -1162,43 +1023,7 @@ namespace Lootbound.UI
             }
         }
 
-        private void HideEquipmentUI()
-        {
-            if (equipmentStatsContainer != null)
-                equipmentStatsContainer.style.display = DisplayStyle.None;
-            if (conditionContainer != null)
-                conditionContainer.style.display = DisplayStyle.None;
-            if (attunementContainer != null)
-                attunementContainer.style.display = DisplayStyle.None;
-            if (repairContainer != null)
-                repairContainer.style.display = DisplayStyle.None;
-            if (affixesContainer != null)
-                affixesContainer.style.display = DisplayStyle.None;
-            if (historyContainer != null)
-                historyContainer.style.display = DisplayStyle.None;
-            if (comparisonContainer != null)
-                comparisonContainer.style.display = DisplayStyle.None;
-            if (equipButton != null)
-                equipButton.style.display = DisplayStyle.None;
-        }
-
-        private void UpdateDropButtonState(ItemInstance item)
-        {
-            if (dropButton == null) return;
-
-            bool isEquipped = item.HasEquipmentData && (playerEquipment?.IsSlotEquipped(selectedSlotIndex) ?? false);
-
-            if (isEquipped)
-            {
-                dropButton.SetEnabled(false);
-                dropButton.text = "Equipped";
-            }
-            else
-            {
-                dropButton.SetEnabled(true);
-                dropButton.text = "Drop";
-            }
-        }
+        #endregion
 
         private Color GetRarityColor(ItemRarity rarity)
         {
@@ -1228,7 +1053,6 @@ namespace Lootbound.UI
                 playerEquipment.TryEquip(selectedSlotIndex);
             }
 
-            // Refresh UI
             UpdateItemDetails();
             RefreshAllSlots();
         }
@@ -1251,7 +1075,6 @@ namespace Lootbound.UI
 
             int droppedSlotIndex = selectedSlotIndex;
 
-            // Find drop position
             Vector3 dropPosition = GetDropPosition();
 
             // Remove from inventory (get the actual item, not a copy)
@@ -1270,7 +1093,6 @@ namespace Lootbound.UI
                 Debug.Log($"[InventoryUI] Dropped {droppedItem.Quantity}x {droppedItem.Definition.DisplayName}");
             }
 
-            // Clear selection and refresh UI
             ClearSelection();
             RefreshSlot(droppedSlotIndex);
             UpdateCapacityLabel();
@@ -1391,7 +1213,7 @@ namespace Lootbound.UI
             UpdateCapacityLabel();
             RefreshAllSlots();
 
-            // Refresh item details to update repair panel (fragment count may have changed)
+            // Refresh item details to update repair block (fragment count may have changed)
             if (selectedSlotIndex >= 0)
             {
                 UpdateItemDetails();
@@ -1402,7 +1224,6 @@ namespace Lootbound.UI
         {
             if (!isOpen) return;
 
-            // Refresh the slot and details when equipment durability changes
             RefreshAllSlots();
             if (selectedSlotIndex >= 0)
             {
@@ -1414,7 +1235,6 @@ namespace Lootbound.UI
         {
             if (!isOpen) return;
 
-            // Refresh after repair to show updated durability and fragment count
             RefreshAllSlots();
             if (selectedSlotIndex >= 0)
             {
@@ -1501,7 +1321,6 @@ namespace Lootbound.UI
 
                 slotElement.AddToClassList("slot-filled");
 
-                // Apply equipped class
                 if (isEquipped)
                 {
                     slotElement.AddToClassList("slot-equipped");
@@ -1568,7 +1387,6 @@ namespace Lootbound.UI
                     : item.EquipmentData.MaximumAttunementLevel;
                 bool isAtMax = level >= maxLevel;
 
-                // Color based on level
                 if (isAtMax)
                 {
                     badge.style.color = new Color(0.9f, 0.75f, 0.4f); // Gold for max
