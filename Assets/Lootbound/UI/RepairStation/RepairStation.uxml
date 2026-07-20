@@ -1,71 +1,132 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="../Common/Journal.uss" />
     <Style src="RepairStation.uss" />
-    <ui:VisualElement name="repair-station-panel" class="repair-station-panel" style="display: none;">
-        <!-- Header -->
-        <ui:VisualElement class="station-header">
-            <ui:Label text="Repair Station" class="station-title" />
-            <ui:Button name="close-button" text="X" class="close-button" />
-        </ui:VisualElement>
+    <ui:VisualElement name="repair-overlay" class="journal-overlay" picking-mode="Ignore">
+        <ui:VisualElement name="repair-station-panel" class="journal-window" style="display: none;">
 
-        <!-- Content -->
-        <ui:VisualElement class="station-content">
-            <!-- Left: Equipment List -->
-            <ui:VisualElement class="equipment-section">
-                <ui:Label text="Equipment to Repair" class="section-title" />
-                <ui:Label name="no-equipment-label" text="All equipment is in good condition" class="no-equipment-label" style="display: none;" />
-                <ui:ScrollView class="equipment-scroll">
-                    <ui:VisualElement name="equipment-list" class="equipment-list" />
-                </ui:ScrollView>
+            <ui:VisualElement class="window-header">
+                <ui:Label text="Repair Station" class="window-title" />
+                <ui:VisualElement class="header-spacer" />
+                <ui:Label text="Every repaired tool earns another journey." class="header-motto" />
+                <ui:Button name="close-button" text="X" class="close-btn" />
             </ui:VisualElement>
 
-            <!-- Right: Repair Preview -->
-            <ui:VisualElement name="repair-preview" class="preview-section" style="display: none;">
-                <ui:Label text="Repair Preview" class="section-title" />
+            <ui:VisualElement class="window-main">
 
-                <!-- Equipment Info -->
-                <ui:VisualElement class="preview-info">
-                    <ui:Label name="preview-name" text="Weapon Name" class="preview-name" />
-                    <ui:Label name="preview-rarity" text="Common" class="preview-rarity" />
-                    <ui:VisualElement name="preview-affixes" class="preview-affixes" />
+                <ui:VisualElement name="repair-list" class="select-list">
+                    <ui:Label text="EQUIPMENT TO REPAIR" class="section-header" />
+                    <ui:Label name="no-equipment-label" text="All equipment is in good condition." class="select-empty" style="display: none;" />
+                    <ui:ScrollView name="equipment-scroll" class="select-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden">
+                        <ui:VisualElement name="equipment-list" />
+                    </ui:ScrollView>
                 </ui:VisualElement>
 
-                <!-- Current State -->
-                <ui:VisualElement class="durability-section">
-                    <ui:Label text="Current" class="durability-label" />
-                    <ui:VisualElement class="durability-bar">
-                        <ui:VisualElement name="durability-bar-fill" class="durability-bar-fill" />
-                    </ui:VisualElement>
-                    <ui:Label name="current-durability" text="37 / 100" class="durability-value" />
-                    <ui:Label name="condition-before" text="Fragile" class="condition-label" />
-                </ui:VisualElement>
+                <ui:VisualElement name="repair-detail" class="detail-panel">
+                    <ui:Label name="detail-empty" text="SELECT EQUIPMENT TO PRESERVE" class="detail-empty" />
+                    <ui:ScrollView name="repair-preview" class="detail-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" style="display: none;">
+                        <ui:VisualElement class="detail-columns">
 
-                <!-- After Repair -->
-                <ui:VisualElement class="repair-result-section">
-                    <ui:Label text="After Repair" class="durability-label" />
-                    <ui:Label name="after-durability" text="100 / 100" class="durability-value-after" />
-                    <ui:Label name="condition-after" text="Excellent" class="condition-label" />
-                </ui:VisualElement>
+                            <ui:VisualElement class="detail-col-left">
 
-                <!-- Cost -->
-                <ui:VisualElement class="cost-section">
-                    <ui:Label text="Cost" class="cost-title" />
-                    <ui:Label name="repair-cost" text="4 Repair Fragments" class="cost-value" />
-                    <ui:Label name="fragments-available" text="Available: 7" class="fragments-available" />
-                </ui:VisualElement>
+                                <ui:VisualElement class="item-preview">
+                                    <ui:VisualElement name="preview-icon" class="item-icon" />
+                                    <ui:VisualElement class="item-text">
+                                        <ui:Label name="preview-name" text="" class="item-name" />
+                                        <ui:VisualElement class="item-subtitle">
+                                            <ui:Label name="preview-rarity" text="" class="subtitle-rarity" />
+                                            <ui:Label text="·" class="subtitle-dot" />
+                                            <ui:Label text="Equipment" class="subtitle-kind" />
+                                            <ui:Label name="subtitle-attuned-dot" text="·" class="subtitle-dot" />
+                                            <ui:Label name="subtitle-attuned" text="Attuned" class="subtitle-attuned" />
+                                        </ui:VisualElement>
+                                        <ui:Label name="preview-summary" text="" class="item-summary" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
 
-                <!-- Failure Reason -->
-                <ui:Label name="failure-reason" text="" class="failure-reason" style="display: none;" />
+                                <ui:VisualElement name="section-condition" class="info-section">
+                                    <ui:Label text="CURRENT CONDITION" class="section-header" />
+                                    <ui:VisualElement class="cond-line">
+                                        <ui:Label text="NOW" class="cond-line-label" />
+                                        <ui:VisualElement class="cond-track">
+                                            <ui:VisualElement name="cond-now-fill" class="cond-fill" />
+                                        </ui:VisualElement>
+                                        <ui:Label name="current-durability" text="" class="cond-line-value" />
+                                    </ui:VisualElement>
+                                    <ui:VisualElement name="after-line" class="cond-line">
+                                        <ui:Label text="AFTER" class="cond-line-label" />
+                                        <ui:VisualElement class="cond-track">
+                                            <ui:VisualElement name="cond-after-current" class="cond-fill after-current" />
+                                            <ui:VisualElement name="cond-after-gain" class="cond-fill after-gain" />
+                                        </ui:VisualElement>
+                                        <ui:Label name="after-durability" text="" class="cond-line-value gain" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
 
-                <!-- Actions -->
-                <ui:VisualElement class="action-buttons">
-                    <ui:Button name="repair-button" text="Repair" class="repair-button" />
+                                <ui:VisualElement name="section-materials" class="info-section">
+                                    <ui:Label text="REPAIR MATERIALS" class="section-header" />
+                                    <ui:VisualElement class="mat-row">
+                                        <ui:VisualElement name="fragment-icon" class="mat-icon" />
+                                        <ui:Label text="Repair Fragments" class="mat-name" />
+                                        <ui:Label name="fragments-available" text="0" class="mat-count" />
+                                        <ui:Label text="/" class="mat-sep" />
+                                        <ui:Label name="fragments-needed" text="0" class="mat-need" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+
+                                <ui:VisualElement name="section-preview" class="info-section">
+                                    <ui:Label text="REPAIR PREVIEW" class="section-header" />
+                                    <ui:VisualElement class="preview-box">
+                                        <ui:VisualElement class="stat-row">
+                                            <ui:Label text="Restored condition" class="stat-label" />
+                                            <ui:Label name="restored-amount" text="" class="stat-value preview-value-brass" />
+                                        </ui:VisualElement>
+                                        <ui:VisualElement class="stat-row">
+                                            <ui:Label text="Final condition" class="stat-label" />
+                                            <ui:Label name="after-durability-value" text="" class="stat-value" />
+                                        </ui:VisualElement>
+                                        <ui:VisualElement name="condition-change-row" class="stat-row">
+                                            <ui:Label text="Condition" class="stat-label" />
+                                            <ui:Label name="condition-before" text="" class="next-before" />
+                                            <ui:Label text="→" class="next-arrow" />
+                                            <ui:Label name="condition-after" text="" class="next-after" />
+                                        </ui:VisualElement>
+                                        <ui:VisualElement class="stat-row">
+                                            <ui:Label text="Cost" class="stat-label" />
+                                            <ui:Label name="repair-cost" text="" class="stat-value" />
+                                        </ui:VisualElement>
+                                        <ui:Label name="failure-reason" text="" class="warning-text" style="display: none;" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="detail-col-right">
+                                <ui:VisualElement name="section-affixes" class="info-section hidden">
+                                    <ui:Label text="AFFIXES" class="section-header" />
+                                    <ui:VisualElement name="preview-affixes" />
+                                </ui:VisualElement>
+                                <ui:VisualElement name="section-journey" class="info-section">
+                                    <ui:Label text="JOURNEY SO FAR" class="section-header" />
+                                    <ui:VisualElement name="history-entries" />
+                                </ui:VisualElement>
+                                <ui:VisualElement name="section-notes" class="info-section">
+                                    <ui:Label text="REPAIR NOTES" class="section-header" />
+                                    <ui:Label text="Repairing never changes the identity of an item. It only lets its story continue." class="journal-prose" />
+                                    <ui:Label text="Marks, notches and the shape it has taken to your hand — all of these remain." class="journal-prose" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+
+                        </ui:VisualElement>
+                    </ui:ScrollView>
                 </ui:VisualElement>
             </ui:VisualElement>
-        </ui:VisualElement>
 
-        <!-- Footer -->
-        <ui:VisualElement class="station-footer">
-            <ui:Label text="Press Escape to close" class="footer-hint" />
+            <ui:VisualElement class="window-footer">
+                <ui:Label name="footer-status" text="" class="footer-status" />
+                <ui:Button name="cancel-button" text="Cancel" class="action-btn" />
+                <ui:Button name="repair-button" text="Repair" class="action-btn primary" />
+            </ui:VisualElement>
+
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
