@@ -10,8 +10,7 @@ namespace Lootbound.Gameplay.World.Spawning
     public enum WorldContentCategory
     {
         Encounter,
-        Resource,
-        Landmark
+        Resource
     }
 
     /// <summary>
@@ -28,8 +27,8 @@ namespace Lootbound.Gameplay.World.Spawning
 
         /// <summary>
         /// Role of this entry within the recipe.
-        /// V1 uses "Member", "Pickup", "Landmark"; future encounters may add
-        /// roles such as leaders or wave indices without changing the shape.
+        /// V1 uses "Member" and "Pickup"; future encounters may add roles such
+        /// as leaders or wave indices without changing the shape.
         /// </summary>
         public string Role { get; }
 

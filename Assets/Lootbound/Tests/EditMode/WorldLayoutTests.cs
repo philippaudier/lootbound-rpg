@@ -35,7 +35,6 @@ namespace Lootbound.Tests.EditMode
             SetField(config, "branchChance", 0.5f);
             SetField(config, "encounterReservationCount", 3);
             SetField(config, "resourceReservationCount", 2);
-            SetField(config, "landmarkReservationCount", 2);
             SetField(config, "nodeMinSpacing", 50f);
             SetField(config, "candidatesPerStep", 16);
             SetField(config, "outwardProgressionWeight", 30f);
@@ -750,24 +749,6 @@ namespace Lootbound.Tests.EditMode
             }
         }
 
-        [Test]
-        public void LandmarkReservations_HaveValidHostNodes()
-        {
-            var config = CreateTestConfig();
-            var sampler = CreateSampler(203);
-            var worldDisc = CreateTestWorldDiscDefinition(sampler.WorldSize * 0.5f);
-
-            var result = WorldLayoutGenerator.Generate(203, worldDisc, sampler, config);
-
-            Assert.IsTrue(result.Success);
-
-            foreach (var reservation in result.Layout.LandmarkReservations)
-            {
-                Assert.IsTrue(result.Layout.NodesById.ContainsKey(reservation.HostNodeId),
-                    $"Landmark reservation {reservation.ReservationId} should have valid host node");
-            }
-        }
-
         #endregion
 
         #region Edge Control Points Tests
@@ -1064,17 +1045,12 @@ namespace Lootbound.Tests.EditMode
 
             Assert.Greater(result.Layout.EncounterReservations.Count, 0, "Fixture must produce encounter reservations");
             Assert.Greater(result.Layout.ResourceReservations.Count, 0, "Fixture must produce resource reservations");
-            Assert.Greater(result.Layout.LandmarkReservations.Count, 0, "Fixture must produce landmark reservations");
 
             foreach (var reservation in result.Layout.EncounterReservations)
             {
                 AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
             }
             foreach (var reservation in result.Layout.ResourceReservations)
-            {
-                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
-            }
-            foreach (var reservation in result.Layout.LandmarkReservations)
             {
                 AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
             }
@@ -1143,10 +1119,6 @@ namespace Lootbound.Tests.EditMode
                 result1.Layout.ResourceReservations.Count, result2.Layout.ResourceReservations.Count,
                 i => (result1.Layout.ResourceReservations[i].ReservationId, result1.Layout.ResourceReservations[i].Position),
                 i => (result2.Layout.ResourceReservations[i].ReservationId, result2.Layout.ResourceReservations[i].Position));
-            AssertReservationListsIdentical(
-                result1.Layout.LandmarkReservations.Count, result2.Layout.LandmarkReservations.Count,
-                i => (result1.Layout.LandmarkReservations[i].ReservationId, result1.Layout.LandmarkReservations[i].Position),
-                i => (result2.Layout.LandmarkReservations[i].ReservationId, result2.Layout.LandmarkReservations[i].Position));
         }
 
         // Full pipeline order: layout -> corridor/clearing flattening ->
@@ -1173,10 +1145,6 @@ namespace Lootbound.Tests.EditMode
                 AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
             }
             foreach (var reservation in result.Layout.ResourceReservations)
-            {
-                AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
-            }
-            foreach (var reservation in result.Layout.LandmarkReservations)
             {
                 AssertReservationOnTerrain(reservation.ReservationId, reservation.Position, context);
             }

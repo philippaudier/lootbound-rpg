@@ -4,11 +4,15 @@ using Lootbound.Gameplay.World.Layout;
 namespace Lootbound.Gameplay.World.Spawning
 {
     /// <summary>
-    /// Immutable definition of a landmark that can occupy a LandmarkReservation.
-    /// V1 landmarks are visual markers only. When no prefab is assigned, the
-    /// spawner creates a clearly named placeholder primitive; the placeholder
-    /// path is encapsulated in the spawner and must not become a permanent
-    /// debug dependency.
+    /// Immutable definition of a landmark archetype - a permanent, notable
+    /// place of the world (a windmill, a shrine, a ruined tower...). Since
+    /// slice 0.9.10 landmarks are a first-class World system, not transient
+    /// spawn content: the LandmarkPlanner turns eligible layout nodes into
+    /// LandmarkIdentity records, and the presentation layer renders them.
+    ///
+    /// V1 keeps the visual prefab on the definition (one archetype = one
+    /// prefab). A LandmarkVisualLibrary would only be justified once an
+    /// archetype needs several visual variants.
     /// </summary>
     [CreateAssetMenu(fileName = "Landmark_", menuName = "Lootbound/World Content/Landmark Definition")]
     public class LandmarkDefinition : ScriptableObject
@@ -23,7 +27,7 @@ namespace Lootbound.Gameplay.World.Spawning
 
         [Header("Content")]
         [SerializeField]
-        [Tooltip("Optional prefab. When null, the spawner uses a clearly named placeholder primitive.")]
+        [Tooltip("Optional prefab. When null, the presenter shows nothing (or a development silhouette when explicitly enabled).")]
         private GameObject landmarkPrefab;
 
         [SerializeField]
@@ -44,6 +48,12 @@ namespace Lootbound.Gameplay.World.Spawning
         [Tooltip("Weight multiplier evaluated at the GLOBAL world depth (Depth01: 0 = Refuge, 1 = disc edge), multiplied with Selection Weight")]
         private AnimationCurve weightByDepth = AnimationCurve.Constant(0f, 1f, 1f);
 
+        [Header("Discovery")]
+        [SerializeField]
+        [Min(1f)]
+        [Tooltip("Distance (meters) at which this place counts as noticed/discovered. Belongs to the place itself; carried on the identity so future discovery/journal/map mechanics need no asset change.")]
+        private float discoveryRadius = 100f;
+
         public string LandmarkId => string.IsNullOrEmpty(landmarkId) ? name : landmarkId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? name : displayName;
         public GameObject LandmarkPrefab => landmarkPrefab;
@@ -51,5 +61,6 @@ namespace Lootbound.Gameplay.World.Spawning
         public WorldRing MaximumRing => maximumRing;
         public float SelectionWeight => selectionWeight;
         public AnimationCurve WeightByDepth => weightByDepth;
+        public float DiscoveryRadius => Mathf.Max(1f, discoveryRadius);
     }
 }

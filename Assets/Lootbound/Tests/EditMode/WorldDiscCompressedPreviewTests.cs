@@ -44,7 +44,6 @@ namespace Lootbound.Tests.EditMode
             SetField(config, "branchChance", 0.5f);
             SetField(config, "encounterReservationCount", 3);
             SetField(config, "resourceReservationCount", 2);
-            SetField(config, "landmarkReservationCount", 2);
             SetField(config, "nodeMinSpacing", 50f);
             SetField(config, "candidatesPerStep", 16);
             SetField(config, "outwardProgressionWeight", 30f);
@@ -370,13 +369,6 @@ namespace Lootbound.Tests.EditMode
                     reservation.ReservationId, reservation.DistanceFromRefuge,
                     reservation.NormalizedWorldRadius, reservation.Ring, disc, ringConfig);
             }
-
-            foreach (var reservation in result.Layout.LandmarkReservations)
-            {
-                AssertReservationUsesLogicalRadius(
-                    reservation.ReservationId, reservation.DistanceFromRefuge,
-                    reservation.NormalizedWorldRadius, reservation.Ring, disc, ringConfig);
-            }
         }
 
         private void AssertReservationUsesLogicalRadius(
@@ -465,14 +457,6 @@ namespace Lootbound.Tests.EditMode
                 Assert.AreEqual(result1.Layout.ResourceReservations[i].HostNodeId,
                     result2.Layout.ResourceReservations[i].HostNodeId,
                     $"Resource reservation {i} host should match between modes");
-            }
-
-            Assert.AreEqual(result1.Layout.LandmarkReservations.Count, result2.Layout.LandmarkReservations.Count);
-            for (int i = 0; i < result1.Layout.LandmarkReservations.Count; i++)
-            {
-                Assert.AreEqual(result1.Layout.LandmarkReservations[i].HostNodeId,
-                    result2.Layout.LandmarkReservations[i].HostNodeId,
-                    $"Landmark reservation {i} host should match between modes");
             }
         }
 

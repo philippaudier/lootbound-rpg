@@ -1,7 +1,12 @@
 # World Content Spawning (V1)
 
 Reservation-driven content spawning: the first runtime consumer of the
-Encounter/Resource/Landmark reservations produced by `WorldLayoutGenerator`.
+Encounter/Resource reservations produced by `WorldLayoutGenerator`.
+
+> Landmarks are **no longer** spawn content. Since slice 0.9.10 they are a
+> first-class World system (permanent places, not transient reservations) -
+> see `LANDMARKS.md`. `LandmarkDefinition` / `LandmarkRegistry` still live in
+> this folder as authoring data, but the spawner ignores them.
 
 ```text
 WorldLayout reservation
@@ -19,8 +24,8 @@ All runtime code lives in `Assets/Lootbound/Gameplay/World/Spawning/`
 
 | Layer | Types | Responsibility |
 |-------|-------|----------------|
-| Definitions | `EncounterDefinition`, `ResourceSpawnDefinition`, `LandmarkDefinition` | Independent ScriptableObjects per category. Stable string IDs (fallback to asset name). No shared base class. |
-| Registries | `EncounterRegistry`, `ResourceSpawnRegistry`, `LandmarkRegistry` | One registry per content family (EquipmentRegistry pattern). |
+| Definitions | `EncounterDefinition`, `ResourceSpawnDefinition` | Independent ScriptableObjects per category. Stable string IDs (fallback to asset name). No shared base class. |
+| Registries | `EncounterRegistry`, `ResourceSpawnRegistry` | One registry per content family (EquipmentRegistry pattern). |
 | Planning | `WorldContentPlanner` (static, pure C#) | Reservations in, `WorldContentPlan` out: `SpawnRecipe` list + typed `SpawnRejection` list. No Unity objects created. |
 | Recipes | `SpawnRecipe`, `SpawnRecipeEntry` | Fully resolved plan for one reservation: definition, anchor, one entry per instance with a `Role` (prepares richer encounter compositions later). |
 | Instantiation | `WorldContentSpawner` (MonoBehaviour) | Subscribes to `ProceduralTerrainGenerator.OnGenerationComplete`, instantiates recipes, records a `WorldContentSpawnReport`. |
@@ -67,7 +72,7 @@ attempts that were not published are never visible to the spawner.
 Editor-mode generation (inspector buttons) is ignored
 (`Application.isPlaying` guard).
 
-Spawned objects live under `WorldContent_Spawned/{Encounters,Resources,Landmarks}`;
+Spawned objects live under `WorldContent_Spawned/{Encounters,Resources}`;
 the hierarchy is destroyed and rebuilt on regeneration.
 
 - **Encounters**: enemy prefab instantiated per recipe entry (group of 1–3),
@@ -76,9 +81,6 @@ the hierarchy is destroyed and rebuilt on regeneration.
 - **Resources**: `ItemWorldPickup.SpawnPickup(item, position, quantity)` —
   the existing pickup path (requires the `Interactable` layer and a scene
   `PlayerInventory`).
-- **Landmarks**: prefab when assigned, otherwise a clearly named placeholder
-  primitive (`Landmark_PLACEHOLDER_...`), encapsulated in one method and easy
-  to replace with real assets.
 
 ## NavMesh (since slice 0.9.5)
 
@@ -89,8 +91,8 @@ resolves its own navigable position via `NavMesh.SamplePosition` bounded by
 `navMeshSampleDistance`; a failed entry is rejected (`NavMeshUnavailable`)
 without blocking the others, and per-entry diagnostics keep the requested
 position, resolved position and distance (`EntryPlacement`). If the whole
-navigation build failed, resources and landmarks still spawn and encounters
-are rejected with an explicit reason.
+navigation build failed, resources still spawn and encounters are rejected
+with an explicit reason.
 
 ## Debug
 
@@ -103,11 +105,11 @@ are rejected with an explicit reason.
 ## Manual Unity Editor setup
 
 1. Create definition assets (menu `Lootbound/World Content/...`):
-   at least one `Encounter_*` (assign `Enemy.prefab`), one `ResourceSpawn_*`
-   (assign an `Item_*` definition), one `Landmark_*` (prefab optional).
-2. Create the three registry assets and add the definitions to them.
+   at least one `Encounter_*` (assign `Enemy.prefab`) and one `ResourceSpawn_*`
+   (assign an `Item_*` definition).
+2. Create the two registry assets and add the definitions to them.
 3. In `12_ProceduralTerrainSandbox`: add a `WorldContentSpawner` GameObject,
-   assign the `ProceduralTerrainGenerator` and the three registries.
+   assign the `ProceduralTerrainGenerator` and the two registries.
 4. Optionally add `WorldContentDebugPanel` and assign the spawner.
 5. Re-bake the NavMesh after generating with the default seed so encounters
    have a mesh to stand on.
@@ -119,10 +121,9 @@ determinism (same seed, different seeds, `UnityEngine.Random` immunity,
 iteration-order independence), ring compatibility, Refuge exclusion, typed
 rejections (no definition, missing prefab, steep slope, out of bounds,
 disabled category), radial data propagation, composition/quantity bounds,
-terrain-sampled heights, and resolution of all three categories.
+terrain-sampled heights, and resolution of both categories.
 
 ## Deliberately out of scope (V1)
 
 Ring-based difficulty scaling, loot tables per ring, encounter packs/waves/
-leaders, persistence and respawn, runtime NavMesh building, streaming,
-definitive landmark assets.
+leaders, persistence and respawn, runtime NavMesh building, streaming.

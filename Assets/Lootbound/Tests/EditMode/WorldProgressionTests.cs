@@ -296,8 +296,8 @@ namespace Lootbound.Tests.EditMode
             var reservations = CreateReservations(40, WorldRing.Wildlands, 0.3f);
             var sampler = new TestTerrainSampler();
 
-            var plan1 = WorldContentPlanner.Plan(12345, reservations, null, null, registry, null, null, sampler);
-            var plan2 = WorldContentPlanner.Plan(12345, reservations, null, null, registry, null, null, sampler);
+            var plan1 = WorldContentPlanner.Plan(12345, reservations, null, registry, null, sampler);
+            var plan2 = WorldContentPlanner.Plan(12345, reservations, null, registry, null, sampler);
 
             Assert.AreEqual(plan1.Recipes.Count, plan2.Recipes.Count);
             for (int i = 0; i < plan1.Recipes.Count; i++)
@@ -316,7 +316,7 @@ namespace Lootbound.Tests.EditMode
             var reservations = CreateReservations(200, WorldRing.Wildlands, 0.3f);
             var sampler = new TestTerrainSampler();
 
-            var plan = WorldContentPlanner.Plan(12345, reservations, null, null, registry, null, null, sampler);
+            var plan = WorldContentPlanner.Plan(12345, reservations, null, registry, null, sampler);
 
             int heavy = 0;
             foreach (var recipe in plan.Recipes)
@@ -336,12 +336,12 @@ namespace Lootbound.Tests.EditMode
             var reservations = CreateReservations(1, WorldRing.Void, 1.05f);
 
             var defaultRegistry = CreateRegistry(CreateEncounter("normal", 1f));
-            var rejectedPlan = WorldContentPlanner.Plan(1, reservations, null, null, defaultRegistry, null, null, sampler);
+            var rejectedPlan = WorldContentPlanner.Plan(1, reservations, null, defaultRegistry, null, sampler);
             Assert.AreEqual(0, rejectedPlan.Recipes.Count, "Void must be outside the default window");
             Assert.AreEqual(SpawnRejectionReason.NoCompatibleDefinition, rejectedPlan.Rejections[0].Reason);
 
             var voidRegistry = CreateRegistry(CreateEncounter("voidwalker", 1f, maximumRing: WorldRing.Void));
-            var acceptedPlan = WorldContentPlanner.Plan(1, reservations, null, null, voidRegistry, null, null, sampler);
+            var acceptedPlan = WorldContentPlanner.Plan(1, reservations, null, voidRegistry, null, sampler);
             Assert.AreEqual(1, acceptedPlan.Recipes.Count, "Explicit MaximumRing = Void must opt in");
         }
 
@@ -361,7 +361,7 @@ namespace Lootbound.Tests.EditMode
             var sampler = new TestTerrainSampler();
 
             var shallow = WorldContentPlanner.Plan(7,
-                CreateReservations(30, WorldRing.Nearlands, 0.08f), null, null, registry, null, null, sampler);
+                CreateReservations(30, WorldRing.Nearlands, 0.08f), null, registry, null, sampler);
             foreach (var recipe in shallow.Recipes)
             {
                 Assert.AreEqual("wood", recipe.DefinitionId,
@@ -369,7 +369,7 @@ namespace Lootbound.Tests.EditMode
             }
 
             var deep = WorldContentPlanner.Plan(7,
-                CreateReservations(60, WorldRing.Edgelands, 0.9f), null, null, registry, null, null, sampler);
+                CreateReservations(60, WorldRing.Edgelands, 0.9f), null, registry, null, sampler);
             bool crystalAppeared = false;
             foreach (var recipe in deep.Recipes)
             {
@@ -389,9 +389,9 @@ namespace Lootbound.Tests.EditMode
             var sampler = new TestTerrainSampler();
             var progression = CreateProgression();
 
-            var withProgression = WorldContentPlanner.Plan(99, reservations, null, null, registry, null, null,
+            var withProgression = WorldContentPlanner.Plan(99, reservations, null, registry, null,
                 sampler, null, progression);
-            var withoutProgression = WorldContentPlanner.Plan(99, reservations, null, null, registry, null, null,
+            var withoutProgression = WorldContentPlanner.Plan(99, reservations, null, registry, null,
                 sampler);
 
             Assert.AreEqual(withoutProgression.Recipes.Count, withProgression.Recipes.Count);

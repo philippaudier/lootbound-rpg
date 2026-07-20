@@ -653,68 +653,10 @@ namespace Lootbound.Gameplay.World.Layout
                 context.AddResourceReservation(reservation);
             }
 
-            // Create landmark reservations
-            GenerateLandmarkReservations(context, random, config, worldDiscDefinition, sampler, seed);
-        }
-
-        private static void GenerateLandmarkReservations(
-            WorldLayoutContext context,
-            System.Random random,
-            WorldLayoutConfig config,
-            WorldDiscDefinition worldDiscDefinition,
-            ITerrainSampler sampler,
-            int seed)
-        {
-            // Collect viewpoint and landmark-type nodes
-            var landmarkCandidates = new List<WorldNode>();
-            foreach (var node in context.NodesOrdered)
-            {
-                if (node.Type == WorldNodeType.Viewpoint || node.Type == WorldNodeType.Landmark)
-                {
-                    landmarkCandidates.Add(node);
-                }
-            }
-
-            // Add OuterDestination nodes as landmark candidates
-            foreach (var node in context.OuterDestinationNodes)
-            {
-                if (!landmarkCandidates.Contains(node))
-                {
-                    landmarkCandidates.Add(node);
-                }
-            }
-
-            // Shuffle
-            for (int i = landmarkCandidates.Count - 1; i > 0; i--)
-            {
-                int j = random.Next(i + 1);
-                (landmarkCandidates[i], landmarkCandidates[j]) = (landmarkCandidates[j], landmarkCandidates[i]);
-            }
-
-            int landmarkIndex = 0;
-            for (int i = 0; i < Mathf.Min(config.LandmarkReservationCount, landmarkCandidates.Count); i++)
-            {
-                var host = landmarkCandidates[i];
-
-                // XZ stays on the host node; sample the height through the
-                // authoritative sampler like every other reservation
-                Vector3 pos = new Vector3(
-                    host.Position.x,
-                    sampler.SampleHeight(host.Position.x, host.Position.z),
-                    host.Position.z);
-
-                var reservation = new LandmarkReservation(
-                    LandmarkReservation.GenerateId(seed, landmarkIndex++),
-                    host.NodeId,
-                    pos,
-                    host.Radius,
-                    host.DistanceFromRefuge,
-                    host.NormalizedWorldRadius,
-                    host.Ring,
-                    host.RadialPathId
-                );
-                context.AddLandmarkReservation(reservation);
-            }
+            // Landmarks are no longer reservations: since slice 0.9.10 they
+            // are a first-class World system. The LandmarkPlanner derives them
+            // directly from the layout's elevated / terminal nodes after the
+            // layout is published (see ProceduralTerrainGenerator).
         }
 
         /// <summary>
@@ -734,11 +676,6 @@ namespace Lootbound.Gameplay.World.Layout
             }
 
             foreach (var reservation in layout.ResourceReservations)
-            {
-                reservation.ReprojectHeight(sampler.SampleHeight(reservation.Position.x, reservation.Position.z));
-            }
-
-            foreach (var reservation in layout.LandmarkReservations)
             {
                 reservation.ReprojectHeight(sampler.SampleHeight(reservation.Position.x, reservation.Position.z));
             }

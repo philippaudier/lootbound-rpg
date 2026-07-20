@@ -12,9 +12,6 @@ namespace Lootbound.Gameplay.World.Spawning
         /// <summary>Plan resource reservations.</summary>
         public bool ResourcesEnabled = true;
 
-        /// <summary>Plan landmark reservations.</summary>
-        public bool LandmarksEnabled = true;
-
         /// <summary>Maximum terrain slope (degrees) accepted at a spawn position.</summary>
         public float MaxPlacementSlope = 40f;
 

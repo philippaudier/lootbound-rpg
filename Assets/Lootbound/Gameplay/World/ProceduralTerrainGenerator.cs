@@ -1,4 +1,6 @@
 using Lootbound.Gameplay.World.Layout;
+using Lootbound.Gameplay.World.Landmarks;
+using Lootbound.Gameplay.World.Spawning;
 using UnityEngine;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
@@ -13,6 +15,11 @@ namespace Lootbound.Gameplay.World
     {
         [Header("Configuration")]
         [SerializeField] private TerrainGenerationConfig config;
+
+        [Header("Landmarks")]
+        [SerializeField]
+        [Tooltip("Landmark archetypes. When assigned, the world's elevated / terminal nodes become permanent landmarks attached to the layout (consumed by the LandmarkDirector and the ambient population). Optional: absence is a clean no-op.")]
+        private LandmarkRegistry landmarkRegistry;
 
         [Header("Terrain Reference")]
         [SerializeField] private Terrain terrain;
@@ -34,6 +41,9 @@ namespace Lootbound.Gameplay.World
         // Monotone per-session generation identity. Two generations with the
         // same seed remain distinguishable for derived systems (navigation).
         private int generationCounter;
+
+        // The "no landmark registry" warning is logged at most once.
+        private bool landmarkRegistryWarningLogged;
 
         // Events
         public event System.Action<TerrainGenerationContext> OnGenerationComplete;
@@ -162,6 +172,13 @@ namespace Lootbound.Gameplay.World
                     // Step 4b: reproject reservation heights onto the flattened
                     // terrain so stored positions match the final ground
                     WorldLayoutGenerator.ReprojectReservationHeights(layoutResult.Layout, sampler);
+
+                    // Step 4c: compute the landmarks ONCE and attach them to the
+                    // layout as a shared generation result. Done synchronously
+                    // here (before OnGenerationComplete) so the LandmarkDirector
+                    // and the ambient population both see a fully-populated set,
+                    // order-independently.
+                    AttachLandmarks(layoutResult.Layout, sampler);
                 }
             }
 
@@ -254,6 +271,30 @@ namespace Lootbound.Gameplay.World
         /// <summary>
         /// Validate that all required components are set up.
         /// </summary>
+        /// <summary>
+        /// Compute the world's landmarks once and attach them to the layout.
+        /// A missing registry is a clean no-op (empty set + a single warning),
+        /// never a failure: old scenes, previews and tests keep working.
+        /// </summary>
+        private void AttachLandmarks(WorldLayoutContext layout, ITerrainSampler sampler)
+        {
+            if (landmarkRegistry == null)
+            {
+                if (!landmarkRegistryWarningLogged)
+                {
+                    Debug.LogWarning("[ProceduralTerrainGenerator] No LandmarkRegistry assigned - the world has no landmarks.");
+                    landmarkRegistryWarningLogged = true;
+                }
+
+                layout.AttachLandmarks(null);
+                return;
+            }
+
+            var landmarks = LandmarkPlanner.Plan(layout, landmarkRegistry, layout.Progression, sampler);
+            layout.AttachLandmarks(landmarks);
+            Debug.Log($"[ProceduralTerrainGenerator] {landmarks.Count} landmark(s) attached to the layout");
+        }
+
         private bool ValidateSetup()
         {
             if (config == null)

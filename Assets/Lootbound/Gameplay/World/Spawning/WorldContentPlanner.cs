@@ -21,20 +21,19 @@ namespace Lootbound.Gameplay.World.Spawning
     {
         private const string ROLE_MEMBER = "Member";
         private const string ROLE_PICKUP = "Pickup";
-        private const string ROLE_LANDMARK = "Landmark";
 
         /// <summary>
         /// Plan all reservations of a validated layout.
         /// Null reservation lists are treated as empty; a null registry disables its category.
+        /// Landmarks are handled by the dedicated LandmarkPlanner (World system),
+        /// not by this content planner.
         /// </summary>
         public static WorldContentPlan Plan(
             int worldSeed,
             IReadOnlyList<EncounterReservation> encounterReservations,
             IReadOnlyList<ResourceReservation> resourceReservations,
-            IReadOnlyList<LandmarkReservation> landmarkReservations,
             EncounterRegistry encounterRegistry,
             ResourceSpawnRegistry resourceRegistry,
-            LandmarkRegistry landmarkRegistry,
             ITerrainSampler sampler,
             WorldContentPlannerSettings settings = null,
             WorldProgression progression = null)
@@ -60,15 +59,6 @@ namespace Lootbound.Gameplay.World.Spawning
                 {
                     totalReservations++;
                     PlanResource(worldSeed, reservation, resourceRegistry, sampler, settings, progression, recipes, rejections);
-                }
-            }
-
-            if (landmarkReservations != null)
-            {
-                foreach (var reservation in landmarkReservations)
-                {
-                    totalReservations++;
-                    PlanLandmark(worldSeed, reservation, landmarkRegistry, sampler, settings, progression, recipes, rejections);
                 }
             }
 
@@ -277,70 +267,6 @@ namespace Lootbound.Gameplay.World.Spawning
 
             recipes.Add(CreateRecipe(reservation.ReservationId, reservation.HostNodeId,
                 WorldContentCategory.Resource, selected.ResourceId, anchor,
-                reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius,
-                reservation.Ring, reservation.RadialPathId, entries));
-        }
-
-        #endregion
-
-        #region Landmarks
-
-        private static void PlanLandmark(
-            int worldSeed,
-            LandmarkReservation reservation,
-            LandmarkRegistry registry,
-            ITerrainSampler sampler,
-            WorldContentPlannerSettings settings,
-            WorldProgression progression,
-            List<SpawnRecipe> recipes,
-            List<SpawnRejection> rejections)
-        {
-            if (!settings.LandmarksEnabled || registry == null)
-            {
-                rejections.Add(new SpawnRejection(reservation.ReservationId, WorldContentCategory.Landmark,
-                    SpawnRejectionReason.CategoryDisabled));
-                return;
-            }
-
-            if (!ValidateAnchor(reservation.ReservationId, WorldContentCategory.Landmark,
-                    reservation.Position, sampler, settings, rejections))
-            {
-                return;
-            }
-
-            float depth = DepthAt(reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius, progression);
-            var compatible = new List<(LandmarkDefinition item, float weight)>();
-            double totalWeight = 0;
-            foreach (var definition in registry.Definitions)
-            {
-                if (definition != null &&
-                    WorldContentCompatibility.Evaluate(definition, reservation.Ring, depth, out float weight, out _))
-                {
-                    compatible.Add((definition, weight));
-                    totalWeight += weight;
-                }
-            }
-
-            if (compatible.Count == 0)
-            {
-                rejections.Add(new SpawnRejection(reservation.ReservationId, WorldContentCategory.Landmark,
-                    SpawnRejectionReason.NoCompatibleDefinition, $"ring {reservation.Ring}, depth {depth:F2}"));
-                return;
-            }
-
-            var random = CreateReservationRandom(worldSeed, reservation.ReservationId);
-            var selected = SelectWeighted(compatible, totalWeight, random);
-
-            // A landmark definition without prefab is valid: the spawner
-            // substitutes a clearly named placeholder primitive.
-            Vector3 anchor = GroundedPosition(reservation.Position, sampler);
-            var entries = new List<SpawnRecipeEntry>
-            {
-                new SpawnRecipeEntry(anchor, ROLE_LANDMARK, 1)
-            };
-
-            recipes.Add(CreateRecipe(reservation.ReservationId, reservation.HostNodeId,
-                WorldContentCategory.Landmark, selected.LandmarkId, anchor,
                 reservation.DistanceFromRefuge, reservation.NormalizedWorldRadius,
                 reservation.Ring, reservation.RadialPathId, entries));
         }

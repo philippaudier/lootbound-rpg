@@ -35,7 +35,6 @@ namespace Lootbound.Gameplay.World.Layout
         [Header("Reservation Colors")]
         [SerializeField] private Color encounterColor = new Color(1f, 0.2f, 0.2f, 0.6f);
         [SerializeField] private Color resourceColor = new Color(0.2f, 0.6f, 1f, 0.6f);
-        [SerializeField] private Color landmarkReservationColor = new Color(0.9f, 0.5f, 0.9f, 0.6f);
 
         [Header("Ring Colors")]
         [SerializeField] private Color refugeRingColor = new Color(0f, 1f, 0.5f, 0.3f);
@@ -278,25 +277,8 @@ namespace Lootbound.Gameplay.World.Layout
                 }
             }
 
-            // Draw landmark reservations
-            Gizmos.color = landmarkReservationColor;
-            foreach (var reservation in layout.LandmarkReservations)
-            {
-                Vector3 pos = reservation.Position + Vector3.up * 0.5f;
-                float size = reservation.Radius * 0.6f;
-
-                // Draw as a diamond shape
-                Gizmos.DrawLine(pos + Vector3.forward * size, pos + Vector3.right * size);
-                Gizmos.DrawLine(pos + Vector3.right * size, pos - Vector3.forward * size);
-                Gizmos.DrawLine(pos - Vector3.forward * size, pos - Vector3.right * size);
-                Gizmos.DrawLine(pos - Vector3.right * size, pos + Vector3.forward * size);
-
-                if (showLabels)
-                {
-                    string label = $"L ({reservation.Ring})";
-                    Handles.Label(pos + Vector3.up * reservation.Radius, label, GetSmallLabelStyle(landmarkReservationColor));
-                }
-            }
+            // Landmarks are no longer reservations (slice 0.9.10): the
+            // LandmarkDirector owns their runtime visualization.
         }
 
         private Color GetNodeColor(WorldNodeType type)

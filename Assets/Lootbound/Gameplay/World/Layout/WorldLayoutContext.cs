@@ -65,6 +65,32 @@ namespace Lootbound.Gameplay.World.Layout
             Progression = progression;
         }
 
+        /// <summary>
+        /// The landmarks of this world - permanent notable places, the shared
+        /// generation result consumed by the LandmarkDirector and the ambient
+        /// population as independent readers. Read-only, never null (empty
+        /// until attached), single-assignment like the progression authority.
+        /// </summary>
+        public IReadOnlyList<Landmarks.LandmarkIdentity> Landmarks => _landmarks;
+        private IReadOnlyList<Landmarks.LandmarkIdentity> _landmarks = System.Array.Empty<Landmarks.LandmarkIdentity>();
+        private bool _landmarksAttached;
+
+        /// <summary>
+        /// Attach the landmark set (called once by the generator after the
+        /// layout is published). A null set attaches an empty collection.
+        /// Subsequent calls are ignored (single-assignment).
+        /// </summary>
+        public void AttachLandmarks(IReadOnlyList<Landmarks.LandmarkIdentity> landmarks)
+        {
+            if (_landmarksAttached)
+            {
+                return;
+            }
+
+            _landmarks = landmarks ?? System.Array.Empty<Landmarks.LandmarkIdentity>();
+            _landmarksAttached = true;
+        }
+
         #endregion
 
         #region Nodes and Edges
@@ -130,12 +156,6 @@ namespace Lootbound.Gameplay.World.Layout
         public IReadOnlyList<ResourceReservation> ResourceReservations => _resourceReservations;
         private readonly List<ResourceReservation> _resourceReservations;
 
-        /// <summary>
-        /// Landmark reservations (not graph nodes).
-        /// </summary>
-        public IReadOnlyList<LandmarkReservation> LandmarkReservations => _landmarkReservations;
-        private readonly List<LandmarkReservation> _landmarkReservations;
-
         #endregion
 
         public WorldLayoutContext(
@@ -161,7 +181,6 @@ namespace Lootbound.Gameplay.World.Layout
             _outerDestinationNodes = new List<WorldNode>();
             _encounterReservations = new List<EncounterReservation>();
             _resourceReservations = new List<ResourceReservation>();
-            _landmarkReservations = new List<LandmarkReservation>();
         }
 
         #region Node/Edge Management
@@ -229,14 +248,6 @@ namespace Lootbound.Gameplay.World.Layout
         internal void AddResourceReservation(ResourceReservation reservation)
         {
             _resourceReservations.Add(reservation);
-        }
-
-        /// <summary>
-        /// Add a landmark reservation.
-        /// </summary>
-        internal void AddLandmarkReservation(LandmarkReservation reservation)
-        {
-            _landmarkReservations.Add(reservation);
         }
 
         #endregion

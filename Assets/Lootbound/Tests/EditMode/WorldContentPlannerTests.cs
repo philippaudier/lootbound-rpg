@@ -93,16 +93,6 @@ namespace Lootbound.Tests.EditMode
             return definition;
         }
 
-        private LandmarkDefinition CreateLandmarkDefinition(
-            string id, GameObject prefab = null, WorldRing minimumRing = WorldRing.Refuge)
-        {
-            var definition = Track(ScriptableObject.CreateInstance<LandmarkDefinition>());
-            SetField(definition, "landmarkId", id);
-            SetField(definition, "landmarkPrefab", prefab);
-            SetField(definition, "minimumRing", minimumRing);
-            return definition;
-        }
-
         private ItemDefinition CreateItemDefinition(string id)
         {
             var item = Track(ScriptableObject.CreateInstance<ItemDefinition>());
@@ -124,13 +114,6 @@ namespace Lootbound.Tests.EditMode
             return registry;
         }
 
-        private LandmarkRegistry CreateLandmarkRegistry(params LandmarkDefinition[] definitions)
-        {
-            var registry = Track(ScriptableObject.CreateInstance<LandmarkRegistry>());
-            SetField(registry, "definitions", new List<LandmarkDefinition>(definitions));
-            return registry;
-        }
-
         private EncounterReservation CreateEncounterReservation(
             string id = "encounter_42_0", WorldRing ring = WorldRing.Wildlands,
             Vector3? position = null, string hostNodeId = "node_42_junction_1",
@@ -148,14 +131,6 @@ namespace Lootbound.Tests.EditMode
             return new ResourceReservation(id, "node_42_deadend_5", pos, 5f, 120f, 120f / 512f, ring, "path_42_1");
         }
 
-        private LandmarkReservation CreateLandmarkReservation(
-            string id = "landmark_42_0", WorldRing ring = WorldRing.Wildlands,
-            Vector3? position = null)
-        {
-            var pos = position ?? new Vector3(600f, 10f, 400f);
-            return new LandmarkReservation(id, "node_42_viewpoint_7", pos, 6f, 280f, 280f / 512f, ring, "path_42_2");
-        }
-
         private WorldContentPlan PlanSingleEncounter(
             int seed, EncounterReservation reservation, EncounterRegistry registry,
             ITerrainSampler sampler = null, WorldContentPlannerSettings settings = null)
@@ -164,9 +139,7 @@ namespace Lootbound.Tests.EditMode
                 seed,
                 new[] { reservation },
                 null,
-                null,
                 registry,
-                null,
                 null,
                 sampler ?? new TestTerrainSampler(),
                 settings ?? DefaultSettings());
@@ -219,9 +192,9 @@ namespace Lootbound.Tests.EditMode
                 CreateEncounterReservation("encounter_42_1", position: new Vector3(300f, 10f, 700f))
             };
 
-            var plan1 = WorldContentPlanner.Plan(12345, reservations, null, null, registry, null, null,
+            var plan1 = WorldContentPlanner.Plan(12345, reservations, null, registry, null,
                 new TestTerrainSampler(), DefaultSettings());
-            var plan2 = WorldContentPlanner.Plan(12345, reservations, null, null, registry, null, null,
+            var plan2 = WorldContentPlanner.Plan(12345, reservations, null, registry, null,
                 new TestTerrainSampler(), DefaultSettings());
 
             AssertRecipesIdentical(plan1, plan2);
@@ -283,10 +256,10 @@ namespace Lootbound.Tests.EditMode
             var b = CreateEncounterReservation("encounter_42_1", position: new Vector3(300f, 10f, 700f));
             var c = CreateEncounterReservation("encounter_42_2", position: new Vector3(700f, 10f, 300f));
 
-            var planForward = WorldContentPlanner.Plan(12345, new[] { a, b, c }, null, null,
-                registry, null, null, new TestTerrainSampler(), DefaultSettings());
-            var planReversed = WorldContentPlanner.Plan(12345, new[] { c, b, a }, null, null,
-                registry, null, null, new TestTerrainSampler(), DefaultSettings());
+            var planForward = WorldContentPlanner.Plan(12345, new[] { a, b, c }, null,
+                registry, null, new TestTerrainSampler(), DefaultSettings());
+            var planReversed = WorldContentPlanner.Plan(12345, new[] { c, b, a }, null,
+                registry, null, new TestTerrainSampler(), DefaultSettings());
 
             Assert.AreEqual(planForward.Recipes.Count, planReversed.Recipes.Count);
 
@@ -463,8 +436,8 @@ namespace Lootbound.Tests.EditMode
 
             for (int seed = 0; seed < 20; seed++)
             {
-                var plan = WorldContentPlanner.Plan(seed, null, new[] { reservation }, null,
-                    null, registry, null, new TestTerrainSampler(), DefaultSettings());
+                var plan = WorldContentPlanner.Plan(seed, null, new[] { reservation },
+                    null, registry, new TestTerrainSampler(), DefaultSettings());
 
                 Assert.AreEqual(1, plan.Recipes.Count);
                 var entry = plan.Recipes[0].Entries[0];
@@ -474,47 +447,31 @@ namespace Lootbound.Tests.EditMode
         }
 
         [Test]
-        public void AllThreeCategories_Resolvable()
+        public void BothCategories_Resolvable()
         {
+            // Landmarks are no longer content: the planner resolves encounters
+            // and resources (landmark planning lives in LandmarkPlannerTests).
             var enemyPrefab = CreatePrefabStub("EnemyStub");
             var item = CreateItemDefinition("item_test");
 
             var encounterRegistry = CreateEncounterRegistry(CreateEncounterDefinition("enc_a", enemyPrefab));
             var resourceRegistry = CreateResourceRegistry(CreateResourceDefinition("res_a", item));
-            var landmarkRegistry = CreateLandmarkRegistry(CreateLandmarkDefinition("land_a"));
 
             var plan = WorldContentPlanner.Plan(
                 12345,
                 new[] { CreateEncounterReservation() },
                 new[] { CreateResourceReservation() },
-                new[] { CreateLandmarkReservation() },
                 encounterRegistry,
                 resourceRegistry,
-                landmarkRegistry,
                 new TestTerrainSampler(),
                 DefaultSettings());
 
-            Assert.AreEqual(3, plan.TotalReservations);
-            Assert.AreEqual(3, plan.Recipes.Count, "All three categories should resolve");
+            Assert.AreEqual(2, plan.TotalReservations);
+            Assert.AreEqual(2, plan.Recipes.Count, "Both categories should resolve");
             Assert.AreEqual(0, plan.Rejections.Count);
 
             Assert.IsTrue(plan.Recipes.Any(r => r.Category == WorldContentCategory.Encounter));
             Assert.IsTrue(plan.Recipes.Any(r => r.Category == WorldContentCategory.Resource));
-            Assert.IsTrue(plan.Recipes.Any(r => r.Category == WorldContentCategory.Landmark));
-        }
-
-        [Test]
-        public void LandmarkWithoutPrefab_IsStillPlanned()
-        {
-            // A landmark definition without prefab is valid at planning time:
-            // the spawner substitutes a clearly named placeholder primitive.
-            var registry = CreateLandmarkRegistry(CreateLandmarkDefinition("land_placeholder", prefab: null));
-
-            var plan = WorldContentPlanner.Plan(1, null, null, new[] { CreateLandmarkReservation() },
-                null, null, registry, new TestTerrainSampler(), DefaultSettings());
-
-            Assert.AreEqual(1, plan.Recipes.Count);
-            Assert.AreEqual("land_placeholder", plan.Recipes[0].DefinitionId);
         }
 
         [Test]

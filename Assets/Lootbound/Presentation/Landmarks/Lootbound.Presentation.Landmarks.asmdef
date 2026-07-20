@@ -1,0 +1,17 @@
+{
+    "name": "Lootbound.Presentation.Landmarks",
+    "rootNamespace": "Lootbound.Presentation.Landmarks",
+    "references": [
+        "Lootbound.Core",
+        "Lootbound.Gameplay"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

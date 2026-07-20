@@ -43,12 +43,10 @@ namespace Lootbound.Gameplay.World.Spawning
         [Header("Content Registries")]
         [SerializeField] private EncounterRegistry encounterRegistry;
         [SerializeField] private ResourceSpawnRegistry resourceRegistry;
-        [SerializeField] private LandmarkRegistry landmarkRegistry;
 
         [Header("Categories")]
         [SerializeField] private bool spawnEncounters = true;
         [SerializeField] private bool spawnResources = true;
-        [SerializeField] private bool spawnLandmarks = true;
 
         [Header("Placement")]
         [SerializeField]
@@ -210,7 +208,6 @@ namespace Lootbound.Gameplay.World.Spawning
             {
                 EncountersEnabled = spawnEncounters,
                 ResourcesEnabled = spawnResources,
-                LandmarksEnabled = spawnLandmarks,
                 MaxPlacementSlope = maxPlacementSlope
             };
 
@@ -218,10 +215,8 @@ namespace Lootbound.Gameplay.World.Spawning
                 layout.WorldSeed,
                 layout.EncounterReservations,
                 layout.ResourceReservations,
-                layout.LandmarkReservations,
                 encounterRegistry,
                 resourceRegistry,
-                landmarkRegistry,
                 sampler,
                 settings,
                 layout.Progression);
@@ -229,7 +224,6 @@ namespace Lootbound.Gameplay.World.Spawning
             contentRoot = new GameObject("WorldContent_Spawned");
             var encounterParent = CreateContainer("Encounters");
             var resourceParent = CreateContainer("Resources");
-            var landmarkParent = CreateContainer("Landmarks");
 
             var outcomes = new List<SpawnOutcome>(plan.Recipes.Count);
 
@@ -245,9 +239,6 @@ namespace Lootbound.Gameplay.World.Spawning
                         break;
                     case WorldContentCategory.Resource:
                         outcomes.Add(SpawnResource(recipe, resourceParent));
-                        break;
-                    case WorldContentCategory.Landmark:
-                        outcomes.Add(SpawnLandmark(recipe, landmarkParent));
                         break;
                 }
             }
@@ -408,65 +399,6 @@ namespace Lootbound.Gameplay.World.Spawning
                 }
             }
             return null;
-        }
-
-        #endregion
-
-        #region Landmark instantiation
-
-        private SpawnOutcome SpawnLandmark(SpawnRecipe recipe, Transform parent)
-        {
-            var definition = FindLandmarkDefinition(recipe.DefinitionId);
-            if (definition == null)
-            {
-                LootboundLog.Warning(LogCategory, $"Landmark {recipe.ReservationId}: definition missing at spawn time");
-                return new SpawnOutcome(recipe, 0, "definition missing");
-            }
-
-            var entry = recipe.Entries[0];
-            GameObject landmark;
-
-            if (definition.LandmarkPrefab != null)
-            {
-                landmark = Instantiate(definition.LandmarkPrefab, entry.Position, Quaternion.identity, parent);
-                landmark.name = $"Landmark_{definition.LandmarkId}_{recipe.ReservationId}";
-            }
-            else
-            {
-                landmark = CreateLandmarkPlaceholder(entry.Position, definition.LandmarkId, recipe.ReservationId, parent);
-            }
-
-            AttachIdentity(landmark, recipe, entry.Role);
-            return new SpawnOutcome(recipe, 1);
-        }
-
-        private LandmarkDefinition FindLandmarkDefinition(string definitionId)
-        {
-            if (landmarkRegistry == null) return null;
-            foreach (var definition in landmarkRegistry.Definitions)
-            {
-                if (definition != null && definition.LandmarkId == definitionId)
-                {
-                    return definition;
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Placeholder landmark used when a definition has no prefab yet.
-        /// A tall, clearly named primitive - visible from a distance, and easy
-        /// to find and replace once real landmark assets exist.
-        /// </summary>
-        private static GameObject CreateLandmarkPlaceholder(Vector3 position, string landmarkId, string reservationId, Transform parent)
-        {
-            var placeholder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            placeholder.name = $"Landmark_PLACEHOLDER_{landmarkId}_{reservationId}";
-            placeholder.transform.SetParent(parent, false);
-            placeholder.transform.localScale = new Vector3(1.5f, 4f, 1.5f);
-            // Cylinder pivot is its center; height = 2 * scaleY.
-            placeholder.transform.position = position + Vector3.up * 4f;
-            return placeholder;
         }
 
         #endregion

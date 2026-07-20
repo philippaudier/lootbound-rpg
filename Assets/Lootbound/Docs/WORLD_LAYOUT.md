@@ -75,7 +75,10 @@ Reservations mark positions for future content spawning:
 |------|-------------|
 | **EncounterReservation** | Position for enemy encounters |
 | **ResourceReservation** | Position for resource nodes |
-| **LandmarkReservation** | Position for visual landmarks |
+
+> There is no landmark reservation. Since slice 0.9.10 landmarks are derived
+> directly from elevated/terminal layout **nodes** (Viewpoint, Landmark,
+> OuterDestination) by the `LandmarkPlanner` - see `LANDMARKS.md`.
 
 All reservations inherit radial properties from their host node:
 - DistanceFromRefuge
@@ -229,7 +232,7 @@ Add `WorldLayoutGizmos` component to view in Scene:
 - **Nodes**: Color-coded spheres by type
 - **Edges**: Green lines for primary paths, yellow for branches
 - **Labels**: Node type and ring
-- **Reservations**: Cubes for E/R/L (encounter/resource/landmark)
+- **Reservations**: Cubes for E/R (encounter/resource)
 
 ## Files
 
@@ -265,13 +268,12 @@ Assets/Lootbound/Tests/EditMode/
 - OuterDestinations at path terminals
 - Branches inheriting RadialPathId
 - WorldRing assignment for all nodes
-- Encounter/Resource/Landmark reservations
+- Encounter/Resource reservations
 - Deterministic generation with bounded retries
 - Ring visualization in Scene view
 
 ### Excluded from V1
 - Threat levels (future slice)
-- Actual landmark models
 - Enemy/resource spawning
 - Ring-specific biomes
 - Terrain streaming

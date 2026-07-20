@@ -102,10 +102,6 @@ namespace Lootbound.Gameplay.World.Layout
         [Range(0, 10)]
         [SerializeField] private int resourceReservationCount = 4;
 
-        [Tooltip("Number of landmark reservations")]
-        [Range(0, 6)]
-        [SerializeField] private int landmarkReservationCount = 2;
-
         [Header("Node Sizing")]
         [Tooltip("Default radius for junction nodes")]
         [SerializeField] private float junctionRadius = 8f;
@@ -184,7 +180,6 @@ namespace Lootbound.Gameplay.World.Layout
         public int ViewpointCount => viewpointCount;
         public int EncounterReservationCount => encounterReservationCount;
         public int ResourceReservationCount => resourceReservationCount;
-        public int LandmarkReservationCount => landmarkReservationCount;
 
         // Node Sizing
         public float JunctionRadius => junctionRadius;

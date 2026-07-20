@@ -272,8 +272,11 @@ namespace Lootbound.Gameplay.World.Population
             encounterPositions = new List<Vector3>();
             foreach (var reservation in layout.EncounterReservations) encounterPositions.Add(reservation.Position);
 
+            // Exclude ambient population only from the landmarks actually
+            // produced by the LandmarkPlanner (the shared generation result),
+            // never from every potential host node.
             landmarkPositions = new List<Vector3>();
-            foreach (var reservation in layout.LandmarkReservations) landmarkPositions.Add(reservation.Position);
+            foreach (var landmark in layout.Landmarks) landmarkPositions.Add(landmark.Position);
 
             resourcePositions = new List<Vector3>();
             foreach (var reservation in layout.ResourceReservations) resourcePositions.Add(reservation.Position);
