@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bd02cff37b3420db05e4ad6a76bd2aa, type: 3}
+  m_Name: Encounter_DevWanderer
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.Spawning.EncounterDefinition
+  encounterId: enemy_dev_wanderer
+  displayName: DevWanderer
+  enemyPrefab: {fileID: 7690508598923055212, guid: f3241dfc495265f4ca089dbcf5d5b82f, type: 3}
+  minimumEnemyCount: 1
+  maximumEnemyCount: 2
+  spawnSpreadRadius: 4
+  minimumRing: 1

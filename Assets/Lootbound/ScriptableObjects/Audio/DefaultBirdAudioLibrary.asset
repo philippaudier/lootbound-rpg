@@ -12,7 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c70cc72a41096442a072039131b2f68, type: 3}
   m_Name: DefaultBirdAudioLibrary
   m_EditorClassIdentifier: Lootbound.Presentation.Audio::Lootbound.Presentation.Audio.BirdAudioLibrary
-  clips: []
+  clips:
+  - {fileID: 8300000, guid: 23ac5c46176cf4741a548afa166459c5, type: 3}
+  - {fileID: 8300000, guid: 7138e85d1271196418405af6eafb8419, type: 3}
+  - {fileID: 8300000, guid: 06b55a82003a5b444b245302033ee8e5, type: 3}
+  - {fileID: 8300000, guid: 1d032dd47127f9d4faefbca20b365c4f, type: 3}
+  - {fileID: 8300000, guid: 189ba32cc2487554bb0c5a5e56c76679, type: 3}
+  - {fileID: 8300000, guid: 89201d8035876d148827acb06ffb7996, type: 3}
+  - {fileID: 8300000, guid: 62ca55b735623864b83561eec0ba3831, type: 3}
+  - {fileID: 8300000, guid: 8c6d876f68e84864bbaa56affd8a575b, type: 3}
   pitchRange: {x: 0.95, y: 1.05}
   volumeRange: {x: 0.9, y: 1}
   minDistance: 8

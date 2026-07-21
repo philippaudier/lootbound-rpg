@@ -18,9 +18,11 @@ Refuge
 -> Loot
 -> Return
 -> Repair
--> Upgrade
+-> Enhancement
 -> New expedition
 ```
+
+The Enhancement step is implemented as the **Attunement** system (see `Docs/ATTUNEMENT.md`).
 
 The player doesn't seek to save the world. They simply go a little further than yesterday. Each return is a victory.
 
@@ -80,8 +82,10 @@ Full design: `Docs/WORLD_ENGINE_ARCHITECTURE.md`.
 |----------|-------------|
 | `Lootbound.Core` | Core systems (bootstrap, logging, configuration, utilities) |
 | `Lootbound.World` | The Unity-free World Engine (fields, domain processing, world knowledge) |
-| `Lootbound.Gameplay` | Gameplay systems (depends on Core and World) |
-| `Lootbound.Debugging` | Debug tools (depends on Core) |
+| `Lootbound.Gameplay` | Gameplay systems (depends on Core, World, Unity.InputSystem) |
+| `Lootbound.Debugging` | Debug tools (depends on Core, Gameplay, Unity.InputSystem) |
+| `Lootbound.UI` | UI Toolkit panels and HUD (depends on Core, Gameplay, Unity.InputSystem) |
+| `Lootbound.Gameplay.World.Editor` | Editor-only terrain tooling (depends on Gameplay) |
 | `Lootbound.Tests.EditMode` | Edit mode tests |
 | `Lootbound.Tests.PlayMode` | Play mode tests |
 
@@ -100,12 +104,16 @@ Full design: `Docs/WORLD_ENGINE_ARCHITECTURE.md`.
 
 ```
 Assets/Lootbound/
-    Core/           # Core systems
-    Gameplay/       # Gameplay systems (future slices)
-    Debug/          # Debug tools
-    Scenes/         # Game scenes
-    Input/          # Input configuration
-    Tests/          # Unit and integration tests
+    Core/               # Core systems
+    Gameplay/           # Gameplay systems (player, combat, equipment, world, expeditions)
+    UI/                 # UI Toolkit panels and HUD
+    Debug/              # Debug tools
+    Docs/               # System documentation
+    Scenes/             # Game scenes
+    Input/              # Input configuration
+    Prefabs/            # Prefabs (player, combat, world)
+    ScriptableObjects/  # Authoring assets (configs, definitions)
+    Tests/              # Unit and integration tests
 ```
 
 ## Getting Started
@@ -164,7 +172,7 @@ After opening the project for the first time:
 | Toggle Combat Debug | F6 |
 | Toggle World Knowledge (terrain sandbox) | F9 |
 
-## Current State: Slice 0.8.1 - Attunement Data Foundation V1
+## Current State: Slices 0.8-0.9 - Attunement, Expeditions & Radial World Layout
 
 ### Implemented
 - Project folder structure
@@ -269,13 +277,29 @@ After opening the project for the first time:
 - **UI: Slot badge, details panel, comparison**
 - **Debug tools for attunement (F6)**
 - **Attunement preserved through all operations**
+- **Attunement Mechanics & Ritual (Slices 0.8.2-0.8.6)**
+- **AttunementService: attempt preview, success chances, material costs**
+- **Attunement ritual presentation (AttunementRitualController)**
+- **Attunement Table world station (IInteractable) with dedicated UI**
+- **Attunement history recorded on equipment**
+- **Radial World Layout (World Architecture Alignment)**
+- **WorldDisc with 7 concentric rings (WorldRingConfig, WorldRingEvaluator)**
+- **Terrain-aware radial paths, nodes and edges (WorldLayoutGenerator)**
+- **Layout validation against terrain (WorldLayoutValidator)**
+- **Content reservations generated (encounters, resources, landmarks) — not yet consumed by gameplay**
+- **Expeditions (Slice 0.9.x)**
+- **RefugeZone safe area and ExpeditionBoundary threshold crossing**
+- **Expedition lifecycle, session tracking and metrics (in-memory)**
+- **Expedition debug panel**
+- **EditMode and PlayMode expedition tests**
 
 ### Not Implemented (Future Slices)
-- Attunement attempt mechanics (bonus stats, chances, costs)
-- Save system
-- Refuge
+- Save system / persistence (expedition metrics and equipment are lost on quit)
+- Encounter and resource spawning from world reservations
+- Ring-based difficulty, threat and loot scaling
+- Refuge as a full place (storage, rest, expedition memories) — only the zone and threshold exist
 - Stamina
-- Multiple weapon types
+- Multiple weapon types, armor, off-hand
 - Parry/block
 - Lock-on targeting
 
@@ -294,14 +318,19 @@ After opening the project for the first time:
 | 0.7.3 | Broken Weapons V1 |
 | 0.7.4 | Repair Fragments V1 |
 | 0.7.5 | Repair Station V1 |
-| 0.8.1 | Attunement Data Foundation V1 |
+| 0.8.1-0.8.6 | Attunement System V1 (data, mechanics, ritual, table, history) |
+| — | World Architecture Alignment: Radial Layout System |
+| 0.9.x | Expeditions V1 — Refuge Departure & Return |
 
 ## Upcoming Slices
 
-| Slice | Focus |
-|-------|-------|
-| 0.8.2 | Attunement Attempt Mechanics (if needed) |
-| 0.9 | Refuge V1 |
+Candidates, not yet scheduled:
+
+| Focus |
+|-------|
+| Content spawning from world reservations (encounters, resources, landmarks) |
+| Save system / persistence |
+| Refuge as a physical place (storage, rest, expedition memories) |
 
 ## Character Controller
 
@@ -341,7 +370,7 @@ PlayerCharacter
 
 Not implemented in V1:
 - Stamina
-- Dodge/Dash
+- Dodge/Dash (combat dodge added later in Slice 0.5)
 - Slide
 - Wall-run
 - Climbing
@@ -417,14 +446,14 @@ See `Docs/PROCEDURAL_TERRAIN.md` for detailed documentation.
 ### V1 Limitations
 
 Not implemented in V1:
-- Equipment slots
+- Equipment slots (added later in Slice 0.6)
 - Item use/consume
 - Item combining/crafting
 - Drag-and-drop rearrangement
 - Item sorting
 - Quick-use hotbar
 - Container/chest interaction
-- Item durability
+- Item durability (added later in Slice 0.7)
 - Save/load inventory
 
 See `Docs/INTERACTION_INVENTORY.md` for detailed documentation.
@@ -455,7 +484,7 @@ See `Docs/INTERACTION_INVENTORY.md` for detailed documentation.
 ### V1 Limitations
 
 Not implemented in V1:
-- Equipment integration
+- Equipment integration (added later in Slice 0.6)
 - Weapon switching
 - Heavy attacks / combos
 - Parry / block

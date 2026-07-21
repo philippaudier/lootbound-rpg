@@ -53,5 +53,18 @@ MonoBehaviour:
   maximumTemperatureOffset: 2
   enableContrast: 1
   maximumContrast: 4
+  skyZenithTintTarget: {r: 0.94, g: 0.96, b: 1, a: 1}
+  skyZenithTintInfluence: 0.35
+  skyHorizonTintTarget: {r: 0.9, g: 0.92, b: 0.95, a: 1}
+  skyHorizonTintInfluence: 0.5
+  minimumSkyColorSaturation: 0.9
+  controlSkyExposure: 0
+  minimumSkyExposureOffset: -0.2
+  birdActivityMinimum: 0.02
+  insectActivityMinimum: 0
+  windActivityMinimum: 0.2
+  windActivityMaximum: 0.85
+  rareActivityMinimum: 0.02
+  rareActivityMaximum: 0.3
   evaluationInterval: 0.2
   transitionSpeed: 0.4

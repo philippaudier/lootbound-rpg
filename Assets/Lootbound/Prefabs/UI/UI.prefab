@@ -141,6 +141,8 @@ MonoBehaviour:
   uiDocument: {fileID: 8997366070172779147}
   playerInventory: {fileID: 0}
   inventoryConfig: {fileID: 11400000, guid: 3b146ac80af19ba4884de53f620266df, type: 2}
+  expeditionLifecycle: {fileID: 0}
+  showExpeditionNotifications: 1
   notificationDuration: 3
   maxNotifications: 5
 --- !u!1 &3322650981066112788
@@ -292,6 +294,53 @@ MonoBehaviour:
   playerRepair: {fileID: 0}
   notificationDuration: 4
   maxNotifications: 3
+--- !u!1 &6892022752380730191
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 611502564543720499}
+  - component: {fileID: 5088720473711625616}
+  m_Layer: 0
+  m_Name: WorldContentUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &611502564543720499
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6892022752380730191}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 153280901721937024}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5088720473711625616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6892022752380730191}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a56b4d4b82947b18e90e09786c1eb5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Debugging::Lootbound.Debugging.WorldContentDebugPanel
+  spawner: {fileID: 0}
+  navigationBuilder: {fileID: 0}
+  toggleKey: 102
 --- !u!1 &7067938806396796203
 GameObject:
   m_ObjectHideFlags: 0
@@ -477,6 +526,7 @@ Transform:
   - {fileID: 3659490847837957434}
   - {fileID: 7139206751231637468}
   - {fileID: 1961705096342527502}
+  - {fileID: 611502564543720499}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8025470801426769610

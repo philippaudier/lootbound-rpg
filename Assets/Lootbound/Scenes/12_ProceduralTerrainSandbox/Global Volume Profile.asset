@@ -38,7 +38,7 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 0.01192826
   aerosolTint:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: {r: 0.9, g: 0.9, b: 0.9, a: 1}
   aerosolMaximumAltitude:
     m_OverrideState: 0
@@ -140,9 +140,9 @@ MonoBehaviour:
   - {fileID: -1718848828369502755}
   - {fileID: 2308800653598322543}
   - {fileID: 941668942853947422}
+  - {fileID: 441555863921831259}
   - {fileID: 2100755878944150252}
   - {fileID: 7131424848382039571}
-  - {fileID: 441555863921831259}
 --- !u!114 &441555863921831259
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -194,7 +194,7 @@ MonoBehaviour:
     m_Value: 5000
   meanFreePath:
     m_OverrideState: 1
-    m_Value: 2000
+    m_Value: 500
 --- !u!114 &941668942853947422
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -216,7 +216,7 @@ MonoBehaviour:
     m_Value: 0
   m_CloudPreset:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 4
   densityMultiplier:
     m_OverrideState: 1
     m_Value: 0.4
@@ -338,8 +338,8 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   microErosion:
-    m_OverrideState: 0
-    m_Value: 0
+    m_OverrideState: 1
+    m_Value: 1
   microErosionFactor:
     m_OverrideState: 1
     m_Value: 0.5
@@ -360,7 +360,7 @@ MonoBehaviour:
     m_Value: 0
   globalSpeed:
     m_OverrideState: 1
-    m_Value: 500
+    m_Value: 200
   globalOrientation:
     m_OverrideState: 0
     m_Value: 0
@@ -398,8 +398,8 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 0.5
   shadows:
-    m_OverrideState: 1
-    m_Value: 0
+    m_OverrideState: 0
+    m_Value: 1
   shadowResolution:
     m_OverrideState: 0
     m_Value: 256
@@ -419,10 +419,10 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 1
   numPrimarySteps:
-    m_OverrideState: 0
-    m_Value: 32
+    m_OverrideState: 1
+    m_Value: 128
   numLightSteps:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: 2
   fadeInMode:
     m_OverrideState: 0

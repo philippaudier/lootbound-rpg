@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: DefaultTerrainGenerationConfig
   m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.TerrainGenerationConfig
   defaultSeed: 42
-  worldSize: 1024
-  terrainHeight: 200
-  heightmapResolution: 513
+  worldSize: 2048
+  terrainHeight: 300
+  heightmapResolution: 1025
   alphamapResolution: 512
   macroScale: 600
-  macroOctaves: 3
+  macroOctaves: 8
   macroPersistence: 0.4
   macroLacunarity: 2
   ridgeScale: 400
@@ -26,7 +26,7 @@ MonoBehaviour:
   valleyScale: 500
   valleyStrength: 0.2
   detailScale: 80
-  detailStrength: 0.05
+  detailStrength: 0.06
   heightRemap:
     serializedVersion: 2
     m_Curve:
@@ -34,16 +34,106 @@ MonoBehaviour:
       time: 0
       value: 0
       inSlope: 0
-      outSlope: 1
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
+      time: 0.056391492
+      value: 0.008836123
+      inSlope: 0.14144868
+      outSlope: 0.14144868
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.30409473
+      value: 0.036404237
+      inSlope: 0.30067462
+      outSlope: 0.30067462
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.1844061
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.3843357
+      value: 0.04473166
+      inSlope: 0.19398792
+      outSlope: 0.19398792
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.4758049
+      value: 0.0744382
+      inSlope: 0.45520523
+      outSlope: 0.45520523
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5616829
+      value: 0.1110816
+      inSlope: 0.88865286
+      outSlope: 0.88865286
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.7180736
+      value: 0.30934867
+      inSlope: 2.2180777
+      outSlope: 2.2180777
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.77436805
+      value: 0.44647324
+      inSlope: 1.6312324
+      outSlope: 1.6312324
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.8644023
+      value: 0.565913
+      inSlope: 1.7719922
+      outSlope: 1.7719922
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.9255996
+      value: 0.8407438
+      inSlope: 0.6758115
+      outSlope: 0.6758115
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.51707685
+      outWeight: 0.7135303
+    - serializedVersion: 3
+      time: 0.97369313
+      value: 0.940197
+      inSlope: 1.2552073
+      outSlope: 1.2552073
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.7808326
+      outWeight: 0.33333334
+    - serializedVersion: 3
       time: 1
       value: 1
-      inSlope: 1
-      outSlope: 0
+      inSlope: 2
+      outSlope: 2
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
@@ -51,12 +141,13 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  globalHeightStrength: 1
-  normalizeHeightmap: 0
-  spawnSafeRadius: 30
-  spawnBlendRadius: 70
-  spawnTargetHeight: 0.5
-  maxSpawnSlope: 10
+  globalHeightStrength: 2
+  refugeFoundationRadius: 40
+  refugeTransitionRadius: 50
+  refugeCarveDepth: 12
+  refugeMaxCut: 60
+  refugeMaxFill: 2
+  refugeResidualRoughness: 0.2
   lowlandThreshold: 0.3
   highlandThreshold: 0.65
   steepSlopeThreshold: 35

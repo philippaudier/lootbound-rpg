@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af6398e562c94f5a9588d699e851d66a, type: 3}
+  m_Name: DefaultLandmarkRegistry
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.Spawning.LandmarkRegistry
+  definitions:
+  - {fileID: 11400000, guid: 684c36574ce10444ba2b0cafb4650eea, type: 2}
+  - {fileID: 11400000, guid: 34d597725cb974d46bec5e2b86c887c7, type: 2}
+  - {fileID: 11400000, guid: dc56648e8382593409ab1dc81597a041, type: 2}
+  - {fileID: 11400000, guid: 93f794e5027d0d548836e95c5f69e8bb, type: 2}
+  - {fileID: 11400000, guid: 2f492d6e2ce56f9479108142eb940e01, type: 2}
+  - {fileID: 11400000, guid: 17990a98c5cdc7f47b081fe250711f95, type: 2}

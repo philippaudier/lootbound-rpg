@@ -12,10 +12,13 @@ Lootbound uses a simple, explicit architecture without global service locators o
 Lootbound.Core          (no dependencies on other Lootbound assemblies)
     |
     v
-Lootbound.Gameplay      (depends on Core)
+Lootbound.Gameplay      (depends on Core, Unity.InputSystem)
     |
-    v
-Lootbound.Debugging     (depends on Core)
+    +--> Lootbound.Debugging            (depends on Core, Gameplay, Unity.InputSystem)
+    |
+    +--> Lootbound.UI                   (depends on Core, Gameplay, Unity.InputSystem)
+    |
+    +--> Lootbound.Gameplay.World.Editor (editor-only, depends on Gameplay)
 ```
 
 Test assemblies:
@@ -344,11 +347,14 @@ Lootbound.Core.Scenes
 Lootbound.Debugging
 Lootbound.Gameplay.Player
 Lootbound.Gameplay.World
+Lootbound.Gameplay.World.Editor   (editor-only)
 Lootbound.Gameplay.World.Layout
 Lootbound.Gameplay.Interaction
 Lootbound.Gameplay.Inventory
 Lootbound.Gameplay.Combat
 Lootbound.Gameplay.Equipment
+Lootbound.Gameplay.Expeditions
+Lootbound.Input
 Lootbound.UI
 Lootbound.UI.Combat
 ```
