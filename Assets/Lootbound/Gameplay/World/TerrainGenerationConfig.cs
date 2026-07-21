@@ -75,19 +75,25 @@ namespace Lootbound.Gameplay.World
         [Range(0.1f, 2f)]
         [SerializeField] private float globalHeightStrength = 1f;
 
-        [Header("Spawn Zone")]
-        [Tooltip("Radius of the completely safe zone around spawn in meters")]
-        [SerializeField] private float spawnSafeRadius = 24f;
+        [Header("Refuge Seating")]
+        [Tooltip("Radius (m) of the seated refuge basin floor")]
+        [SerializeField] private float refugeFoundationRadius = 40f;
 
-        [Tooltip("Radius of the blend zone from safe to natural terrain in meters")]
-        [SerializeField] private float spawnBlendRadius = 55f;
+        [Tooltip("Width (m) of the smooth gradient bowl walls beyond the floor")]
+        [SerializeField] private float refugeTransitionRadius = 50f;
 
-        [Tooltip("Target normalized height for spawn area (0-1)")]
-        [Range(0.1f, 0.5f)]
-        [SerializeField] private float spawnTargetHeight = 0.25f;
+        [Tooltip("How far (m) below the local reference the refuge is carved. The refuge digs a natural hollow rather than raising a mesa.")]
+        [SerializeField] private float refugeCarveDepth = 12f;
 
-        [Tooltip("Maximum slope angle allowed at spawn point in degrees")]
-        [SerializeField] private float maxSpawnSlope = 10f;
+        [Tooltip("Maximum downward carve (m). Generous so the refuge sinks a natural bowl even on a mountain.")]
+        [SerializeField] private float refugeMaxCut = 60f;
+
+        [Tooltip("Maximum upward fill (m). Small, so low ground is never raised into a mesa.")]
+        [SerializeField] private float refugeMaxFill = 2f;
+
+        [Range(0f, 1f)]
+        [Tooltip("Fraction of the original relief kept inside the basin (0 = flat floor, 1 = untouched).")]
+        [SerializeField] private float refugeResidualRoughness = 0.2f;
 
         [Header("Surface Classification")]
         [Tooltip("Normalized height threshold for lowland areas")]
@@ -139,10 +145,12 @@ namespace Lootbound.Gameplay.World
         public AnimationCurve HeightRemap => heightRemap;
         public float GlobalHeightStrength => globalHeightStrength;
 
-        public float SpawnSafeRadius => spawnSafeRadius;
-        public float SpawnBlendRadius => spawnBlendRadius;
-        public float SpawnTargetHeight => spawnTargetHeight;
-        public float MaxSpawnSlope => maxSpawnSlope;
+        public float RefugeFoundationRadius => Mathf.Max(1f, refugeFoundationRadius);
+        public float RefugeTransitionRadius => Mathf.Max(0f, refugeTransitionRadius);
+        public float RefugeCarveDepth => Mathf.Max(0f, refugeCarveDepth);
+        public float RefugeMaxCut => Mathf.Max(0f, refugeMaxCut);
+        public float RefugeMaxFill => Mathf.Max(0f, refugeMaxFill);
+        public float RefugeResidualRoughness => Mathf.Clamp01(refugeResidualRoughness);
 
         public float LowlandThreshold => lowlandThreshold;
         public float HighlandThreshold => highlandThreshold;
@@ -183,15 +191,9 @@ namespace Lootbound.Gameplay.World
                 return false;
             }
 
-            if (spawnSafeRadius <= 0f)
+            if (refugeFoundationRadius <= 0f)
             {
-                errorMessage = "Spawn safe radius must be positive.";
-                return false;
-            }
-
-            if (spawnBlendRadius <= spawnSafeRadius)
-            {
-                errorMessage = "Spawn blend radius must be greater than safe radius.";
+                errorMessage = "Refuge foundation radius must be positive.";
                 return false;
             }
 
@@ -243,9 +245,11 @@ namespace Lootbound.Gameplay.World
             ridgeScale = Mathf.Max(10f, ridgeScale);
             valleyScale = Mathf.Max(10f, valleyScale);
             detailScale = Mathf.Max(1f, detailScale);
-            spawnSafeRadius = Mathf.Max(5f, spawnSafeRadius);
-            spawnBlendRadius = Mathf.Max(spawnSafeRadius + 10f, spawnBlendRadius);
-            maxSpawnSlope = Mathf.Clamp(maxSpawnSlope, 1f, 30f);
+            refugeFoundationRadius = Mathf.Max(1f, refugeFoundationRadius);
+            refugeTransitionRadius = Mathf.Max(0f, refugeTransitionRadius);
+            refugeCarveDepth = Mathf.Max(0f, refugeCarveDepth);
+            refugeMaxCut = Mathf.Max(0f, refugeMaxCut);
+            refugeMaxFill = Mathf.Max(0f, refugeMaxFill);
             steepSlopeThreshold = Mathf.Clamp(steepSlopeThreshold, 15f, 60f);
 
             // Ensure height remap curve exists

@@ -102,69 +102,6 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Apply spawn zone flattening to the heightmap.
-        /// </summary>
-        public static void ApplySpawnFlattening(TerrainGenerationContext context, TerrainGenerationConfig config, Vector3 spawnWorldPos)
-        {
-            int resolution = context.Resolution;
-            float[,] heightMap = context.NormalizedHeightMap;
-
-            float safeRadius = config.SpawnSafeRadius;
-            float blendRadius = config.SpawnBlendRadius;
-            float targetHeight = config.SpawnTargetHeight;
-
-            // Sample current height at spawn to use as local target
-            var (spawnX, spawnZ) = context.WorldToHeightmap(spawnWorldPos);
-            float localTargetHeight = heightMap[spawnX, spawnZ];
-
-            // Blend between local height and config target for more natural result
-            float blendedTarget = Mathf.Lerp(localTargetHeight, targetHeight, 0.6f);
-
-            for (int x = 0; x < resolution; x++)
-            {
-                for (int z = 0; z < resolution; z++)
-                {
-                    float normX = x / (float)(resolution - 1);
-                    float normZ = z / (float)(resolution - 1);
-
-                    float worldX = normX * context.WorldSize;
-                    float worldZ = normZ * context.WorldSize;
-
-                    float distanceToSpawn = Vector2.Distance(
-                        new Vector2(worldX, worldZ),
-                        new Vector2(spawnWorldPos.x, spawnWorldPos.z)
-                    );
-
-                    if (distanceToSpawn < blendRadius)
-                    {
-                        float originalHeight = heightMap[x, z];
-                        float flattenedHeight;
-
-                        if (distanceToSpawn < safeRadius)
-                        {
-                            // Core safe zone - mostly flat with slight variation
-                            float microVariation = (Mathf.PerlinNoise(x * 0.1f, z * 0.1f) - 0.5f) * 0.005f;
-                            flattenedHeight = blendedTarget + microVariation;
-                        }
-                        else
-                        {
-                            // Blend zone - smooth transition
-                            float t = (distanceToSpawn - safeRadius) / (blendRadius - safeRadius);
-                            // Use smooth step for natural transition
-                            t = t * t * (3f - 2f * t);
-                            flattenedHeight = Mathf.Lerp(blendedTarget, originalHeight, t);
-                        }
-
-                        heightMap[x, z] = flattenedHeight;
-                    }
-                }
-            }
-
-            // Recompute slope map after flattening
-            ComputeSlopeMap(context);
-        }
-
-        /// <summary>
         /// Apply layout-aware flattening for clearings and path corridors.
         /// </summary>
         public static void ApplyLayoutFlattening(

@@ -29,8 +29,8 @@ Key parameters:
 | Ridge | ridgeScale, ridgeStrength | High point features |
 | Valley | valleyScale, valleyStrength | Low corridor features |
 | Detail | detailScale, detailStrength | Fine surface variation |
-| Spawn | spawnSafeRadius | Flat zone around spawn |
-| Spawn | spawnBlendRadius | Transition to natural terrain |
+| Refuge | refugeFoundationRadius | Basin floor radius at the refuge |
+| Refuge | refugeTransitionRadius, refugeCarveDepth | Gradient bowl walls and carve depth |
 | Surface | lowlandThreshold | Height threshold for grass |
 | Surface | highlandThreshold | Height threshold for highland |
 | Surface | steepSlopeThreshold | Slope angle for rock |
@@ -65,19 +65,18 @@ Since slice T2 the height itself is produced by the World Engine's
 `HeightField` (assembly `Lootbound.World`), sampled per point; this class only
 materializes the grid. Global normalization has been removed.
 
-### TerrainSpawnPlanner
+### TerrainSpawnPlanner / RefugeSeating
 
-Static class that finds a valid spawn location and prepares the spawn zone.
+The player's home is the layout's **Refuge** (near the world centre).
+`TerrainSpawnPlanner` only provides a centre fallback when no layout exists; it
+no longer spiral-searches a spot nor flattens the terrain (that produced an
+orphaned flat cone the player could spawn on).
 
-Spawn selection criteria:
-- Slope under maxSpawnSlope
-- Height in mid-range (10-60% normalized)
-- Accessible surrounding area
-- Preference for positions closer to center
-
-After selection, applies progressive flattening:
-- Core zone: nearly flat with micro-variation
-- Blend zone: smooth transition to natural terrain
+`RefugeSeating` seats the Refuge by **carving a natural gradient basin** (reusing
+the landmark terrain-stamp applier): a robust local reference minus a carve
+depth, with generous cut and small fill, so the home digs a welcoming hollow -
+shallow on flat ground, a deeper bowl on a mountain - never a raised mesa. The
+Refuge is the first non-landmark structure to emit a Structure Stamp.
 
 ### TerrainSurfacePainter
 
@@ -144,11 +143,11 @@ Height Remap Curve
 Global min/max normalization has been removed entirely - relief is defined
 only by the noise params and the HeightRemap curve.)
   ↓
-Spawn Search
-  ↓
-Spawn Flattening
-  ↓
 Slope Map Calculation
+  ↓
+Layout-aware flattening (corridors, clearings)
+  ↓
+Refuge Seating (carve a natural basin at the refuge)
   ↓
 Apply to Unity Terrain
   ↓
@@ -256,10 +255,11 @@ For better terrain:
 - Keep detailStrength very low (0.05-0.1)
 - Details should not affect traversability
 
-**Spawn zone**:
-- spawnSafeRadius: enough for refuge (20-30m)
-- spawnBlendRadius: smooth transition (50-70m)
-- maxSpawnSlope: compatible with controller (8-12°)
+**Refuge seating**:
+- refugeFoundationRadius: basin floor for the home (~40m)
+- refugeTransitionRadius: gradient bowl walls (~50m)
+- refugeCarveDepth / refugeMaxCut: how deep the hollow digs (12m / up to 60m)
+- refugeResidualRoughness: keep a little relief in the floor (~0.2)
 
 ## Validation Checklist
 

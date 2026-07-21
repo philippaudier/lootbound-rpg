@@ -182,6 +182,17 @@ namespace Lootbound.Gameplay.World
                 }
             }
 
+            // Step 4d: seat the Refuge - carve a natural gradient basin at the
+            // spawn/refuge (refuge on layout success, world centre on failure),
+            // then re-ground the spawn on the carved terrain.
+            RefugeSeating.Carve(context, sampler, context.SpawnPosition, config);
+            context.SpawnPosition = new Vector3(
+                context.SpawnPosition.x,
+                context.SampleHeightAtWorld(context.SpawnPosition.x, context.SpawnPosition.z),
+                context.SpawnPosition.z);
+            var (refugeHx, refugeHz) = context.WorldToHeightmap(context.SpawnPosition);
+            context.SpawnSlope = context.SlopeMap[refugeHx, refugeHz];
+
             // Step 5: Apply heightmap to terrain
             stepWatch.Restart();
             ApplyHeightmapToTerrain();
@@ -456,16 +467,16 @@ namespace Lootbound.Gameplay.World
                 return;
             }
 
-            // Draw spawn zone
+            // Draw refuge seating zone
             Vector3 spawn = context.SpawnPosition;
 
-            // Safe radius
+            // Foundation (basin floor)
             Gizmos.color = new Color(0, 1, 0, 0.3f);
-            DrawCircle(spawn, config.SpawnSafeRadius, 32);
+            DrawCircle(spawn, config.RefugeFoundationRadius, 32);
 
-            // Blend radius
+            // Outer (gradient bowl edge)
             Gizmos.color = new Color(1, 1, 0, 0.2f);
-            DrawCircle(spawn, config.SpawnBlendRadius, 48);
+            DrawCircle(spawn, config.RefugeFoundationRadius + config.RefugeTransitionRadius, 48);
 
             // Spawn point marker
             Gizmos.color = Color.green;
