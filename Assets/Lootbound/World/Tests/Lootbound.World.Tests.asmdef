@@ -1,14 +1,10 @@
 {
-    "name": "Lootbound.Tests.EditMode",
-    "rootNamespace": "Lootbound.Tests.EditMode",
+    "name": "Lootbound.World.Tests",
+    "rootNamespace": "Lootbound.World.Tests",
     "references": [
-        "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner",
-        "Lootbound.Core",
         "Lootbound.World",
-        "Lootbound.Gameplay",
-        "Lootbound.Presentation.Audio",
-        "Lootbound.Presentation.Wildlife"
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
     ],
     "includePlatforms": [
         "Editor"

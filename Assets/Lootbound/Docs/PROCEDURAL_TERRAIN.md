@@ -59,8 +59,11 @@ Pipeline:
 5. Add ridge features (ridged noise)
 6. Add detail noise
 7. Apply height remap curve
-8. Normalize heightmap
-9. Compute slope map
+8. Compute slope map
+
+Since slice T2 the height itself is produced by the World Engine's
+`HeightField` (assembly `Lootbound.World`), sampled per point; this class only
+materializes the grid. Global normalization has been removed.
 
 ### TerrainSpawnPlanner
 
@@ -137,9 +140,9 @@ Detail Noise
   ↓
 Height Remap Curve
   ↓
-Normalization (optional; disabled in the default preset — min-max
-normalization amplifies slopes by the inverse of the seed's raw range,
-making final slopes seed-dependent and layout generation unreliable)
+(Since T2: height is the World Engine HeightField sampled per point.
+Global min/max normalization has been removed entirely - relief is defined
+only by the noise params and the HeightRemap curve.)
   ↓
 Spawn Search
   ↓

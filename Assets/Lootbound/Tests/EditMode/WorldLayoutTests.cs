@@ -79,10 +79,7 @@ namespace Lootbound.Tests.EditMode
             // varies per seed and can push the fixture past the path slope
             // budget for some seeds (e.g. 12345). The unified-height-space
             // invariants under test hold with or without normalization, so the
-            // fixture disables it to keep a stable, gentle slope regime.
-            // Normalization-specific behaviour is covered by
-            // TerrainHeightSpaceTests.
-            SetField(config, "normalizeHeightmap", false);
+            // fixture keeps a stable, gentle slope regime.
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);

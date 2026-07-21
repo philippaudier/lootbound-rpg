@@ -1,105 +1,59 @@
 using UnityEngine;
+using Lootbound.World.Coordinates;
+using Lootbound.World.Layers.Fields;
+using Lootbound.Gameplay.World.Providers;
 
 namespace Lootbound.Gameplay.World
 {
     /// <summary>
-    /// Generates the terrain heightmap using TerrainNoiseCore.
-    /// Uses deterministic noise based on seed for reproducible results.
+    /// Materializes a finite grid of the terrain by SAMPLING the World Engine's
+    /// HeightField (since slice T2). The height is no longer produced here and no
+    /// longer normalized world-wide: the World Field is the truth, this class is
+    /// just one consumer that fills a grid for the current monolithic terrain.
     /// </summary>
     public static class TerrainHeightGenerator
     {
         /// <summary>
-        /// Generate the complete heightmap for the terrain.
+        /// Fill the context's height/macro/slope grids by sampling the world.
         /// </summary>
         public static void Generate(TerrainGenerationContext context, TerrainGenerationConfig config)
         {
-            var offsets = new TerrainNoiseCore.NoiseOffsets(context.Seed);
+            var offsets = new NoiseOffsets(context.Seed);
+            var heightField = WorldFieldComposer.BuildHeightField(config, offsets);
+
             int resolution = context.Resolution;
             float worldSize = context.WorldSize;
 
             float[,] heightMap = new float[resolution, resolution];
             float[,] macroMap = new float[resolution, resolution];
 
-            // Generate heightmap using centralized noise
             for (int x = 0; x < resolution; x++)
             {
                 for (int z = 0; z < resolution; z++)
                 {
-                    // Convert to world coordinates
+                    // Convert to world coordinates (float, exactly as before).
                     float worldX = (x / (float)(resolution - 1)) * worldSize;
                     float worldZ = (z / (float)(resolution - 1)) * worldSize;
 
-                    // Use centralized noise evaluation
-                    heightMap[x, z] = TerrainNoiseCore.EvaluateHeight(worldX, worldZ, offsets, config);
+                    // The terrain now SAMPLES the World Engine's HeightField.
+                    heightMap[x, z] = heightField.Evaluate(new WorldCoordinate(worldX, worldZ));
                     macroMap[x, z] = TerrainNoiseCore.EvaluateMacro(worldX, worldZ, offsets, config);
                 }
             }
 
-            // Store raw heightmap
             context.SetHeightMap(heightMap);
             context.SetMacroMap(macroMap);
 
-            // Normalize if requested
-            if (config.NormalizeHeightmap)
-            {
-                NormalizeHeightmap(context);
-            }
-            else
-            {
-                // Copy raw to normalized
-                float[,] normalized = new float[resolution, resolution];
-                System.Array.Copy(heightMap, normalized, heightMap.Length);
-                context.SetNormalizedHeightMap(normalized);
-            }
+            // Global normalization is gone. The relief is defined ONLY by the
+            // noise parameters, the HeightRemap curve and the generation curves -
+            // no pass depends on the world's min/max any more. The normalized map
+            // is simply the field's output.
+            float[,] normalized = new float[resolution, resolution];
+            System.Array.Copy(heightMap, normalized, heightMap.Length);
+            context.SetNormalizedHeightMap(normalized);
 
             // Compute slope map
             ComputeSlopeMap(context);
-        }
-
-        /// <summary>
-        /// Normalize the heightmap to use the full 0-1 range.
-        /// </summary>
-        private static void NormalizeHeightmap(TerrainGenerationContext context)
-        {
-            context.SetNormalizedHeightMap(
-                NormalizeToFullRange(context.HeightMap, context.MinHeight, context.MaxHeight));
-        }
-
-        /// <summary>
-        /// Min-max normalize a heightmap to the full 0-1 range.
-        /// Note: this amplifies gradients (and therefore slopes) by
-        /// 1 / (max - min), a factor that depends on the observed range.
-        /// A near-flat input (range below 0.001) maps to a uniform 0.5.
-        /// </summary>
-        public static float[,] NormalizeToFullRange(float[,] heightMap, float min, float max)
-        {
-            int sizeX = heightMap.GetLength(0);
-            int sizeZ = heightMap.GetLength(1);
-            float[,] normalized = new float[sizeX, sizeZ];
-            float range = max - min;
-
-            if (range < 0.001f)
-            {
-                for (int x = 0; x < sizeX; x++)
-                {
-                    for (int z = 0; z < sizeZ; z++)
-                    {
-                        normalized[x, z] = 0.5f;
-                    }
-                }
-            }
-            else
-            {
-                for (int x = 0; x < sizeX; x++)
-                {
-                    for (int z = 0; z < sizeZ; z++)
-                    {
-                        normalized[x, z] = (heightMap[x, z] - min) / range;
-                    }
-                }
-            }
-
-            return normalized;
         }
 
         /// <summary>

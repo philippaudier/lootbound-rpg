@@ -42,7 +42,7 @@ namespace Lootbound.Gameplay.World.Editor
 
             var sb = new StringBuilder();
             sb.AppendLine("# Navigation build diagnostics");
-            sb.AppendLine($"# Base preset: terrainHeight={baseConfig.TerrainHeight} normalizeHeightmap={baseConfig.NormalizeHeightmap} seed=42");
+            sb.AppendLine($"# Base preset: terrainHeight={baseConfig.TerrainHeight} seed=42");
             sb.AppendLine("preset;geometry;build#;durationMs;triangles;navMeshDataKB");
 
             foreach (var (worldSize, resolution) in Presets)

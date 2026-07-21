@@ -73,9 +73,6 @@ namespace Lootbound.Tests.EditMode
             SetField(config, "worldSize", 1024f);
             SetField(config, "terrainHeight", 150f);
             SetField(config, "heightmapResolution", 129);
-            // Normalization off: its slope amplification is seed-dependent and
-            // can exceed the path slope budget (see WorldLayoutTests fixture).
-            SetField(config, "normalizeHeightmap", false);
             SetField(config, "macroScale", 500f);
             SetField(config, "macroOctaves", 3);
             SetField(config, "macroPersistence", 0.4f);
