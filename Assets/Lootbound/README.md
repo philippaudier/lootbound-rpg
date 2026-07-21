@@ -41,6 +41,37 @@ The project is developed through vertical slices. Each system starts as a V1:
 
 A finished, readable feature is worth more than an extremely generic architecture never used.
 
+## World Engine (read this first)
+
+Lootbound does not just generate a terrain — it models a **world**. The terrain
+is only a view of it.
+
+```
+World            a deterministic function of a seed
+   ↓
+Fields           continuous properties, sampled anywhere (Height, Danger, Region…)
+   ↓
+Analyzers        Domain Processing — deduce knowledge from the fields
+   ↓
+World Knowledge  Slope · Curvature · Roughness · Exposure · Cliff ·
+                 Hydrology (Flow → Catchment → WaterTable → RiverMask) ·
+                 Traversability · Landscape
+   ↓
+Gameplay         consumes the knowledge (paths, structures, wildlife… — later)
+```
+
+- The world lives in the **`Lootbound.World`** assembly, which has **no Unity
+  dependency** (compiler-enforced). Unity is only presentation.
+- A **World Field** is a deterministic function of the world (`IWorldField<T>`):
+  no mutable state, never modifies other fields, evaluable anywhere. Every field
+  answers one useful question — *how steep? does water pass here? is this a
+  valley?*
+- **Analyzers produce Fields** (one per field) in a strict DAG — each reads only
+  upstream fields; V1 algorithms are simple and swappable behind the interface.
+- Debug overlay: **F9** in the terrain sandbox (keys 1–7 pick a field).
+
+Full design: `Docs/WORLD_ENGINE_ARCHITECTURE.md`.
+
 ## Project Structure
 
 ### Assemblies
@@ -48,7 +79,8 @@ A finished, readable feature is worth more than an extremely generic architectur
 | Assembly | Description |
 |----------|-------------|
 | `Lootbound.Core` | Core systems (bootstrap, logging, configuration, utilities) |
-| `Lootbound.Gameplay` | Gameplay systems (depends on Core) |
+| `Lootbound.World` | The Unity-free World Engine (fields, domain processing, world knowledge) |
+| `Lootbound.Gameplay` | Gameplay systems (depends on Core and World) |
 | `Lootbound.Debugging` | Debug tools (depends on Core) |
 | `Lootbound.Tests.EditMode` | Edit mode tests |
 | `Lootbound.Tests.PlayMode` | Play mode tests |
@@ -130,6 +162,7 @@ After opening the project for the first time:
 | Toggle Movement Debug | F4 |
 | Toggle Terrain Debug | F5 |
 | Toggle Combat Debug | F6 |
+| Toggle World Knowledge (terrain sandbox) | F9 |
 
 ## Current State: Slice 0.8.1 - Attunement Data Foundation V1
 
@@ -325,8 +358,8 @@ Not implemented in V1:
 |-----------|----------------|
 | `TerrainGenerationConfig` | ScriptableObject with all generation parameters |
 | `ProceduralTerrainGenerator` | Orchestrates generation and applies to Unity Terrain |
-| `TerrainHeightGenerator` | Generates heightmap using layered noise |
-| `TerrainSpawnPlanner` | Finds valid spawn and flattens the area |
+| `TerrainHeightGenerator` | Samples the World Engine's HeightField into the terrain grid |
+| `TerrainSpawnPlanner` / `RefugeSeating` | Spawn at the refuge; carve a natural basin (no orphan cone) |
 | `TerrainSurfacePainter` | Paints texture layers based on height/slope |
 | `TerrainGenerationDebug` | Debug overlay (toggle with F5) |
 
@@ -339,8 +372,8 @@ Terrain parameters are configured via `TerrainGenerationConfig` ScriptableObject
 ### Generation Pipeline
 
 ```
-Seed → Offsets → Macro → Valleys → Ridges → Details → Remap
-→ Spawn Search → Flatten → Slopes → Apply → Paint → Place Player
+Seed → HeightField (macro/valleys/ridges/details/remap) sampled into the grid
+→ Layout flatten → Refuge Seating (carve a natural basin) → Slopes → Apply → Paint → Place Player
 ```
 
 ### V1 Terrain Limitations

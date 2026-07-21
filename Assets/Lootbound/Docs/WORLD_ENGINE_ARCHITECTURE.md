@@ -146,6 +146,69 @@ Processing steps:
 - **Landscape Recognition** — see §4.
 - **Vegetation** — density/type masks from slope/biome/moisture.
 
+### World Knowledge (T3 — implemented, `Lootbound.World/Processing/`)
+
+Domain Processing produces **World Knowledge** — the derived fields the engine
+deduces about its geography. **Analyzers produce Fields**; one Analyzer per
+Field, each an interchangeable module behind `IWorldField<T>` (swap the V1
+algorithm — D8, finite differences — for a better one later, nobody notices).
+
+> **Every World Field is a deterministic function of the world: no mutable
+> state, never modifies other fields, evaluable independently of the
+> presentation layer.**
+
+> **Every World Field answers a useful question the engine can ask the world**
+> (how steep? does water pass here? is this a valley?). A field with no consumer
+> should not exist ("No Orphan Fields").
+
+The dependency graph is a strict **DAG** — a chain of *reasoning*, not just
+calculations. **Golden rule: a Field only reads fields strictly UPSTREAM of it;
+never a sibling, never downstream, no cycles.**
+
+```text
+                         HeightField
+        ┌───────────┬───────────┬───────────┬───────────┐
+        ▼           ▼           ▼           ▼           ▼
+     Slope      Curvature   Elevation   Exposure   Roughness
+        │
+        ▼
+      Cliff
+        │
+   HeightField ─► Flow ─► Catchment ─► WaterTable ─► RiverMask   (Domain: WorldDomain{Bounds,Resolution,CellSize})
+                                            │
+                    ┌───────────────────────┴───────────┐
+                    ▼                                    ▼
+             Traversability                          Landscape
+   (Slope,Cliff,Roughness,RiverMask)   (Elevation,Slope,Curvature,Cliff,RiverMask)
+```
+
+- Analytic fields (`O(1)`, finite differences on HeightField): **Slope**°,
+  **Curvature** (convex/concave), **Roughness** (local height variance, distinct
+  from curvature), **Elevation** (0..1), **Exposure** (aspect°), **Cliff** (a
+  concept, V1 = slope > threshold).
+- Hydrology (Domain Processing, D8 + topological accumulation): **Flow**,
+  **Catchment**, **WaterTable** (V1 proxy, no pit-filling), **RiverMask**
+  (rivers are *discovered*, not drawn).
+- Interpretation: **Traversability** (LOCAL cost only — distance is the path
+  planner's job) and **Landscape** (`{Plain,Valley,Ridge,Mountain,Plateau,Pass,
+  Basin,Cliff}`, PURELY geomorphological — never world position, danger or
+  gameplay; never reads Traversability).
+
+Each analyzer documents its **assumptions and limits** in its header (e.g. Flow:
+D8, no pit-filling; Landscape: Ridge/Pass are rough approximations). Debug: the
+**F9** overlay (Gameplay-side, `WorldKnowledgeDebugOverlay`) colours any field
+over the world extent.
+
+### The "4096 bug", requalified
+
+The layout solver does not fail because 4096 m is "too big" — **it fails because
+it has no geographic knowledge**: fixed-length greedy radial paths (≤720 m,
+never scaled to the disc radius) whose traversability is checked *after* the
+fact, with no notion of valleys, passes or contour lines. T3 builds exactly that
+knowledge (Slope, Traversability, Flow, Landscape); **T3.1** (a path planner)
+will consume the `TraversabilityField` to route naturally through valleys and
+passes, and scale path length to the disc. T3 draws no route.
+
 ## 4. Landscapes — recognized, not generated
 
 Between the world and the chunk sits the unit the player actually experiences —
@@ -311,11 +374,24 @@ additive and layer in later.
   the Landmark stamps (Structure Stamps), `AmbientPopulationController`
   (Simulation / Ambient Life).
 
-**Not implemented** (this document's target): the Structures graph, Domain
-Processing, Hydrology, Landscapes, World Chunks / ChunkData, Erosion, Vegetation,
-the Simulation layer, streaming, floating origin, async generation, the tile
-grid. The terrain is still generated monolithically over one Unity Terrain — but
-now by SAMPLING the World Engine, not by owning a global heightmap.
+**Implemented — T3 Domain Processing / World Knowledge** (`Lootbound.World/Processing/`):
+- Analytic fields: `SlopeField`, `CurvatureField`, `RoughnessField`,
+  `ElevationField`, `ExposureField`, `CliffField` (+ `Aspect`).
+- `WorldDomain` {Bounds, Resolution, CellSize}; hydrology chain
+  `FlowAnalyzer→FlowField`, `CatchmentAnalyzer→CatchmentField`,
+  `WaterTableAnalyzer→WaterTableField`, `RiverMaskAnalyzer→RiverMaskField`.
+- `TraversabilityField` (local cost), `LandscapeField` (`LandscapeType`).
+- One Analyzer per Field, strict DAG, each documenting assumptions/limits.
+- Gameplay-side composition: `WorldKnowledgeComposer` + `WorldKnowledge`; F9
+  `WorldKnowledgeDebugOverlay`. Pure-World tests per field.
+- No gameplay consumer yet — this slice computes, validates and visualizes the
+  knowledge. T3.1 (path planner) will consume `TraversabilityField`.
+
+**Not implemented** (this document's target): the Structures graph, Erosion,
+Vegetation, real Landscapes-as-regions, World Chunks / ChunkData, the Simulation
+layer, streaming, floating origin, async generation, the tile grid. The terrain
+is still generated monolithically over one Unity Terrain — but now by SAMPLING
+the World Engine, and the engine now UNDERSTANDS its geography.
 
 ## Related documentation
 
