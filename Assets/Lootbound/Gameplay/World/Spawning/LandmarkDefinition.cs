@@ -1,5 +1,6 @@
 using UnityEngine;
 using Lootbound.Gameplay.World.Layout;
+using Lootbound.Gameplay.World.Landmarks;
 
 namespace Lootbound.Gameplay.World.Spawning
 {
@@ -54,6 +55,48 @@ namespace Lootbound.Gameplay.World.Spawning
         [Tooltip("Distance (meters) at which this place counts as noticed/discovered. Belongs to the place itself; carried on the identity so future discovery/journal/map mechanics need no asset change.")]
         private float discoveryRadius = 100f;
 
+        [Header("Terrain Integration")]
+        [SerializeField]
+        [Tooltip("How the terrain conforms to seat this landmark. None = the terrain is never modified.")]
+        private LandmarkTerrainConformingMode conformingMode = LandmarkTerrainConformingMode.None;
+
+        [SerializeField]
+        [Tooltip("Foundation footprint. V1 implements Circle only; other values fall back to Circle with a one-time warning.")]
+        private FoundationShape foundationShape = FoundationShape.Circle;
+
+        [SerializeField]
+        [Min(0f)]
+        [Tooltip("Radius (m) of the fully seated foundation. 0 disables terrain integration for this landmark.")]
+        private float foundationRadius = 6f;
+
+        [SerializeField]
+        [Min(0f)]
+        [Tooltip("Width (m) of the smooth transition ring beyond the foundation, blending back to the natural terrain.")]
+        private float transitionRadius = 8f;
+
+        [SerializeField]
+        [Min(0f)]
+        [Tooltip("Maximum downward correction (m). The seat never cuts deeper than this; steeper ground keeps a residual intersection rather than a cliff.")]
+        private float maxCutDepth = 4f;
+
+        [SerializeField]
+        [Min(0f)]
+        [Tooltip("Maximum upward correction (m). The seat never fills higher than this.")]
+        private float maxFillHeight = 4f;
+
+        [SerializeField]
+        [Range(0f, 1f)]
+        [Tooltip("Fraction of the original relief kept inside the foundation (0 = flat seat, 1 = terrain untouched). No new noise - keeps a lived-in feel.")]
+        private float residualRoughness = 0.15f;
+
+        [SerializeField]
+        [Tooltip("Authoring offset (m) applied to the seat height on the TERRAIN side (negative sinks the foundation). Not a presenter offset.")]
+        private float verticalOffset = 0f;
+
+        [SerializeField]
+        [Tooltip("Overlap arbitration: when foundations overlap, the higher priority wins. Ties are broken by effective influence, then landmark id.")]
+        private int foundationPriority = 0;
+
         public string LandmarkId => string.IsNullOrEmpty(landmarkId) ? name : landmarkId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? name : displayName;
         public GameObject LandmarkPrefab => landmarkPrefab;
@@ -62,5 +105,15 @@ namespace Lootbound.Gameplay.World.Spawning
         public float SelectionWeight => selectionWeight;
         public AnimationCurve WeightByDepth => weightByDepth;
         public float DiscoveryRadius => Mathf.Max(1f, discoveryRadius);
+
+        public LandmarkTerrainConformingMode ConformingMode => conformingMode;
+        public FoundationShape FoundationShape => foundationShape;
+        public float FoundationRadius => Mathf.Max(0f, foundationRadius);
+        public float TransitionRadius => Mathf.Max(0f, transitionRadius);
+        public float MaxCutDepth => Mathf.Max(0f, maxCutDepth);
+        public float MaxFillHeight => Mathf.Max(0f, maxFillHeight);
+        public float ResidualRoughness => Mathf.Clamp01(residualRoughness);
+        public float VerticalOffset => verticalOffset;
+        public int FoundationPriority => foundationPriority;
     }
 }

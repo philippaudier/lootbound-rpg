@@ -18,16 +18,22 @@ namespace Lootbound.Gameplay.World.Landmarks
     /// selection is a weighted draw among ring-compatible definitions, seeded
     /// by FNV-1a over (worldSeed, LandmarkId) - the same recipe as the content
     /// planner, so it is stable across processes and iteration order.
+    ///
+    /// The work is split in two so terrain integration can seat the ground
+    /// between them (see <see cref="LandmarkPlacement"/>):
+    /// <see cref="PlanPlacements"/> decides everything layout-only (pre-stamp),
+    /// then <see cref="Finalize"/> grounds each landmark on the final terrain.
+    /// <see cref="Plan"/> is the shortcut for callers that do not stamp.
     /// </summary>
     public static class LandmarkPlanner
     {
         private const int V1Slot = 0;
 
         /// <summary>
-        /// Plans the landmarks for a layout. Returns an empty (never null)
-        /// list when the layout or the registry is missing, or when no host
-        /// has a compatible definition. The result is ordered deterministically
-        /// by LandmarkId (ordinal).
+        /// Plans the landmarks for a layout, grounding them on the terrain the
+        /// sampler currently exposes. Returns an empty (never null) list when
+        /// the layout or the registry is missing, or when no host has a
+        /// compatible definition. Ordered deterministically by LandmarkId.
         /// </summary>
         public static IReadOnlyList<LandmarkIdentity> Plan(
             WorldLayoutContext layout,
@@ -35,8 +41,22 @@ namespace Lootbound.Gameplay.World.Landmarks
             WorldProgression progression,
             ITerrainSampler sampler)
         {
-            var result = new List<LandmarkIdentity>();
-            if (layout == null || registry == null || sampler == null)
+            return Finalize(PlanPlacements(layout, registry, progression), sampler);
+        }
+
+        /// <summary>
+        /// First half: everything decided from the layout alone (host XZ,
+        /// ring/depth/difficulty, selected definition), with no ground height
+        /// yet. Ordered deterministically by LandmarkId. Empty (never null)
+        /// when the layout or registry is missing.
+        /// </summary>
+        public static IReadOnlyList<LandmarkPlacement> PlanPlacements(
+            WorldLayoutContext layout,
+            LandmarkRegistry registry,
+            WorldProgression progression)
+        {
+            var result = new List<LandmarkPlacement>();
+            if (layout == null || registry == null)
             {
                 return result;
             }
@@ -45,21 +65,15 @@ namespace Lootbound.Gameplay.World.Landmarks
             {
                 string landmarkId = MakeLandmarkId(layout.WorldSeed, host.NodeId, V1Slot);
 
-                // Ground the position on the final (published) terrain, like
-                // every other placement in the pipeline.
-                Vector3 position = new Vector3(
-                    host.Position.x,
-                    sampler.SampleHeight(host.Position.x, host.Position.z),
-                    host.Position.z);
-
                 // Ring / depth / difficulty from the progression authority
-                // (falls back to the host's own radial data if absent).
+                // (horizontal only - stable under stamping), falling back to
+                // the host's own radial data if absent.
                 WorldRing ring;
                 float depth01;
                 float difficulty01;
                 if (progression != null)
                 {
-                    var ctx = progression.GetContext(position);
+                    var ctx = progression.GetContext(host.Position);
                     ring = ctx.Ring;
                     depth01 = ctx.Depth01;
                     difficulty01 = ctx.Difficulty01;
@@ -78,21 +92,61 @@ namespace Lootbound.Gameplay.World.Landmarks
                     continue;
                 }
 
-                result.Add(new LandmarkIdentity(
+                result.Add(new LandmarkPlacement(
                     landmarkId,
-                    definition.LandmarkId,
-                    position,
+                    definition,
+                    host.Position.x,
+                    host.Position.z,
                     ring,
                     depth01,
                     difficulty01,
                     host.RadialPathId,
                     host.NodeId,
-                    V1Slot,
-                    definition.DiscoveryRadius));
+                    V1Slot));
             }
 
-            // Explicit, stable, deterministic final order.
             result.Sort((a, b) => string.CompareOrdinal(a.LandmarkId, b.LandmarkId));
+            return result;
+        }
+
+        /// <summary>
+        /// Second half: grounds each placement on the terrain the sampler
+        /// exposes NOW (the stamped terrain, when terrain integration has run)
+        /// and builds the immutable identities. Preserves the placements' order.
+        /// </summary>
+        public static IReadOnlyList<LandmarkIdentity> Finalize(
+            IReadOnlyList<LandmarkPlacement> placements,
+            ITerrainSampler sampler)
+        {
+            var result = new List<LandmarkIdentity>();
+            if (placements == null || sampler == null)
+            {
+                return result;
+            }
+
+            foreach (var placement in placements)
+            {
+                // Ground on the final terrain, like every other placement in
+                // the pipeline. When a stamp has seated the ground here, this
+                // reads the seated height - so the landmark never floats or sinks.
+                Vector3 position = new Vector3(
+                    placement.X,
+                    sampler.SampleHeight(placement.X, placement.Z),
+                    placement.Z);
+
+                result.Add(new LandmarkIdentity(
+                    placement.LandmarkId,
+                    placement.Definition.LandmarkId,
+                    position,
+                    placement.Ring,
+                    placement.Depth01,
+                    placement.Difficulty01,
+                    placement.RadialPathId,
+                    placement.HostNodeId,
+                    placement.Slot,
+                    placement.Definition.DiscoveryRadius));
+            }
+
             return result;
         }
 

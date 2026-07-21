@@ -53,7 +53,7 @@ namespace Lootbound.Gameplay.World
             }
 
             // Compute slope map
-            ComputeSlopeMap(context, config);
+            ComputeSlopeMap(context);
         }
 
         /// <summary>
@@ -103,9 +103,11 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Compute slope map from the heightmap.
+        /// Compute the slope map (degrees) from the current NormalizedHeightMap.
+        /// Public so terrain-modifying passes outside this class (e.g. landmark
+        /// seating) can refresh slopes after writing the heightmap.
         /// </summary>
-        private static void ComputeSlopeMap(TerrainGenerationContext context, TerrainGenerationConfig config)
+        public static void ComputeSlopeMap(TerrainGenerationContext context)
         {
             int resolution = context.Resolution;
             float[,] slopeMap = new float[resolution, resolution];
@@ -205,7 +207,7 @@ namespace Lootbound.Gameplay.World
             }
 
             // Recompute slope map after flattening
-            ComputeSlopeMap(context, config);
+            ComputeSlopeMap(context);
         }
 
         /// <summary>
@@ -343,7 +345,7 @@ namespace Lootbound.Gameplay.World
             }
 
             // Recompute slope map after layout flattening
-            ComputeSlopeMap(context, config);
+            ComputeSlopeMap(context);
         }
 
         private static Vector2 ClosestPointOnLineSegment(Vector2 point, Vector2 a, Vector2 b)

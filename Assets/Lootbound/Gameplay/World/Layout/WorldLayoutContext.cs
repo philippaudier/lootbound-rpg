@@ -91,6 +91,30 @@ namespace Lootbound.Gameplay.World.Layout
             _landmarksAttached = true;
         }
 
+        /// <summary>
+        /// The terrain seats computed for this layout's landmarks (the shared
+        /// generation result the applier realized). Kept for observability and
+        /// tests. Read-only, never null, single-assignment like the landmarks.
+        /// </summary>
+        public IReadOnlyList<Landmarks.LandmarkTerrainStamp> TerrainStamps => _terrainStamps;
+        private IReadOnlyList<Landmarks.LandmarkTerrainStamp> _terrainStamps = System.Array.Empty<Landmarks.LandmarkTerrainStamp>();
+        private bool _terrainStampsAttached;
+
+        /// <summary>
+        /// Attach the terrain-seat set (called once by the generator). A null
+        /// set attaches an empty collection. Subsequent calls are ignored.
+        /// </summary>
+        public void AttachTerrainStamps(IReadOnlyList<Landmarks.LandmarkTerrainStamp> stamps)
+        {
+            if (_terrainStampsAttached)
+            {
+                return;
+            }
+
+            _terrainStamps = stamps ?? System.Array.Empty<Landmarks.LandmarkTerrainStamp>();
+            _terrainStampsAttached = true;
+        }
+
         #endregion
 
         #region Nodes and Edges

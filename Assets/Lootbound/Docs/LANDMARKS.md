@@ -126,11 +126,80 @@ Gameplay ──never references──► Presentation
 Gameplay produces runtime data; presentation observes it. The identity carries
 no asset, so the boundary is total.
 
+## Terrain Integration (slice 0.9.10.2)
+
+A landmark is a **generation constraint**, not an object dropped on finished
+terrain: "there will be an old cabin here, so the hill naturally forms a small
+level shelf." The terrain adapts to the landmark - never the reverse. The
+building keeps X=0/Z=0 (only Y rotation), and the presenter never compensates
+pivots.
+
+### Breaking the circular dependency
+
+Seating the ground needs the landmark's height; the landmark's height needs the
+seated ground. The planner is split so the loop breaks cleanly:
+
+```text
+PlanPlacements  → LandmarkPlacement (XZ, ring/depth, definition; NO ground Y)
+      ↓            (ring/depth/selection are horizontal → stable under stamping)
+StampPlanner    → LandmarkTerrainStamp   (seat described from the pre-stamp relief)
+      ↓
+StampApplier    → writes NormalizedHeightMap + recomputes slope
+      ↓
+Finalize        → LandmarkIdentity grounded on the STAMPED terrain (never floats/sinks)
+```
+
+`ProceduralTerrainGenerator.IntegrateLandmarks` runs this between
+`ApplyLayoutFlattening` and `ApplyHeightmapToTerrain`, so the Unity Terrain mesh,
+collider and the runtime NavMesh all inherit the seats for free. A missing
+registry attaches empty landmark AND stamp sets (one warning), never blocks.
+
+### The stamp is a description, not an instruction
+
+`LandmarkTerrainStamp` only *describes* the seat (centre, shape, radii, seat
+height, mode, cut/fill limits, residual, priority). The applier decides HOW to
+realize it. A future GPU / voxel / adaptive-terrain backend is a different
+applier over the same data - the description never changes.
+
+### Seat, cut/fill, transition, residual
+
+- **Robust seat**: the reference height is the MEDIAN of a ring of samples plus
+  the centre - a lone boulder or dip never drags the seat. The XZ is frozen: the
+  planner already chose the place; the terrain never relocates a landmark.
+- **Partial seating**: the per-cell correction is clamped to
+  `MaxCutDepth`/`MaxFillHeight`. Ground too steep to fully seat keeps a residual
+  intersection rather than forming a cliff - never skipped, downgraded or None.
+- **Transition**: full seat inside `FoundationRadius`, `smoothstep` falloff over
+  `TransitionRadius` back to the natural terrain. No "here begins the platform".
+- **Residual relief**: `ResidualRoughness` keeps a fraction of the ORIGINAL
+  terrain inside the foundation (no new noise) - the lived-in, "it was here
+  before" feel. `NaturalIntegration` keeps most of it; `SoftFoundation` less.
+
+### Foundation shape and overlaps
+
+- `FoundationShape` is authored now; **only `Circle` is realized in V1**. Any
+  other value falls back to a circle with a **one-time warning** - no silent or
+  half-implemented behaviour.
+- Overlaps are arbitrated deterministically and order-independently. At each
+  cell: drop contributions below an absolute floor; among the rest, a stamp must
+  reach a **relative influence floor** (half the strongest present) to compete -
+  so a high-priority foundation that merely grazes can never override a
+  neighbour that genuinely covers the cell. Among genuine competitors, higher
+  `FoundationPriority` wins (the big landmark, not the first one), ties broken by
+  effective influence then `LandmarkId`. *Known V1 limit: two genuinely
+  overlapping seats of very different height can still meet in a step at their
+  win boundary; landmarks are far enough apart that this is effectively never
+  hit, and it will be smoothed if it ever matters.*
+
 ## Debug
 
 The F7 panel (`WorldProgressionDebugPanel`) is unchanged: it still previews
 landmark eligibility through `LandmarkRegistry` + `WorldContentCompatibility`.
 The director exposes `ActiveLandmarkCount` for inspection and tests.
+
+`LandmarkTerrainStampGizmos` (Editor-only, attach to any scene object) draws
+each seat's foundation radius, transition radius, seat height and centre from
+`layout.TerrainStamps`, so it is immediately clear WHY a patch was seated.
 
 ## Tests
 
@@ -142,18 +211,32 @@ The director exposes `ActiveLandmarkCount` for inspection and tests.
   release on disable, republish on re-enable, empty set; presenter prefab
   instantiation, no-prefab-no-fallback, fallback silhouette, no residue on
   disable, no duplicate on re-enable, material cleanup on destroy.
+- `Tests/EditMode/LandmarkTerrainStampTests.cs` - seat solver (robust median,
+  vertical offset), planner (None → no stamp, ordinal order), applier
+  (determinism, untouched beyond outer radius, cut/fill limits, no-cliff
+  transition, residual relief, order-independent overlap, priority arbitration,
+  relative-floor guardrail, numerical stability), and grounding (no float/sink).
+- `Tests/PlayMode/LandmarkTerrainPlayModeTests.cs` - full pipeline against a
+  real Unity Terrain: context matches terrain, no relief above the seat inside
+  the foundation, landmark grounds on the real stamped terrain.
 
 ## Manual Unity Editor setup
 
 1. Create landmark definition assets (menu
    `Lootbound/World Content/Landmark Definition`): set the ring window, the
-   selection weight, `DiscoveryRadius`, and optionally a prefab.
+   selection weight, `DiscoveryRadius`, and optionally a prefab. Under
+   **Terrain Integration**, set the conforming mode (None keeps the terrain
+   untouched) and, when seating, the foundation/transition radii, cut/fill
+   limits, residual roughness, vertical offset and priority. Author the prefab
+   with its pivot at the base - the seat plane is where the origin lands.
 2. Create a `LandmarkRegistry` asset and add the definitions.
 3. On the `ProceduralTerrainGenerator`, assign the `LandmarkRegistry` field.
 4. Add a `LandmarkDirector` GameObject and assign the generator.
 5. Add a `LandmarkPresenter` GameObject; assign the director and the registry.
    Leave the development fallback OFF unless you want silhouettes for
    prefab-less definitions.
+6. Optionally add `LandmarkTerrainStampGizmos` to inspect the seats in the
+   Scene view.
 
 ## Deliberately future (just new definitions or new observers)
 

@@ -169,16 +169,16 @@ namespace Lootbound.Gameplay.World
                     // Step 4: Apply layout-aware flattening
                     TerrainHeightGenerator.ApplyLayoutFlattening(context, config, layoutResult.Layout);
 
-                    // Step 4b: reproject reservation heights onto the flattened
-                    // terrain so stored positions match the final ground
-                    WorldLayoutGenerator.ReprojectReservationHeights(layoutResult.Layout, sampler);
+                    // Step 4b: landmark terrain integration - seat the ground
+                    // under conforming landmarks BEFORE anything grounds on it,
+                    // then compute the shared landmark set once. Attached here
+                    // (before OnGenerationComplete) so the LandmarkDirector and
+                    // the ambient population both see a full set, order-independently.
+                    IntegrateLandmarks(layoutResult.Layout, sampler);
 
-                    // Step 4c: compute the landmarks ONCE and attach them to the
-                    // layout as a shared generation result. Done synchronously
-                    // here (before OnGenerationComplete) so the LandmarkDirector
-                    // and the ambient population both see a fully-populated set,
-                    // order-independently.
-                    AttachLandmarks(layoutResult.Layout, sampler);
+                    // Step 4c: reproject reservation heights onto the (now
+                    // stamped) terrain so stored positions match the final ground.
+                    WorldLayoutGenerator.ReprojectReservationHeights(layoutResult.Layout, sampler);
                 }
             }
 
@@ -272,11 +272,15 @@ namespace Lootbound.Gameplay.World
         /// Validate that all required components are set up.
         /// </summary>
         /// <summary>
-        /// Compute the world's landmarks once and attach them to the layout.
-        /// A missing registry is a clean no-op (empty set + a single warning),
-        /// never a failure: old scenes, previews and tests keep working.
+        /// Seat the terrain under conforming landmarks, then compute the world's
+        /// landmarks once and attach them (with their terrain seats) to the
+        /// layout. The order matters: placements are decided from the layout
+        /// alone, the seats are described from the pre-stamp relief and realized
+        /// on the heightmap, then the landmarks ground on the stamped terrain -
+        /// so none float or sink. A missing registry is a clean no-op (empty
+        /// sets + a single warning), never a failure.
         /// </summary>
-        private void AttachLandmarks(WorldLayoutContext layout, ITerrainSampler sampler)
+        private void IntegrateLandmarks(WorldLayoutContext layout, ITerrainSampler sampler)
         {
             if (landmarkRegistry == null)
             {
@@ -287,12 +291,25 @@ namespace Lootbound.Gameplay.World
                 }
 
                 layout.AttachLandmarks(null);
+                layout.AttachTerrainStamps(null);
                 return;
             }
 
-            var landmarks = LandmarkPlanner.Plan(layout, landmarkRegistry, layout.Progression, sampler);
+            // 1. Decide placements from the layout alone (pre-stamp, XZ frozen).
+            var placements = LandmarkPlanner.PlanPlacements(layout, landmarkRegistry, layout.Progression);
+
+            // 2. Describe each seat from the current (pre-stamp) relief.
+            var stamps = LandmarkTerrainStampPlanner.Plan(placements, sampler);
+
+            // 3. Realize the seats on the heightmap, before it reaches the Terrain.
+            LandmarkTerrainStampApplier.Apply(context, stamps);
+
+            // 4. Ground the landmarks on the now-stamped terrain.
+            var landmarks = LandmarkPlanner.Finalize(placements, sampler);
+
+            layout.AttachTerrainStamps(stamps);
             layout.AttachLandmarks(landmarks);
-            Debug.Log($"[ProceduralTerrainGenerator] {landmarks.Count} landmark(s) attached to the layout");
+            Debug.Log($"[ProceduralTerrainGenerator] {landmarks.Count} landmark(s), {stamps.Count} terrain seat(s) attached to the layout");
         }
 
         private bool ValidateSetup()
