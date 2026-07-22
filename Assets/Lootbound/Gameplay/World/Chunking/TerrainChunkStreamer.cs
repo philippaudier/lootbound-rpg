@@ -21,6 +21,8 @@ namespace Lootbound.Gameplay.World.Chunking
         [SerializeField] private ProceduralTerrainGenerator generator;
         [SerializeField] private Transform player;
         [SerializeField] private TerrainLayer[] terrainLayers;
+        [Tooltip("Optional parent the active chunks are nested under (e.g. an 'ActiveChunks' object). If empty, the streamer creates its own container.")]
+        [SerializeField] private Transform chunkRoot;
 
         [Header("Streaming")]
         [SerializeField] private float chunkWorldSize = 128f;
@@ -75,7 +77,7 @@ namespace Lootbound.Gameplay.World.Chunking
             }
             if (generator != null && player != null)
             {
-                Initialize(generator, player, null, terrainLayers);
+                Initialize(generator, player, chunkRoot, terrainLayers);
             }
         }
 
