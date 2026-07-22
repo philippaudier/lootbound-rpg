@@ -289,6 +289,56 @@ truth and never persisted — except the sparse player-edit overlay.
   vegetation mask, intersecting structures + landscape, bounds.
 - **Landscapes never depend on chunk boundaries.**
 
+### 6.1 Chunk streaming ownership (T3.1 — locked)
+
+The chunk system is a strict ownership chain: each component owns exactly one
+concern and is blind to the others. This is what keeps the generator Unity-free,
+and lets the menu, the Refuge, dungeons and tests each run their own streamer
+with no hidden singleton.
+
+```text
+              Player
+                 │
+                 ▼
+      TerrainChunkStreamer      owns: player pos → which chunks exist → the pool
+                 │
+      decides which chunks exist
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+ TerrainChunkBuilder    ChunkPool
+        │
+        ▼
+ProceduralTerrainGenerator      the ONE generator — Sample(x,z): Height / Masks / Biomes
+        │
+        ▼
+ TerrainChunkData               pure data (heights + meta), zero Unity
+        │
+        ▼
+ TerrainChunk.Apply(data)       owns a Unity Terrain — displays, never generates
+        │
+        ▼
+     Unity Terrain
+```
+
+| Component | Owns | Does NOT know about |
+|---|---|---|
+| `ProceduralTerrainGenerator` | `Sample(x,z)` — Height today; Masks / Biomes later — at any world coordinate | chunks · Unity Terrain · the streamer · the pool |
+| `TerrainChunkBuilder` | fills a `TerrainChunkData` from the generator, then returns it | the streamer · the player · Unity Terrain |
+| `TerrainChunkData` | the built data (height grid + meta) | anything Unity |
+| `TerrainChunk` | one Unity Terrain — `Apply(TerrainChunkData)` | generation · the streamer |
+| `TerrainChunkStreamer` | player position → visible chunks → the pool | how a chunk is built or displayed |
+
+Rules that must stay true:
+
+- The generator answers `Height(x,z)` for **any** coordinate; the finite region
+  currently generated is only where authored deformations exist. It never learns
+  that chunks exist.
+- `TerrainChunk` **displays**, never generates — so save / network / import /
+  debug can feed it a `TerrainChunkData` from any source later, untouched.
+- No hidden singleton: a streamer is an instance with injected dependencies;
+  several can coexist across scenes.
+
 ## 7. Data ownership
 
 - **World / immutable / infinite** — analytic fields (functions), definitions
