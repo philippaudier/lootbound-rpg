@@ -102,14 +102,18 @@ namespace Lootbound.Gameplay.World
 
             Debug.Log($"[ProceduralTerrainGenerator] Generating terrain with seed {seed}...");
 
-            // Create context
+            // Create context. The world is centred on the Refuge (0,0): the
+            // region spans [-WorldSize/2, +WorldSize/2] in X and Z. There is no
+            // coordinate offset - the field is sampled at true signed world
+            // coordinates; only the region's Min carries the origin.
             generationCounter++;
             context = new TerrainGenerationContext(
                 seed,
                 config.HeightmapResolution,
                 config.WorldSize,
                 config.TerrainHeight,
-                generationCounter
+                generationCounter,
+                WorldBounds.FromCenter(0f, 0f, config.WorldSize)
             );
 
             // Configure terrain data
@@ -373,8 +377,10 @@ namespace Lootbound.Gameplay.World
             // Set terrain size
             data.size = new Vector3(config.WorldSize, config.TerrainHeight, config.WorldSize);
 
-            // Position terrain at origin
-            terrain.transform.position = Vector3.zero;
+            // Position the terrain so its SW corner sits at the region's Min. With
+            // the Refuge-centred world that is (-WorldSize/2, 0, -WorldSize/2), so
+            // world (0,0) maps to the terrain centre - the Refuge.
+            terrain.transform.position = new Vector3(context.Bounds.MinX, 0f, context.Bounds.MinZ);
 
             // Apply terrain layers
             if (terrainLayers != null && terrainLayers.Length > 0)

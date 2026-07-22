@@ -99,17 +99,18 @@ namespace Lootbound.Tests.EditMode
         {
             int resolution = config.HeightmapResolution;
 
-            // The world region as the CURRENT generator materializes it. M2 flips
-            // this single line to WorldBounds.FromCenter(0f, 0f, config.WorldSize)
-            // (Refuge at (0,0)) - the intentional re-anchoring point where the
-            // baseline is regenerated. No coordinate offset is ever added.
-            var bounds = WorldBounds.FromCorner(0f, 0f, config.WorldSize);
+            // The world region as the generator materializes it: Refuge-centred at
+            // (0,0), spanning [-WorldSize/2, +WorldSize/2], no coordinate offset.
+            // (Before the M2 migration this was WorldBounds.FromCorner(0,0,S); the
+            // switch to FromCenter is the intentional re-anchoring that changed the
+            // sampled portion of the field and re-based this snapshot.)
+            var bounds = WorldBounds.FromCenter(0f, 0f, config.WorldSize);
 
             var context = new TerrainGenerationContext(
                 Seed, resolution, config.WorldSize, config.TerrainHeight, 1, bounds);
             TerrainHeightGenerator.Generate(context, config);
 
-            WorldKnowledge knowledge = WorldKnowledgeComposer.Build(config, Seed);
+            WorldKnowledge knowledge = WorldKnowledgeComposer.Build(config, Seed, bounds);
 
             var probes = new List<Probe>();
             foreach ((float x, float z) in ProbeCoordinates(context))

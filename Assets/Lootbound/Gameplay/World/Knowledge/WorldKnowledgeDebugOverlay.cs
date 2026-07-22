@@ -60,7 +60,7 @@ namespace Lootbound.Gameplay.World.Knowledge
             if (generator == null || generator.Config == null || !generator.IsGenerated) return;
             if (_knowledge == null || _builtSeed != generator.CurrentSeed)
             {
-                _knowledge = WorldKnowledgeComposer.Build(generator.Config, generator.CurrentSeed);
+                _knowledge = WorldKnowledgeComposer.Build(generator.Config, generator.CurrentSeed, generator.Context.Bounds);
                 _builtSeed = generator.CurrentSeed;
             }
             Redraw();
@@ -68,7 +68,7 @@ namespace Lootbound.Gameplay.World.Knowledge
 
         private void Redraw()
         {
-            if (_knowledge == null || generator == null || generator.Config == null) return;
+            if (_knowledge == null || generator == null || generator.Config == null || generator.Context == null) return;
 
             int res = Mathf.Max(8, textureResolution);
             if (_texture == null || _texture.width != res)
@@ -76,14 +76,15 @@ namespace Lootbound.Gameplay.World.Knowledge
                 _texture = new Texture2D(res, res, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
             }
 
-            float worldSize = generator.Config.WorldSize;
+            // Sample across the materialized region (Refuge-centred), not [0, WorldSize].
+            WorldBounds bounds = generator.Context.Bounds;
             var pixels = new Color[res * res];
             for (int v = 0; v < res; v++)
             {
-                double wz = (v / (double)(res - 1)) * worldSize;
+                double wz = bounds.MinZ + (v / (double)(res - 1)) * bounds.SizeZ;
                 for (int u = 0; u < res; u++)
                 {
-                    double wx = (u / (double)(res - 1)) * worldSize;
+                    double wx = bounds.MinX + (u / (double)(res - 1)) * bounds.SizeX;
                     pixels[v * res + u] = ColorAt(new WorldCoordinate(wx, wz));
                 }
             }

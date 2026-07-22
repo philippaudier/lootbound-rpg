@@ -1,3 +1,4 @@
+using Lootbound.World.Coordinates;
 using Lootbound.World.Layers.Fields;
 using Lootbound.World.Processing;
 using Lootbound.Gameplay.World.Providers;
@@ -13,7 +14,7 @@ namespace Lootbound.Gameplay.World.Knowledge
     /// </summary>
     public static class WorldKnowledgeComposer
     {
-        public static WorldKnowledge Build(TerrainGenerationConfig config, int seed, int hydrologyResolution = 129)
+        public static WorldKnowledge Build(TerrainGenerationConfig config, int seed, WorldBounds region, int hydrologyResolution = 129)
         {
             var settings = new WorldKnowledgeSettings
             {
@@ -30,7 +31,10 @@ namespace Lootbound.Gameplay.World.Knowledge
             var exposure = new ExposureField(height, settings.HeightScale, settings.SampleStep);
             var cliff = new CliffField(slope, settings.CliffSlopeThreshold);
 
-            var domain = WorldDomain.FromOrigin(config.WorldSize, hydrologyResolution);
+            var domain = new WorldDomain(
+                new WorldCoordinate(region.MinX, region.MinZ),
+                new WorldCoordinate(region.MaxX, region.MaxZ),
+                hydrologyResolution);
             var flow = FlowAnalyzer.Analyze(height, domain, settings.HeightScale);
             var catchment = CatchmentAnalyzer.Analyze(flow);
             var waterTable = WaterTableAnalyzer.Analyze(catchment, elevation, wetnessScale: hydrologyResolution);
