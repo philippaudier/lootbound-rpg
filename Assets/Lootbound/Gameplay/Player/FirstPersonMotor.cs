@@ -86,6 +86,12 @@ namespace Lootbound.Gameplay.Player
         {
             if (config == null || inputReader == null) return;
 
+            // A disabled controller means something is deliberately holding the
+            // player (the spawner waiting for the Refuge chunk, a teleport...).
+            // Do nothing - moving an inactive controller errors, and gravity
+            // must not accumulate while held.
+            if (controller == null || !controller.enabled) return;
+
             UpdateGroundDetection();
             UpdateTimers();
             UpdateSprint();
