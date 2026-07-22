@@ -23,7 +23,8 @@ namespace Lootbound.Gameplay.World.Chunking
             _sampler = sampler;
         }
 
-        public TerrainChunkData Build(TerrainChunkCoordinate coordinate, int resolution, float chunkWorldSize)
+        public TerrainChunkData Build(
+            TerrainChunkCoordinate coordinate, int resolution, float chunkWorldSize, int alphamapResolution = 0)
         {
             if (resolution < 2)
             {
@@ -50,7 +51,32 @@ namespace Lootbound.Gameplay.World.Chunking
                 }
             }
 
-            return new TerrainChunkData(coordinate, chunkWorldSize, terrainHeight, resolution, heights);
+            // Paint an alphamap only when the sampler classifies the surface.
+            float[,,] alphamaps = null;
+            if (alphamapResolution > 1 && _sampler is IWorldSplatSampler splat)
+            {
+                int layers = splat.SplatLayerCount;
+                int alast = alphamapResolution - 1;
+                alphamaps = new float[alphamapResolution, alphamapResolution, layers]; // [z, x, layer]
+                var weights = new float[layers];
+                for (int z = 0; z < alphamapResolution; z++)
+                {
+                    double worldZ = (coordinate.Z + z / (double)alast) * chunkWorldSize;
+                    for (int x = 0; x < alphamapResolution; x++)
+                    {
+                        double worldX = (coordinate.X + x / (double)alast) * chunkWorldSize;
+                        splat.SampleSplat(worldX, worldZ, weights);
+                        for (int l = 0; l < layers; l++)
+                        {
+                            alphamaps[z, x, l] = weights[l];
+                        }
+                    }
+                }
+            }
+
+            return new TerrainChunkData(
+                coordinate, chunkWorldSize, terrainHeight, resolution, heights,
+                alphamaps != null ? alphamapResolution : 0, alphamaps);
         }
     }
 }

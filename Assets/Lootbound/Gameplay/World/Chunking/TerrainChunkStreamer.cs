@@ -27,6 +27,8 @@ namespace Lootbound.Gameplay.World.Chunking
         [Header("Streaming")]
         [SerializeField] private float chunkWorldSize = 128f;
         [SerializeField] private int heightmapResolution = 129;
+        [Tooltip("Splat/alphamap resolution per chunk (surface texturing). 0 leaves chunks on their first layer.")]
+        [SerializeField] private int alphamapResolution = 129;
         [SerializeField] private int activeRadiusInChunks = 2;
         [Tooltip("At most this many chunks are built per tick, so a big jump spreads its work over a few frames rather than one spike.")]
         [SerializeField] private int maxBuildsPerTick = 4;
@@ -40,6 +42,7 @@ namespace Lootbound.Gameplay.World.Chunking
             new Dictionary<TerrainChunkCoordinate, TerrainChunk>();
         private readonly List<TerrainChunkCoordinate> _toRelease = new List<TerrainChunkCoordinate>();
         private bool _initialized;
+        private bool _neighborsDirty;
 
         public int ActiveChunkCount => _active.Count;
         public int PooledChunkCount => _pool?.FreeCount ?? 0;
@@ -115,11 +118,13 @@ namespace Lootbound.Gameplay.World.Chunking
                 TerrainChunkCoordinate coord = _toRelease[i];
                 _pool.Release(_active[coord]);
                 _active.Remove(coord);
+                _neighborsDirty = true;
             }
 
             // Build the missing in-range chunks, budgeted per tick.
             int budget = maxBuildsPerTick > 0 ? maxBuildsPerTick : int.MaxValue;
-            for (int dz = -activeRadiusInChunks; dz <= activeRadiusInChunks; dz++)
+            bool budgetExhausted = false;
+            for (int dz = -activeRadiusInChunks; dz <= activeRadiusInChunks && !budgetExhausted; dz++)
             {
                 for (int dx = -activeRadiusInChunks; dx <= activeRadiusInChunks; dx++)
                 {
@@ -130,14 +135,36 @@ namespace Lootbound.Gameplay.World.Chunking
                     }
 
                     TerrainChunk chunk = _pool.Acquire();
-                    chunk.Apply(_builder.Build(coord, heightmapResolution, chunkWorldSize));
+                    chunk.Apply(_builder.Build(coord, heightmapResolution, chunkWorldSize, alphamapResolution));
                     _active[coord] = chunk;
+                    _neighborsDirty = true;
 
                     if (--budget <= 0)
                     {
-                        return;
+                        budgetExhausted = true;
+                        break;
                     }
                 }
+            }
+
+            // Stitch adjacent chunks so Unity does not crack their shared edges.
+            if (_neighborsDirty)
+            {
+                RefreshNeighbors();
+                _neighborsDirty = false;
+            }
+        }
+
+        private void RefreshNeighbors()
+        {
+            foreach (KeyValuePair<TerrainChunkCoordinate, TerrainChunk> kv in _active)
+            {
+                TerrainChunkCoordinate c = kv.Key;
+                _active.TryGetValue(new TerrainChunkCoordinate(c.X - 1, c.Z), out TerrainChunk left);
+                _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z + 1), out TerrainChunk top);
+                _active.TryGetValue(new TerrainChunkCoordinate(c.X + 1, c.Z), out TerrainChunk right);
+                _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z - 1), out TerrainChunk bottom);
+                kv.Value.SetNeighbors(left, top, right, bottom);
             }
         }
 

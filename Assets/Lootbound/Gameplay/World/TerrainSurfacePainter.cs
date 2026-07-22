@@ -100,9 +100,12 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Calculate weights for each terrain layer.
+        /// Calculate weights for each terrain layer at a single point. Public so
+        /// the same classification can be reused per world coordinate (e.g. by the
+        /// generator's splat sampler for streamed chunks), not just over the
+        /// monolithic context grid. Weights are NOT normalized here.
         /// </summary>
-        private static float[] CalculateLayerWeights(
+        public static float[] CalculateLayerWeights(
             float height, float slope, float macro, float noise, float fineNoise,
             TerrainGenerationConfig config)
         {

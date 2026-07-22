@@ -23,6 +23,12 @@ namespace Lootbound.Gameplay.World.Chunking
             _data = new TerrainData();
             GameObject = Terrain.CreateTerrainGameObject(_data);
             _terrain = GameObject.GetComponent<Terrain>();
+
+            // No neighbour auto-connection in M3: chunks stitch by sharing exact
+            // edge heights, and SetNeighbors / LOD is M4. Auto-connect would also
+            // warn when it meets the higher-res Editor Terrain Preview.
+            _terrain.allowAutoConnect = false;
+
             if (parent != null)
             {
                 GameObject.transform.SetParent(parent, false);
@@ -48,12 +54,34 @@ namespace Lootbound.Gameplay.World.Chunking
             _data.size = new Vector3(chunkData.ChunkWorldSize, chunkData.TerrainHeight, chunkData.ChunkWorldSize);
             _data.SetHeights(0, 0, chunkData.Heights);
 
+            // Paint, only if the data carries an alphamap AND its layer count
+            // matches this terrain's layers (else Unity would throw).
+            if (chunkData.Alphamaps != null && chunkData.AlphamapResolution > 0 &&
+                chunkData.Alphamaps.GetLength(2) == _data.alphamapLayers && _data.alphamapLayers > 0)
+            {
+                if (_data.alphamapResolution != chunkData.AlphamapResolution)
+                {
+                    _data.alphamapResolution = chunkData.AlphamapResolution;
+                }
+                _data.SetAlphamaps(0, 0, chunkData.Alphamaps);
+            }
+
             GameObject.transform.position = new Vector3(
                 (float)chunkData.Coordinate.OriginWorldX(chunkData.ChunkWorldSize),
                 0f,
                 (float)chunkData.Coordinate.OriginWorldZ(chunkData.ChunkWorldSize));
             GameObject.name = $"TerrainChunk[{chunkData.Coordinate.X},{chunkData.Coordinate.Z}]";
             GameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// Declare the adjacent chunks so Unity stitches edges across LOD (no
+        /// cracks). Pass null where there is no active neighbour. Left/right are
+        /// -X/+X, top/bottom are +Z/-Z, matching Unity's SetNeighbors order.
+        /// </summary>
+        public void SetNeighbors(TerrainChunk left, TerrainChunk top, TerrainChunk right, TerrainChunk bottom)
+        {
+            _terrain.SetNeighbors(left?._terrain, top?._terrain, right?._terrain, bottom?._terrain);
         }
 
         /// <summary>Deactivate for reuse by the pool (no destroy).</summary>

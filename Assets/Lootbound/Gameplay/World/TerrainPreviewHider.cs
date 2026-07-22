@@ -23,6 +23,9 @@ namespace Lootbound.Gameplay.World
             {
                 terrain.drawHeightmap = false;
                 terrain.drawTreesAndFoliage = false;
+                // Don't let the preview try to auto-neighbour the (different
+                // resolution) streamed chunks - that only logs "Stop neighboring".
+                terrain.allowAutoConnect = false;
             }
 
             if (!keepColliderForSpawn)

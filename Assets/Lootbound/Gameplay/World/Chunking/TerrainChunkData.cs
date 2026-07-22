@@ -26,18 +26,32 @@ namespace Lootbound.Gameplay.World.Chunking
         /// </summary>
         public float[,] Heights { get; }
 
+        /// <summary>Alphamap resolution, or 0 when the chunk carries no splat.</summary>
+        public int AlphamapResolution { get; }
+
+        /// <summary>
+        /// Splat weights indexed [z, x, layer] for <c>SetAlphamaps</c>, or null
+        /// when the height sampler provides no surface classification (chunks then
+        /// show their first layer).
+        /// </summary>
+        public float[,,] Alphamaps { get; }
+
         public TerrainChunkData(
             TerrainChunkCoordinate coordinate,
             float chunkWorldSize,
             float terrainHeight,
             int resolution,
-            float[,] heights)
+            float[,] heights,
+            int alphamapResolution = 0,
+            float[,,] alphamaps = null)
         {
             Coordinate = coordinate;
             ChunkWorldSize = chunkWorldSize;
             TerrainHeight = terrainHeight;
             Resolution = resolution;
             Heights = heights;
+            AlphamapResolution = alphamapResolution;
+            Alphamaps = alphamaps;
         }
     }
 }

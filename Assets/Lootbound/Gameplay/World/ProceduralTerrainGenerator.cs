@@ -20,7 +20,7 @@ namespace Lootbound.Gameplay.World
     /// pool exist. (The legacy single-Terrain presentation below is transitional
     /// and will move out to the chunk layer in a later milestone.)
     /// </summary>
-    public class ProceduralTerrainGenerator : MonoBehaviour, IWorldHeightSampler
+    public class ProceduralTerrainGenerator : MonoBehaviour, IWorldHeightSampler, IWorldSplatSampler
     {
         [Header("Configuration")]
         [SerializeField] private TerrainGenerationConfig config;
@@ -103,6 +103,82 @@ namespace Lootbound.Gameplay.World
                 _hasBaseHeightField = true;
             }
             return _baseHeightField.Evaluate(new WorldCoordinate(worldX, worldZ)) * config.TerrainHeight;
+        }
+
+        // --- IWorldSplatSampler: the surface "masks" the generator owns ---
+
+        private float _splatNoiseOffsetX;
+        private float _splatNoiseOffsetZ;
+        private int _splatNoiseSeed;
+        private bool _hasSplatNoise;
+
+        public int SplatLayerCount => 4;
+
+        /// <summary>
+        /// Layer coverage at a world coordinate, using the same classification as
+        /// the monolithic painter (height + slope + noise), but sampled per world
+        /// point so it is continuous across chunk boundaries. Slope comes from a
+        /// small finite difference of the height, noise from world coordinates.
+        /// </summary>
+        public void SampleSplat(double worldX, double worldZ, float[] weights)
+        {
+            if (weights == null || weights.Length == 0)
+            {
+                return;
+            }
+
+            if (config == null)
+            {
+                for (int i = 0; i < weights.Length; i++) weights[i] = 0f;
+                weights[0] = 1f;
+                return;
+            }
+
+            float th = config.TerrainHeight;
+            float height = th > 0f ? SampleHeight(worldX, worldZ) / th : 0f;
+
+            // Slope in degrees from a 1 m central finite difference of the height.
+            const double e = 1.0;
+            float dhx = (SampleHeight(worldX + e, worldZ) - SampleHeight(worldX - e, worldZ)) / (float)(2.0 * e);
+            float dhz = (SampleHeight(worldX, worldZ + e) - SampleHeight(worldX, worldZ - e)) / (float)(2.0 * e);
+            float slope = Mathf.Atan(Mathf.Sqrt(dhx * dhx + dhz * dhz)) * Mathf.Rad2Deg;
+
+            EnsureSplatNoise();
+            float noise = Mathf.PerlinNoise(
+                (float)((worldX + _splatNoiseOffsetX) / 50.0),
+                (float)((worldZ + _splatNoiseOffsetZ) / 50.0));
+            float fineNoise = Mathf.PerlinNoise(
+                (float)((worldX + _splatNoiseOffsetX) / 15.0),
+                (float)((worldZ + _splatNoiseOffsetZ) / 15.0));
+
+            float[] w = TerrainSurfacePainter.CalculateLayerWeights(height, slope, 0f, noise, fineNoise, config);
+
+            float sum = 0f;
+            for (int i = 0; i < w.Length; i++) sum += w[i];
+
+            int n = Mathf.Min(weights.Length, w.Length);
+            if (sum > 0.001f)
+            {
+                for (int i = 0; i < n; i++) weights[i] = w[i] / sum;
+            }
+            else
+            {
+                for (int i = 0; i < weights.Length; i++) weights[i] = 0f;
+                weights[0] = 1f;
+            }
+        }
+
+        private void EnsureSplatNoise()
+        {
+            if (_hasSplatNoise && _splatNoiseSeed == currentSeed)
+            {
+                return;
+            }
+            var random = new System.Random(currentSeed + 54321);
+            _splatNoiseOffsetX = (float)(random.NextDouble() * 1000.0);
+            _splatNoiseOffsetZ = (float)(random.NextDouble() * 1000.0);
+            _splatNoiseSeed = currentSeed;
+            _hasSplatNoise = true;
         }
 
         private void Start()
