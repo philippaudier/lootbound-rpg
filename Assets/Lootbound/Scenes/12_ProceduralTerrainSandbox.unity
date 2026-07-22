@@ -452,7 +452,7 @@ MonoBehaviour:
   - {fileID: 8574412962073106934, guid: e13471e8983761446b9f014e6ea97f6f, type: 2}
   playerTransform: {fileID: 235218820}
   playerHeight: 1.8
-  currentSeed: 40855093
+  currentSeed: 11797625
   isGenerated: 1
 --- !u!114 &300000005
 MonoBehaviour:
@@ -488,6 +488,7 @@ GameObject:
   - component: {fileID: 400000003}
   - component: {fileID: 400000004}
   - component: {fileID: 400000005}
+  - component: {fileID: 400000006}
   m_Layer: 0
   m_Name: Debug
   m_TagString: Untagged
@@ -613,6 +614,22 @@ MonoBehaviour:
   eventDirector: {fileID: 1688963257}
   toggleKey: 103
   aimDistance: 400
+--- !u!114 &400000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed55bca3d9487a743b2f10ad0bde57d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Lootbound.Gameplay::Lootbound.Gameplay.World.Knowledge.WorldKnowledgeDebugOverlay
+  generator: {fileID: 300000004}
+  toggleKey: 104
+  textureResolution: 96
+  panelSize: 260
 --- !u!1 &609941126
 GameObject:
   m_ObjectHideFlags: 0
@@ -1029,19 +1046,19 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 999.77893
+      value: 984.3014
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 17.148031
+      value: 31.035273
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 986.5674
+      value: 1042.7058
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.100324534
+      value: -0.5425667
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalRotation.x
@@ -1049,7 +1066,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.99495476
+      value: 0.8400128
       objectReference: {fileID: 0}
     - target: {fileID: 111779961373693846, guid: 1b903a7f2ee6c6c4085ee159e91ab1f4, type: 3}
       propertyPath: m_LocalRotation.z
