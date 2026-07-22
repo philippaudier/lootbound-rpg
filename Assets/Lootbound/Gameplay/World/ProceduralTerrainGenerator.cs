@@ -1,6 +1,9 @@
 using Lootbound.Gameplay.World.Layout;
 using Lootbound.Gameplay.World.Landmarks;
+using Lootbound.Gameplay.World.Providers;
 using Lootbound.Gameplay.World.Spawning;
+using Lootbound.World.Coordinates;
+using Lootbound.World.Layers.Fields;
 using UnityEngine;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
@@ -10,8 +13,14 @@ namespace Lootbound.Gameplay.World
     /// <summary>
     /// Orchestrates procedural terrain generation.
     /// Manages the Unity Terrain component and coordinates all generation steps.
+    ///
+    /// It is also the world's <see cref="IWorldHeightSampler"/>: it answers
+    /// Height(x,z) at any coordinate. That is the ONLY thing the chunk streaming
+    /// layer asks of it - the generator never learns that chunks, a streamer or a
+    /// pool exist. (The legacy single-Terrain presentation below is transitional
+    /// and will move out to the chunk layer in a later milestone.)
     /// </summary>
-    public class ProceduralTerrainGenerator : MonoBehaviour
+    public class ProceduralTerrainGenerator : MonoBehaviour, IWorldHeightSampler
     {
         [Header("Configuration")]
         [SerializeField] private TerrainGenerationConfig config;
@@ -53,6 +62,48 @@ namespace Lootbound.Gameplay.World
         public TerrainGenerationContext Context => context;
         public int CurrentSeed => currentSeed;
         public bool IsGenerated => isGenerated;
+
+        // Cached base-height field, used to sample beyond the materialized region
+        // (and before generation). Rebuilt only when the seed changes.
+        private HeightField _baseHeightField;
+        private int _baseHeightFieldSeed;
+        private bool _hasBaseHeightField;
+
+        // --- IWorldHeightSampler: the generator's world-sampling contract ---
+
+        public float TerrainHeight => config != null ? config.TerrainHeight : 0f;
+
+        public bool IsReady => isGenerated;
+
+        /// <summary>
+        /// World-space height in metres at any coordinate. Inside the materialized
+        /// region it is the FINAL relief (base field plus the authored refuge /
+        /// paths / landmark deformations, read from the context grid); beyond the
+        /// region, the base analytic field. Deterministic, and blind to chunks.
+        /// </summary>
+        public float SampleHeight(double worldX, double worldZ)
+        {
+            if (context != null && context.Bounds.Contains((float)worldX, (float)worldZ))
+            {
+                return context.SampleHeightAtWorld((float)worldX, (float)worldZ);
+            }
+            return BaseHeight(worldX, worldZ);
+        }
+
+        private float BaseHeight(double worldX, double worldZ)
+        {
+            if (config == null)
+            {
+                return 0f;
+            }
+            if (!_hasBaseHeightField || _baseHeightFieldSeed != currentSeed)
+            {
+                _baseHeightField = WorldFieldComposer.BuildHeightField(config, new NoiseOffsets(currentSeed));
+                _baseHeightFieldSeed = currentSeed;
+                _hasBaseHeightField = true;
+            }
+            return _baseHeightField.Evaluate(new WorldCoordinate(worldX, worldZ)) * config.TerrainHeight;
+        }
 
         private void Start()
         {
