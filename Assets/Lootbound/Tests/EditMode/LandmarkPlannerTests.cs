@@ -42,6 +42,7 @@ namespace Lootbound.Tests.EditMode
             public bool IsWithinBounds(float worldX, float worldZ) =>
                 worldX >= 0f && worldX <= WorldSize && worldZ >= 0f && worldZ <= WorldSize;
             public float WorldSize => LandmarkPlannerTests.WorldSize;
+            public UnityEngine.Vector3 WorldCenter => new UnityEngine.Vector3(WorldSize * 0.5f, 0f, WorldSize * 0.5f);
             public float TerrainHeight => 150f;
         }
 

@@ -85,6 +85,24 @@ WorldCoordinate (double)  ──floating origin──►  Unity local position (
 
 The engine always knows the true position; Unity only ever knows a local one.
 
+### World origin — the Refuge is (0,0)
+
+The world origin is the **Refuge: world XZ = (0,0)**. Coordinates are signed
+(negative west/south, positive east/north), because the logical world is
+unbounded and radial around the Refuge. There is **no `+ WorldSize/2` offset**
+anywhere: the only origin is the `Min` of the finite region currently generated
+(a `WorldBounds` descriptor carried by the generation context), never a per-call
+translation of a coordinate.
+
+> **The migration to a Refuge-centred world (slice T3.1A, step M2) changes the
+> portion of the procedural field that is sampled. This difference is intentional
+> and constitutes the new reference terrain.** Before the migration the region was
+> the corner box `[0, WorldSize]` with the Refuge at its centre; a fixed seed
+> therefore renders a *different* — but equally valid and fully deterministic —
+> relief afterwards. This is not a regression: the golden snapshot test
+> (`GeneratorGoldenSnapshotTests`) is deliberately re-baselined at that point, and
+> the new values become the reference for detecting future *unintentional* drift.
+
 ## 2. Layers — what the world IS
 
 ### 2a. Fields (analytic)

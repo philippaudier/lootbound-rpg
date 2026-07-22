@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Lootbound.Gameplay.World.Layout
 {
     /// <summary>
@@ -25,6 +27,12 @@ namespace Lootbound.Gameplay.World.Layout
         /// World size in meters.
         /// </summary>
         float WorldSize { get; }
+
+        /// <summary>
+        /// Centre of the sampled region in world space (Y = 0). Lets consumers
+        /// place things relative to the region without assuming a corner origin.
+        /// </summary>
+        Vector3 WorldCenter { get; }
 
         /// <summary>
         /// Maximum terrain height in meters.

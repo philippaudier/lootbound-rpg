@@ -252,6 +252,7 @@ namespace Lootbound.Tests.EditMode
         {
             public float WorldSize => 1024f;
             public float TerrainHeight => 150f;
+            public UnityEngine.Vector3 WorldCenter => new UnityEngine.Vector3(512f, 0f, 512f);
             public float SampleHeight(float worldX, float worldZ) => 10f;
             public float SampleSlope(float worldX, float worldZ) => 5f;
             public bool IsWithinBounds(float worldX, float worldZ) =>

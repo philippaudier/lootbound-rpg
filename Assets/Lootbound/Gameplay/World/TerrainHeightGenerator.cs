@@ -22,7 +22,7 @@ namespace Lootbound.Gameplay.World
             var heightField = WorldFieldComposer.BuildHeightField(config, offsets);
 
             int resolution = context.Resolution;
-            float worldSize = context.WorldSize;
+            WorldBounds bounds = context.Bounds;
 
             float[,] heightMap = new float[resolution, resolution];
             float[,] macroMap = new float[resolution, resolution];
@@ -31,9 +31,12 @@ namespace Lootbound.Gameplay.World
             {
                 for (int z = 0; z < resolution; z++)
                 {
-                    // Convert to world coordinates (float, exactly as before).
-                    float worldX = (x / (float)(resolution - 1)) * worldSize;
-                    float worldZ = (z / (float)(resolution - 1)) * worldSize;
+                    // Grid index -> world coordinate through the region bounds. At
+                    // the legacy corner origin (Min = 0) this equals the old
+                    // (index/(res-1))*worldSize; a refuge-centred region samples
+                    // the field around (0,0) instead.
+                    float worldX = bounds.MinX + (x / (float)(resolution - 1)) * bounds.SizeX;
+                    float worldZ = bounds.MinZ + (z / (float)(resolution - 1)) * bounds.SizeZ;
 
                     // The terrain now SAMPLES the World Engine's HeightField.
                     heightMap[x, z] = heightField.Evaluate(new WorldCoordinate(worldX, worldZ));
@@ -113,7 +116,7 @@ namespace Lootbound.Gameplay.World
 
             int resolution = context.Resolution;
             float[,] heightMap = context.NormalizedHeightMap;
-            float worldSize = context.WorldSize;
+            WorldBounds bounds = context.Bounds;
 
             // Get correction limits from layout config
             var layoutConfig = config.LayoutConfig;
@@ -131,8 +134,8 @@ namespace Lootbound.Gameplay.World
                 {
                     float normX = x / (float)(resolution - 1);
                     float normZ = z / (float)(resolution - 1);
-                    float worldX = normX * worldSize;
-                    float worldZ = normZ * worldSize;
+                    float worldX = bounds.MinX + normX * bounds.SizeX;
+                    float worldZ = bounds.MinZ + normZ * bounds.SizeZ;
 
                     float originalHeight = heightMap[x, z];
                     float correctionStrength = 0f;

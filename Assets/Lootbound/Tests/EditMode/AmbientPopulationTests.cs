@@ -344,6 +344,7 @@ namespace Lootbound.Tests.EditMode
             public float Slope = 5f;
             public float WorldSize => 1024f;
             public float TerrainHeight => 150f;
+            public Vector3 WorldCenter => new Vector3(512f, 0f, 512f);
             public float SampleHeight(float x, float z) => 10f;
             public float SampleSlope(float x, float z) => Slope;
             public bool IsWithinBounds(float x, float z) => x >= 0f && x <= 1024f && z >= 0f && z <= 1024f;

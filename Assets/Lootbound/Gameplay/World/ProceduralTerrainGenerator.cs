@@ -485,7 +485,7 @@ namespace Lootbound.Gameplay.World
 
             // Terrain bounds
             Gizmos.color = new Color(1, 1, 1, 0.2f);
-            Vector3 center = new Vector3(context.WorldSize * 0.5f, context.TerrainHeight * 0.5f, context.WorldSize * 0.5f);
+            Vector3 center = new Vector3(context.WorldCenter.x, context.TerrainHeight * 0.5f, context.WorldCenter.z);
             Vector3 size = new Vector3(context.WorldSize, context.TerrainHeight, context.WorldSize);
             Gizmos.DrawWireCube(center, size);
         }

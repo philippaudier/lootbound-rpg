@@ -35,6 +35,7 @@ namespace Lootbound.Tests.EditMode
         {
             public float WorldSize { get; set; } = 1024f;
             public float TerrainHeight { get; set; } = 150f;
+            public UnityEngine.Vector3 WorldCenter => new UnityEngine.Vector3(WorldSize * 0.5f, 0f, WorldSize * 0.5f);
             public float Height = 10f;
             public float Slope = 5f;
 

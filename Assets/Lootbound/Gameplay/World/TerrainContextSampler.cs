@@ -20,6 +20,7 @@ namespace Lootbound.Gameplay.World
 
         public float WorldSize => _context.WorldSize;
         public float TerrainHeight => _context.TerrainHeight;
+        public UnityEngine.Vector3 WorldCenter => _context.WorldCenter;
 
         public float SampleHeight(float worldX, float worldZ)
         {
@@ -33,8 +34,7 @@ namespace Lootbound.Gameplay.World
 
         public bool IsWithinBounds(float worldX, float worldZ)
         {
-            return worldX >= 0f && worldX <= _context.WorldSize &&
-                   worldZ >= 0f && worldZ <= _context.WorldSize;
+            return _context.Contains(worldX, worldZ);
         }
     }
 }

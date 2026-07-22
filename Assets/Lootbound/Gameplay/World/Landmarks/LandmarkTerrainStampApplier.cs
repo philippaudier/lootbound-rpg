@@ -54,21 +54,20 @@ namespace Lootbound.Gameplay.World.Landmarks
 
             WarnOnUnsupportedShapes(stamps);
 
-            if (!TryComputeAffectedRegion(stamps, resolution, worldSize,
+            if (!TryComputeAffectedRegion(stamps, context,
                     out int minX, out int maxX, out int minZ, out int maxZ))
             {
                 return;
             }
 
-            float cellWorld = worldSize / (resolution - 1);
             bool anyChange = false;
 
             for (int x = minX; x <= maxX; x++)
             {
-                float worldX = x * cellWorld;
+                float worldX = context.GridToWorldX(x);
                 for (int z = minZ; z <= maxZ; z++)
                 {
-                    float worldZ = z * cellWorld;
+                    float worldZ = context.GridToWorldZ(z);
 
                     // Deterministic, order-independent winner for this cell.
                     LandmarkTerrainStamp winner = SelectWinner(stamps, worldX, worldZ, out float winnerInfluence);
@@ -224,13 +223,13 @@ namespace Lootbound.Gameplay.World.Landmarks
 
         /// <summary>Union index-space box of every stamp's outer radius, clamped to the map.</summary>
         private static bool TryComputeAffectedRegion(
-            IReadOnlyList<LandmarkTerrainStamp> stamps, int resolution, float worldSize,
+            IReadOnlyList<LandmarkTerrainStamp> stamps, TerrainGenerationContext context,
             out int minX, out int maxX, out int minZ, out int maxZ)
         {
             minX = int.MaxValue; maxX = int.MinValue;
             minZ = int.MaxValue; maxZ = int.MinValue;
             bool any = false;
-            float scale = (resolution - 1) / worldSize;
+            int resolution = context.Resolution;
 
             foreach (var stamp in stamps)
             {
@@ -240,10 +239,10 @@ namespace Lootbound.Gameplay.World.Landmarks
                     continue;
                 }
 
-                int ix0 = Mathf.FloorToInt((stamp.CenterX - outer) * scale);
-                int ix1 = Mathf.CeilToInt((stamp.CenterX + outer) * scale);
-                int iz0 = Mathf.FloorToInt((stamp.CenterZ - outer) * scale);
-                int iz1 = Mathf.CeilToInt((stamp.CenterZ + outer) * scale);
+                int ix0 = Mathf.FloorToInt(context.WorldToGridX(stamp.CenterX - outer));
+                int ix1 = Mathf.CeilToInt(context.WorldToGridX(stamp.CenterX + outer));
+                int iz0 = Mathf.FloorToInt(context.WorldToGridZ(stamp.CenterZ - outer));
+                int iz1 = Mathf.CeilToInt(context.WorldToGridZ(stamp.CenterZ + outer));
 
                 ix0 = Mathf.Clamp(ix0, 0, resolution - 1);
                 ix1 = Mathf.Clamp(ix1, 0, resolution - 1);

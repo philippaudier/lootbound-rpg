@@ -14,9 +14,9 @@ namespace Lootbound.Gameplay.World
     {
         public static void PlanSpawn(TerrainGenerationContext context, TerrainGenerationConfig config)
         {
-            float center = context.WorldSize * 0.5f;
-            float height = context.SampleHeightAtWorld(center, center);
-            context.SpawnPosition = new Vector3(center, height, center);
+            Vector3 center = context.WorldCenter;
+            float height = context.SampleHeightAtWorld(center.x, center.z);
+            context.SpawnPosition = new Vector3(center.x, height, center.z);
 
             var (cx, cz) = context.WorldToHeightmap(context.SpawnPosition);
             context.SpawnSlope = context.SlopeMap[cx, cz];

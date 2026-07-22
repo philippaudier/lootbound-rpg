@@ -171,9 +171,12 @@ namespace Lootbound.Gameplay.World.Layout
             ITerrainSampler sampler,
             WorldLayoutConfig config)
         {
-            // World center in terrain coordinates
-            float worldCenterX = sampler.WorldSize * 0.5f;
-            float worldCenterZ = sampler.WorldSize * 0.5f;
+            // Region centre in world coordinates (refuge sits here, then a
+            // bounded random offset). Read from the sampler so the refuge is
+            // placed relative to the region rather than a corner origin.
+            Vector3 regionCenter = sampler.WorldCenter;
+            float worldCenterX = regionCenter.x;
+            float worldCenterZ = regionCenter.z;
 
             // Apply bounded random offset
             float maxOffset = config.RefugeMaxCenterOffset;
@@ -768,11 +771,16 @@ namespace Lootbound.Gameplay.World.Layout
                 float candidateX = fromPosition.x + Mathf.Cos(angle) * distance;
                 float candidateZ = fromPosition.z + Mathf.Sin(angle) * distance;
 
-                // Check bounds
+                // Check bounds - keep candidates a margin away from the region edges.
                 float margin = config.NodeMinSpacing;
+                float halfExtent = sampler.WorldSize * 0.5f;
+                float minEdgeX = sampler.WorldCenter.x - halfExtent;
+                float maxEdgeX = sampler.WorldCenter.x + halfExtent;
+                float minEdgeZ = sampler.WorldCenter.z - halfExtent;
+                float maxEdgeZ = sampler.WorldCenter.z + halfExtent;
                 if (!sampler.IsWithinBounds(candidateX, candidateZ) ||
-                    candidateX < margin || candidateX > sampler.WorldSize - margin ||
-                    candidateZ < margin || candidateZ > sampler.WorldSize - margin)
+                    candidateX < minEdgeX + margin || candidateX > maxEdgeX - margin ||
+                    candidateZ < minEdgeZ + margin || candidateZ > maxEdgeZ - margin)
                 {
                     continue;
                 }
@@ -886,9 +894,12 @@ namespace Lootbound.Gameplay.World.Layout
             if (isPrimaryPath)
             {
                 float margin = sampler.WorldSize * 0.1f;
+                float halfExtent = sampler.WorldSize * 0.5f;
+                float cX = sampler.WorldCenter.x;
+                float cZ = sampler.WorldCenter.z;
                 float edgeDist = Mathf.Min(
-                    candidate.x, candidate.z,
-                    sampler.WorldSize - candidate.x, sampler.WorldSize - candidate.z
+                    candidate.x - (cX - halfExtent), candidate.z - (cZ - halfExtent),
+                    (cX + halfExtent) - candidate.x, (cZ + halfExtent) - candidate.z
                 );
                 if (edgeDist < margin)
                 {

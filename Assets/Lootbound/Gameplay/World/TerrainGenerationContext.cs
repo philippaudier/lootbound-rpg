@@ -33,6 +33,16 @@ namespace Lootbound.Gameplay.World
         public float WorldSize { get; }
 
         /// <summary>
+        /// The world-space region this context materializes. NOT the size of the
+        /// world: the logical world is unbounded and the generator can evaluate a
+        /// height at any coordinate; these bounds only describe the finite region
+        /// for which this concrete heightmap (with its authored relief) exists.
+        /// The single place the world origin lives - legacy corner worlds have
+        /// Min = (0,0); a refuge-centred world has a negative Min and Center = (0,0).
+        /// </summary>
+        public WorldBounds Bounds { get; }
+
+        /// <summary>
         /// Maximum terrain height in meters.
         /// </summary>
         public float TerrainHeight { get; }
@@ -109,13 +119,16 @@ namespace Lootbound.Gameplay.World
         /// </summary>
         public WorldLayoutContext LayoutContext { get; set; }
 
-        public TerrainGenerationContext(int seed, int resolution, float worldSize, float terrainHeight, int generationId = 0)
+        public TerrainGenerationContext(int seed, int resolution, float worldSize, float terrainHeight, int generationId = 0, WorldBounds? bounds = null)
         {
             Seed = seed;
             GenerationId = generationId;
             Resolution = resolution;
             WorldSize = worldSize;
             TerrainHeight = terrainHeight;
+            // Default to the legacy corner origin so existing callers are unchanged;
+            // the refuge-centred region is supplied explicitly once M2 flips it.
+            Bounds = bounds ?? WorldBounds.FromCorner(0f, 0f, worldSize);
 
             HeightMap = new float[resolution, resolution];
             NormalizedHeightMap = new float[resolution, resolution];
@@ -190,10 +203,32 @@ namespace Lootbound.Gameplay.World
         /// </summary>
         public (int x, int z) WorldToHeightmap(Vector3 worldPos)
         {
-            int x = Mathf.Clamp(Mathf.RoundToInt((worldPos.x / WorldSize) * (Resolution - 1)), 0, Resolution - 1);
-            int z = Mathf.Clamp(Mathf.RoundToInt((worldPos.z / WorldSize) * (Resolution - 1)), 0, Resolution - 1);
+            int x = Mathf.Clamp(Mathf.RoundToInt(Bounds.NormalizeX(worldPos.x) * (Resolution - 1)), 0, Resolution - 1);
+            int z = Mathf.Clamp(Mathf.RoundToInt(Bounds.NormalizeZ(worldPos.z) * (Resolution - 1)), 0, Resolution - 1);
             return (x, z);
         }
+
+        /// <summary>
+        /// Centre of the materialized region in world space (Y = 0). At the legacy
+        /// corner origin this is (WorldSize/2, 0, WorldSize/2); a refuge-centred
+        /// region reports (0, 0, 0). Use this instead of WorldSize * 0.5f.
+        /// </summary>
+        public Vector3 WorldCenter => new Vector3(Bounds.CenterX, 0f, Bounds.CenterZ);
+
+        /// <summary>True if the world coordinate lies inside the materialized region.</summary>
+        public bool Contains(float worldX, float worldZ) => Bounds.Contains(worldX, worldZ);
+
+        /// <summary>World X -> fractional heightmap column [0 .. Resolution-1] (unclamped).</summary>
+        public float WorldToGridX(float worldX) => Bounds.NormalizeX(worldX) * (Resolution - 1);
+
+        /// <summary>World Z -> fractional heightmap row [0 .. Resolution-1] (unclamped).</summary>
+        public float WorldToGridZ(float worldZ) => Bounds.NormalizeZ(worldZ) * (Resolution - 1);
+
+        /// <summary>Heightmap column -> world X in meters.</summary>
+        public float GridToWorldX(int x) => Bounds.MinX + (x / (float)(Resolution - 1)) * Bounds.SizeX;
+
+        /// <summary>Heightmap row -> world Z in meters.</summary>
+        public float GridToWorldZ(int z) => Bounds.MinZ + (z / (float)(Resolution - 1)) * Bounds.SizeZ;
 
         /// <summary>
         /// Sample height at world position using bilinear interpolation.
@@ -203,8 +238,8 @@ namespace Lootbound.Gameplay.World
         /// </summary>
         public float SampleHeightAtWorld(float worldX, float worldZ)
         {
-            float normX = Mathf.Clamp01(worldX / WorldSize);
-            float normZ = Mathf.Clamp01(worldZ / WorldSize);
+            float normX = Mathf.Clamp01(Bounds.NormalizeX(worldX));
+            float normZ = Mathf.Clamp01(Bounds.NormalizeZ(worldZ));
 
             float fx = normX * (Resolution - 1);
             float fz = normZ * (Resolution - 1);
