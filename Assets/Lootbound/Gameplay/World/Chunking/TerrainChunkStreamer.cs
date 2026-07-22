@@ -42,6 +42,14 @@ namespace Lootbound.Gameplay.World.Chunking
         [Tooltip("Create one view's worth of chunk instances up front (at initialize), so first streaming never pays instance creation mid-play.")]
         [SerializeField] private bool prewarmPool = true;
 
+        [Header("Chunk Rendering")]
+        [Tooltip("Screen-space error (px) Unity may decimate terrain geometry to. Higher = fewer vertices, mostly far away.")]
+        [SerializeField] private float pixelError = 8f;
+        [Tooltip("Beyond this distance (m), chunks render their cheap blended basemap instead of the full splat.")]
+        [SerializeField] private float basemapDistance = 300f;
+        [Tooltip("Instanced terrain rendering - the main CPU render-cost reduction when many chunks are visible.")]
+        [SerializeField] private bool drawInstancedTerrain = true;
+
         private IWorldHeightSampler _sampler;
         private Transform _player;
         private Transform _chunkRoot;
@@ -53,8 +61,8 @@ namespace Lootbound.Gameplay.World.Chunking
         private readonly List<TerrainChunkCoordinate> _toRelease = new List<TerrainChunkCoordinate>();
         private readonly List<TerrainChunkCoordinate> _queuedScratch = new List<TerrainChunkCoordinate>();
         private readonly List<TerrainChunkData> _finished = new List<TerrainChunkData>();
+        private readonly List<TerrainChunkCoordinate> _changedThisTick = new List<TerrainChunkCoordinate>();
         private bool _initialized;
-        private bool _neighborsDirty;
 
         public int ActiveChunkCount => _active.Count;
         public int PooledChunkCount => _pool?.FreeCount ?? 0;
@@ -105,7 +113,8 @@ namespace Lootbound.Gameplay.World.Chunking
             _builder = new TerrainChunkBuilder(_sampler);
             _scheduler = new TerrainChunkBuildScheduler(
                 _builder, heightmapResolution, chunkWorldSize, alphamapResolution, maxQueuedRequests);
-            _pool = new ChunkPool(() => new TerrainChunk(_chunkRoot, useLayers));
+            _pool = new ChunkPool(() => new TerrainChunk(
+                _chunkRoot, useLayers, pixelError, basemapDistance, drawInstancedTerrain));
             if (prewarmPool)
             {
                 int side = 2 * activeRadiusInChunks + 1;
@@ -144,6 +153,7 @@ namespace Lootbound.Gameplay.World.Chunking
             }
 
             _tickClock.Restart();
+            _changedThisTick.Clear();
             Vector3 p = _player.position;
             TerrainChunkCoordinate center = TerrainChunkCoordinate.FromWorld(p.x, p.z, chunkWorldSize);
 
@@ -161,7 +171,7 @@ namespace Lootbound.Gameplay.World.Chunking
                 TerrainChunkCoordinate coord = _toRelease[i];
                 _pool.Release(_active[coord]);
                 _active.Remove(coord);
-                _neighborsDirty = true;
+                _changedThisTick.Add(coord);
             }
 
             // Drop pending requests (queued or building) that left the radius.
@@ -200,18 +210,19 @@ namespace Lootbound.Gameplay.World.Chunking
                 TerrainChunk chunk = _pool.Acquire();
                 chunk.Apply(data);
                 _active[data.Coordinate] = chunk;
-                _neighborsDirty = true;
+                _changedThisTick.Add(data.Coordinate);
 
                 // Applied (copied into the TerrainData) - hand the build buffers
                 // back so the next build reuses them instead of allocating.
                 _scheduler.ReleaseBuffers(data);
             }
 
-            // Stitch adjacent chunks so Unity does not crack their shared edges.
-            if (_neighborsDirty)
+            // Stitch INCREMENTALLY: only the chunks that changed this tick and
+            // their four neighbours are re-declared - never the whole active set
+            // (at large radii that alone was the residual frame spike).
+            if (_changedThisTick.Count > 0)
             {
-                RefreshNeighbors();
-                _neighborsDirty = false;
+                RefreshNeighborsAroundChanges();
             }
 
             _tickClock.Stop();
@@ -225,18 +236,33 @@ namespace Lootbound.Gameplay.World.Chunking
 
         private static readonly ProfilerMarker StitchNeighborsMarker = new ProfilerMarker("Chunk.StitchNeighbors");
 
-        private void RefreshNeighbors()
+        private void RefreshNeighborsAroundChanges()
         {
             using var _ = StitchNeighborsMarker.Auto();
-            foreach (KeyValuePair<TerrainChunkCoordinate, TerrainChunk> kv in _active)
+            for (int i = 0; i < _changedThisTick.Count; i++)
             {
-                TerrainChunkCoordinate c = kv.Key;
-                _active.TryGetValue(new TerrainChunkCoordinate(c.X - 1, c.Z), out TerrainChunk left);
-                _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z + 1), out TerrainChunk top);
-                _active.TryGetValue(new TerrainChunkCoordinate(c.X + 1, c.Z), out TerrainChunk right);
-                _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z - 1), out TerrainChunk bottom);
-                kv.Value.SetNeighbors(left, top, right, bottom);
+                TerrainChunkCoordinate c = _changedThisTick[i];
+                // The changed cell plus its four neighbours; duplicates across
+                // changes are harmless (SetNeighbors is idempotent).
+                RefreshNeighborsAt(c);
+                RefreshNeighborsAt(new TerrainChunkCoordinate(c.X - 1, c.Z));
+                RefreshNeighborsAt(new TerrainChunkCoordinate(c.X + 1, c.Z));
+                RefreshNeighborsAt(new TerrainChunkCoordinate(c.X, c.Z - 1));
+                RefreshNeighborsAt(new TerrainChunkCoordinate(c.X, c.Z + 1));
             }
+        }
+
+        private void RefreshNeighborsAt(TerrainChunkCoordinate c)
+        {
+            if (!_active.TryGetValue(c, out TerrainChunk chunk))
+            {
+                return;
+            }
+            _active.TryGetValue(new TerrainChunkCoordinate(c.X - 1, c.Z), out TerrainChunk left);
+            _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z + 1), out TerrainChunk top);
+            _active.TryGetValue(new TerrainChunkCoordinate(c.X + 1, c.Z), out TerrainChunk right);
+            _active.TryGetValue(new TerrainChunkCoordinate(c.X, c.Z - 1), out TerrainChunk bottom);
+            chunk.SetNeighbors(left, top, right, bottom);
         }
 
         /// <summary>

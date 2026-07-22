@@ -22,16 +22,25 @@ namespace Lootbound.Gameplay.World.Chunking
         public GameObject GameObject { get; }
         public bool IsActive => GameObject != null && GameObject.activeSelf;
 
-        public TerrainChunk(Transform parent, TerrainLayer[] layers)
+        public TerrainChunk(
+            Transform parent, TerrainLayer[] layers,
+            float pixelError = 5f, float basemapDistance = 1000f, bool drawInstanced = true)
         {
             _data = new TerrainData();
             GameObject = Terrain.CreateTerrainGameObject(_data);
             _terrain = GameObject.GetComponent<Terrain>();
 
-            // No neighbour auto-connection in M3: chunks stitch by sharing exact
-            // edge heights, and SetNeighbors / LOD is M4. Auto-connect would also
-            // warn when it meets the higher-res Editor Terrain Preview.
+            // No neighbour auto-connection: chunks stitch by sharing exact edge
+            // heights plus explicit SetNeighbors. Auto-connect would also warn
+            // when it meets the higher-res Editor Terrain Preview.
             _terrain.allowAutoConnect = false;
+
+            // CPU-side render cost knobs (profiler-driven, M5.0): instanced
+            // terrain rendering, screen-error decimation, and the distance beyond
+            // which Unity renders the cheap blended basemap instead of the splat.
+            _terrain.drawInstanced = drawInstanced;
+            _terrain.heightmapPixelError = pixelError;
+            _terrain.basemapDistance = basemapDistance;
 
             if (parent != null)
             {
