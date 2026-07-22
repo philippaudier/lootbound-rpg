@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lootbound.Gameplay.World.Chunking
 {
@@ -30,23 +32,56 @@ namespace Lootbound.Gameplay.World.Chunking
         [Tooltip("Splat/alphamap resolution per chunk (surface texturing). 0 leaves chunks on their first layer.")]
         [SerializeField] private int alphamapResolution = 129;
         [SerializeField] private int activeRadiusInChunks = 2;
-        [Tooltip("At most this many chunks are built per tick, so a big jump spreads its work over a few frames rather than one spike.")]
-        [SerializeField] private int maxBuildsPerTick = 4;
+        [Tooltip("At most this many chunks are built and activated per frame, so a big jump spreads its work over several frames rather than one spike.")]
+        [FormerlySerializedAs("maxBuildsPerTick")]
+        [SerializeField] private int maxChunkActivationsPerFrame = 1;
+        [Tooltip("Cap on queued build requests; ignored overflow is simply re-requested on a later tick.")]
+        [SerializeField] private int maxQueuedRequests = 64;
+        [Tooltip("Time budget (ms) the scheduler may spend building chunk data each frame. A build larger than the budget simply resumes next frame.")]
+        [SerializeField] private float maxChunkBuildMillisecondsPerFrame = 4f;
+        [Tooltip("Create one view's worth of chunk instances up front (at initialize), so first streaming never pays instance creation mid-play.")]
+        [SerializeField] private bool prewarmPool = true;
 
         private IWorldHeightSampler _sampler;
         private Transform _player;
         private Transform _chunkRoot;
         private TerrainChunkBuilder _builder;
+        private TerrainChunkBuildScheduler _scheduler;
         private ChunkPool _pool;
         private readonly Dictionary<TerrainChunkCoordinate, TerrainChunk> _active =
             new Dictionary<TerrainChunkCoordinate, TerrainChunk>();
         private readonly List<TerrainChunkCoordinate> _toRelease = new List<TerrainChunkCoordinate>();
+        private readonly List<TerrainChunkCoordinate> _queuedScratch = new List<TerrainChunkCoordinate>();
+        private readonly List<TerrainChunkData> _finished = new List<TerrainChunkData>();
         private bool _initialized;
         private bool _neighborsDirty;
 
         public int ActiveChunkCount => _active.Count;
         public int PooledChunkCount => _pool?.FreeCount ?? 0;
         public int InstancesCreated => _pool?.TotalCreated ?? 0;
+        public int QueuedBuildCount => _scheduler?.QueuedCount ?? 0;
+        public bool HasRunningBuild => _scheduler != null && _scheduler.HasRunningBuild;
+        public int TotalChunksBuilt => _scheduler?.TotalBuilt ?? 0;
+        public int TotalBuildsCancelled => _scheduler?.TotalCancelled ?? 0;
+
+        // Diagnostics: streaming cost of the last tick, its worst observed value,
+        // and how many chunks were activated by it.
+        public float LastTickMilliseconds { get; private set; }
+        public float PeakTickMilliseconds { get; private set; }
+        public int LastTickActivations { get; private set; }
+        public double AverageBuildMilliseconds =>
+            _scheduler != null && _scheduler.TotalBuilt > 0
+                ? _scheduler.TotalProcessMilliseconds / _scheduler.TotalBuilt
+                : 0.0;
+
+        private readonly System.Diagnostics.Stopwatch _tickClock = new System.Diagnostics.Stopwatch();
+
+        /// <summary>True when the chunk containing this world position is active (built, collider live).</summary>
+        public bool HasActiveChunkAt(double worldX, double worldZ)
+        {
+            return _initialized &&
+                   _active.ContainsKey(TerrainChunkCoordinate.FromWorld(worldX, worldZ, chunkWorldSize));
+        }
 
         /// <summary>
         /// Wire the streamer explicitly. Used by tests and by any caller that
@@ -68,7 +103,14 @@ namespace Lootbound.Gameplay.World.Chunking
             }
 
             _builder = new TerrainChunkBuilder(_sampler);
+            _scheduler = new TerrainChunkBuildScheduler(
+                _builder, heightmapResolution, chunkWorldSize, alphamapResolution, maxQueuedRequests);
             _pool = new ChunkPool(() => new TerrainChunk(_chunkRoot, useLayers));
+            if (prewarmPool)
+            {
+                int side = 2 * activeRadiusInChunks + 1;
+                _pool.Prewarm(side * side);
+            }
             _initialized = true;
         }
 
@@ -101,6 +143,7 @@ namespace Lootbound.Gameplay.World.Chunking
                 return;
             }
 
+            _tickClock.Restart();
             Vector3 p = _player.position;
             TerrainChunkCoordinate center = TerrainChunkCoordinate.FromWorld(p.x, p.z, chunkWorldSize);
 
@@ -121,30 +164,47 @@ namespace Lootbound.Gameplay.World.Chunking
                 _neighborsDirty = true;
             }
 
-            // Build the missing in-range chunks, budgeted per tick.
-            int budget = maxBuildsPerTick > 0 ? maxBuildsPerTick : int.MaxValue;
-            bool budgetExhausted = false;
-            for (int dz = -activeRadiusInChunks; dz <= activeRadiusInChunks && !budgetExhausted; dz++)
+            // Drop pending requests (queued or building) that left the radius.
+            _queuedScratch.Clear();
+            _scheduler.CollectPending(_queuedScratch);
+            for (int i = 0; i < _queuedScratch.Count; i++)
+            {
+                if (ChebyshevDistance(_queuedScratch[i], center) > activeRadiusInChunks)
+                {
+                    _scheduler.Cancel(_queuedScratch[i]);
+                }
+            }
+
+            // Request every missing in-range chunk; the scheduler dedups and caps.
+            for (int dz = -activeRadiusInChunks; dz <= activeRadiusInChunks; dz++)
             {
                 for (int dx = -activeRadiusInChunks; dx <= activeRadiusInChunks; dx++)
                 {
                     var coord = new TerrainChunkCoordinate(center.X + dx, center.Z + dz);
-                    if (_active.ContainsKey(coord))
+                    if (!_active.ContainsKey(coord) && !_scheduler.IsPending(coord))
                     {
-                        continue;
-                    }
-
-                    TerrainChunk chunk = _pool.Acquire();
-                    chunk.Apply(_builder.Build(coord, heightmapResolution, chunkWorldSize, alphamapResolution));
-                    _active[coord] = chunk;
-                    _neighborsDirty = true;
-
-                    if (--budget <= 0)
-                    {
-                        budgetExhausted = true;
-                        break;
+                        _scheduler.Request(coord);
                     }
                 }
+            }
+
+            // Let the scheduler work under its time budget and finish up to the
+            // frame's activation budget (nearest first), then ACTIVATE the
+            // results - pool and active set are the streamer's responsibilities.
+            int budget = maxChunkActivationsPerFrame > 0 ? maxChunkActivationsPerFrame : 1;
+            _finished.Clear();
+            _scheduler.Process(center, budget, maxChunkBuildMillisecondsPerFrame, _finished);
+            for (int i = 0; i < _finished.Count; i++)
+            {
+                TerrainChunkData data = _finished[i];
+                TerrainChunk chunk = _pool.Acquire();
+                chunk.Apply(data);
+                _active[data.Coordinate] = chunk;
+                _neighborsDirty = true;
+
+                // Applied (copied into the TerrainData) - hand the build buffers
+                // back so the next build reuses them instead of allocating.
+                _scheduler.ReleaseBuffers(data);
             }
 
             // Stitch adjacent chunks so Unity does not crack their shared edges.
@@ -153,10 +213,21 @@ namespace Lootbound.Gameplay.World.Chunking
                 RefreshNeighbors();
                 _neighborsDirty = false;
             }
+
+            _tickClock.Stop();
+            LastTickMilliseconds = (float)_tickClock.Elapsed.TotalMilliseconds;
+            if (LastTickMilliseconds > PeakTickMilliseconds)
+            {
+                PeakTickMilliseconds = LastTickMilliseconds;
+            }
+            LastTickActivations = _finished.Count;
         }
+
+        private static readonly ProfilerMarker StitchNeighborsMarker = new ProfilerMarker("Chunk.StitchNeighbors");
 
         private void RefreshNeighbors()
         {
+            using var _ = StitchNeighborsMarker.Auto();
             foreach (KeyValuePair<TerrainChunkCoordinate, TerrainChunk> kv in _active)
             {
                 TerrainChunkCoordinate c = kv.Key;

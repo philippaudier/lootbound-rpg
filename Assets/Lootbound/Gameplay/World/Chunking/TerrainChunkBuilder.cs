@@ -1,3 +1,4 @@
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Lootbound.Gameplay.World.Chunking
@@ -16,6 +17,8 @@ namespace Lootbound.Gameplay.World.Chunking
     /// </summary>
     public sealed class TerrainChunkBuilder
     {
+        private static readonly ProfilerMarker TotalBuildMarker = new ProfilerMarker("Chunk.TotalBuild");
+
         private readonly IWorldHeightSampler _sampler;
 
         public TerrainChunkBuilder(IWorldHeightSampler sampler)
@@ -23,60 +26,34 @@ namespace Lootbound.Gameplay.World.Chunking
             _sampler = sampler;
         }
 
+        /// <summary>
+        /// Begin an incremental build. The caller (normally the scheduler) drives
+        /// the returned state with Advance() under its own time budget.
+        /// </summary>
+        public TerrainChunkBuildState CreateBuildState(
+            TerrainChunkCoordinate coordinate, int resolution, float chunkWorldSize, int alphamapResolution = 0,
+            TerrainChunkBuildBuffers buffers = null)
+        {
+            return new TerrainChunkBuildState(_sampler, coordinate, resolution, chunkWorldSize, alphamapResolution, buffers);
+        }
+
+        /// <summary>
+        /// Build a chunk's data synchronously (tests, editor tools, benchmarks).
+        /// Same single implementation as the incremental path: it just runs the
+        /// build state to completion with an unlimited deadline.
+        /// </summary>
         public TerrainChunkData Build(
             TerrainChunkCoordinate coordinate, int resolution, float chunkWorldSize, int alphamapResolution = 0)
         {
-            if (resolution < 2)
+            using (TotalBuildMarker.Auto())
             {
-                resolution = 2;
-            }
-
-            float terrainHeight = _sampler.TerrainHeight;
-            float invHeight = terrainHeight > 0f ? 1f / terrainHeight : 0f;
-            int last = resolution - 1;
-
-            // World coordinate as (chunkIndex + fraction) * size. At the far edge
-            // the fraction is exactly x/(res-1) = 1.0, so the neighbour chunk
-            // evaluates the SAME expression (index+1)+0.0 at that boundary - the
-            // shared row/column is bit-identical, no crack, for any size/resolution.
-            float[,] heights = new float[resolution, resolution]; // [z, x] for SetHeights
-            for (int z = 0; z < resolution; z++)
-            {
-                double worldZ = (coordinate.Z + z / (double)last) * chunkWorldSize;
-                for (int x = 0; x < resolution; x++)
+                TerrainChunkBuildState state = CreateBuildState(coordinate, resolution, chunkWorldSize, alphamapResolution);
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                while (!state.Advance(clock, long.MaxValue))
                 {
-                    double worldX = (coordinate.X + x / (double)last) * chunkWorldSize;
-                    float metres = _sampler.SampleHeight(worldX, worldZ);
-                    heights[z, x] = Mathf.Clamp01(metres * invHeight);
                 }
+                return state.Result;
             }
-
-            // Paint an alphamap only when the sampler classifies the surface.
-            float[,,] alphamaps = null;
-            if (alphamapResolution > 1 && _sampler is IWorldSplatSampler splat)
-            {
-                int layers = splat.SplatLayerCount;
-                int alast = alphamapResolution - 1;
-                alphamaps = new float[alphamapResolution, alphamapResolution, layers]; // [z, x, layer]
-                var weights = new float[layers];
-                for (int z = 0; z < alphamapResolution; z++)
-                {
-                    double worldZ = (coordinate.Z + z / (double)alast) * chunkWorldSize;
-                    for (int x = 0; x < alphamapResolution; x++)
-                    {
-                        double worldX = (coordinate.X + x / (double)alast) * chunkWorldSize;
-                        splat.SampleSplat(worldX, worldZ, weights);
-                        for (int l = 0; l < layers; l++)
-                        {
-                            alphamaps[z, x, l] = weights[l];
-                        }
-                    }
-                }
-            }
-
-            return new TerrainChunkData(
-                coordinate, chunkWorldSize, terrainHeight, resolution, heights,
-                alphamaps != null ? alphamapResolution : 0, alphamaps);
         }
     }
 }

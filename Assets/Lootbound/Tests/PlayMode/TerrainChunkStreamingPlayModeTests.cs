@@ -43,7 +43,8 @@ namespace Lootbound.Tests.PlayMode
             SetField(_streamer, "chunkWorldSize", ChunkSize);
             SetField(_streamer, "heightmapResolution", 33);
             SetField(_streamer, "activeRadiusInChunks", Radius);
-            SetField(_streamer, "maxBuildsPerTick", 100); // build a whole view in one tick
+            SetField(_streamer, "maxChunkActivationsPerFrame", 100); // build a whole view in one tick
+            SetField(_streamer, "maxChunkBuildMillisecondsPerFrame", 1000f); // don't slice in this test
 
             _player = new GameObject("Player").transform;
             _streamer.Initialize(new FuncSampler(), _player);

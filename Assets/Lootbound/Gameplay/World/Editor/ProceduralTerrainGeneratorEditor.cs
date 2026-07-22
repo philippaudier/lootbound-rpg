@@ -69,10 +69,18 @@ namespace Lootbound.Gameplay.World.Editor
                 SceneView.RepaintAll();
             }
 
-            if (GUILayout.Button("Clear Terrain", GUILayout.Height(25)))
+            if (GUILayout.Button("Clear World", GUILayout.Height(25)))
             {
-                Undo.RecordObject(generator, "Clear Terrain");
-                generator.ClearTerrain();
+                Undo.RecordObject(generator, "Clear World");
+                generator.ClearWorld();
+
+                // The preview is a client; clear its Terrain too (editor-only search).
+                var preview = Object.FindFirstObjectByType<TerrainPreviewGenerator>();
+                if (preview != null)
+                {
+                    preview.Clear();
+                }
+
                 EditorUtility.SetDirty(generator);
                 SceneView.RepaintAll();
             }

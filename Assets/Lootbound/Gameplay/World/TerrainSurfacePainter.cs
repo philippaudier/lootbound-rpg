@@ -27,6 +27,7 @@ namespace Lootbound.Gameplay.World
             int numLayers = 4;
 
             float[,,] alphamap = new float[alphamapResolution, alphamapResolution, numLayers];
+            float[] weights = new float[numLayers]; // reused per cell, no per-cell allocation
 
             // Use seed for noise variation in painting
             System.Random paintRandom = new System.Random(context.Seed + 54321);
@@ -62,10 +63,8 @@ namespace Lootbound.Gameplay.World
                         (az + noiseOffsetZ) / 15f
                     );
 
-                    // Calculate layer weights
-                    float[] weights = CalculateLayerWeights(
-                        height, slope, macro, noise, fineNoise, config
-                    );
+                    // Calculate layer weights into the reused buffer
+                    CalculateLayerWeights(height, slope, macro, noise, fineNoise, config, weights);
 
                     // Normalize weights
                     float sum = 0f;
@@ -100,16 +99,37 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Calculate weights for each terrain layer at a single point. Public so
-        /// the same classification can be reused per world coordinate (e.g. by the
-        /// generator's splat sampler for streamed chunks), not just over the
-        /// monolithic context grid. Weights are NOT normalized here.
+        /// Allocating convenience overload; prefer the non-allocating one in any
+        /// per-cell loop.
         /// </summary>
         public static float[] CalculateLayerWeights(
             float height, float slope, float macro, float noise, float fineNoise,
             TerrainGenerationConfig config)
         {
             float[] weights = new float[4];
+            CalculateLayerWeights(height, slope, macro, noise, fineNoise, config, weights);
+            return weights;
+        }
+
+        /// <summary>
+        /// Calculate weights for each terrain layer at a single point, written
+        /// into the caller's buffer (length >= 4) - no allocation, safe to call
+        /// tens of thousands of times per chunk. Public so the same
+        /// classification serves the monolithic preview painter and the
+        /// generator's splat sampler alike. Weights are NOT normalized here.
+        /// </summary>
+        public static void CalculateLayerWeights(
+            float height, float slope, float macro, float noise, float fineNoise,
+            TerrainGenerationConfig config, float[] weights)
+        {
+            if (weights == null || weights.Length < 4)
+            {
+                return;
+            }
+            weights[0] = 0f;
+            weights[1] = 0f;
+            weights[2] = 0f;
+            weights[3] = 0f;
 
             // Layer thresholds
             float lowlandThreshold = config.LowlandThreshold;
@@ -173,8 +193,6 @@ namespace Lootbound.Gameplay.World
                 weights[(int)TerrainLayer.Grass] += adjustment;
                 weights[(int)TerrainLayer.DryGround] -= adjustment;
             }
-
-            return weights;
         }
 
         /// <summary>

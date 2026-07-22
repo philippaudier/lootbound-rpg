@@ -300,44 +300,59 @@ with no hidden singleton.
               Player
                  │
                  ▼
-      TerrainChunkStreamer      owns: player pos → which chunks exist → the pool
+      TerrainChunkStreamer        owns: player pos → which chunks exist → the pool
+                 │  requests / cancels          (budgets: activations, ms, queue cap)
+                 ▼
+   TerrainChunkBuildScheduler     owns: the queue — a request is only
+                 │                Queued → Running → Finished; nearest-first,
+                 │                deterministic ties, ONE build in flight
+                 ▼
+      TerrainChunkBuilder         creates the build; knows only the sampler
                  │
-      decides which chunks exist
+                 ▼
+     TerrainChunkBuildState       row-sliced state machine (NOT a Unity Job):
+                 │                SamplingHeights ▸ BuildingSurface (derived
+                 │  samples       from the height buffer + 1-cell margin)
+                 ▼
+ProceduralTerrainGenerator        the ONE generator — Sample(x,z): Height / Masks
                  │
-        ┌────────┴────────┐
-        ▼                 ▼
- TerrainChunkBuilder    ChunkPool
-        │
-        ▼
-ProceduralTerrainGenerator      the ONE generator — Sample(x,z): Height / Masks / Biomes
-        │
-        ▼
- TerrainChunkData               pure data (heights + meta), zero Unity
-        │
-        ▼
- TerrainChunk.Apply(data)       owns a Unity Terrain — displays, never generates
-        │
-        ▼
-     Unity Terrain
+                 ▼
+        TerrainChunkData          pure data (heights + alphamaps), zero Unity
+                 │
+                 ▼
+    TerrainChunk.Apply(data)      owns a Unity Terrain — displays, never generates
+                 │
+                 ▼
+          Unity Terrain
 ```
+
+Sibling CLIENTS of the same sampling contracts (the generator owns no Unity
+Terrain at all since M4): `TerrainPreviewGenerator` fills the Editor Terrain
+Preview, `WorldPlayerSpawner` places the player, the chunk pipeline streams the
+runtime world. A minimap tomorrow is just one more client.
 
 | Component | Owns | Does NOT know about |
 |---|---|---|
-| `ProceduralTerrainGenerator` | `Sample(x,z)` — Height today; Masks / Biomes later — at any world coordinate | chunks · Unity Terrain · the streamer · the pool |
-| `TerrainChunkBuilder` | fills a `TerrainChunkData` from the generator, then returns it | the streamer · the player · Unity Terrain |
-| `TerrainChunkData` | the built data (height grid + meta) | anything Unity |
-| `TerrainChunk` | one Unity Terrain — `Apply(TerrainChunkData)` | generation · the streamer |
-| `TerrainChunkStreamer` | player position → visible chunks → the pool | how a chunk is built or displayed |
+| `ProceduralTerrainGenerator` | `Sample(x,z)` — Height today; Masks / Biomes later — at any world coordinate | chunks · Unity Terrain · the streamer · the pool · the preview |
+| `TerrainChunkBuildScheduler` | the request queue: priority, dedup, cancel, per-frame ms/activation budgets | the INTERNAL build steps · the pool · Unity |
+| `TerrainChunkBuilder` / `TerrainChunkBuildState` | producing a `TerrainChunkData` (row-sliced, reusable lent buffers) | the scheduler · the streamer · the player · Unity objects |
+| `TerrainChunkData` | the built data (height grid + alphamaps) | anything Unity |
+| `TerrainChunk` | one Unity Terrain — `Apply(TerrainChunkData)`, neighbours, recycle hygiene | generation · the streamer |
+| `TerrainChunkStreamer` | player position → required chunks → activation → the pool | how a chunk is built or displayed |
 
 Rules that must stay true:
 
 - The generator answers `Height(x,z)` for **any** coordinate; the finite region
   currently generated is only where authored deformations exist. It never learns
   that chunks exist.
+- The scheduler never knows the internal build steps — to it a request is only
+  `Queued → Running → Finished`. Dependencies point one way:
+  scheduler → builder, never the reverse.
 - `TerrainChunk` **displays**, never generates — so save / network / import /
   debug can feed it a `TerrainChunkData` from any source later, untouched.
 - No hidden singleton: a streamer is an instance with injected dependencies;
   several can coexist across scenes.
+- These guarantees are enforced by reflection tests (`ChunkOwnershipTests`).
 
 ## 7. Data ownership
 

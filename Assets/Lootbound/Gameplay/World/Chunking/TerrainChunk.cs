@@ -1,3 +1,4 @@
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Lootbound.Gameplay.World.Chunking
@@ -11,6 +12,9 @@ namespace Lootbound.Gameplay.World.Chunking
     /// </summary>
     public sealed class TerrainChunk
     {
+        private static readonly ProfilerMarker ApplyHeightsMarker = new ProfilerMarker("Chunk.ApplyHeights");
+        private static readonly ProfilerMarker ApplyAlphamapsMarker = new ProfilerMarker("Chunk.ApplyAlphamaps");
+
         private readonly Terrain _terrain;
         private readonly TerrainData _data;
 
@@ -45,25 +49,31 @@ namespace Lootbound.Gameplay.World.Chunking
         {
             Coordinate = chunkData.Coordinate;
 
-            // Resolution is set before heights; changing it clears the map, so it
-            // is only touched on the first apply (all chunks share one resolution).
-            if (_data.heightmapResolution != chunkData.Resolution)
+            using (ApplyHeightsMarker.Auto())
             {
-                _data.heightmapResolution = chunkData.Resolution;
+                // Resolution is set before heights; changing it clears the map, so
+                // it is only touched on the first apply (all chunks share one).
+                if (_data.heightmapResolution != chunkData.Resolution)
+                {
+                    _data.heightmapResolution = chunkData.Resolution;
+                }
+                _data.size = new Vector3(chunkData.ChunkWorldSize, chunkData.TerrainHeight, chunkData.ChunkWorldSize);
+                _data.SetHeights(0, 0, chunkData.Heights);
             }
-            _data.size = new Vector3(chunkData.ChunkWorldSize, chunkData.TerrainHeight, chunkData.ChunkWorldSize);
-            _data.SetHeights(0, 0, chunkData.Heights);
 
             // Paint, only if the data carries an alphamap AND its layer count
             // matches this terrain's layers (else Unity would throw).
             if (chunkData.Alphamaps != null && chunkData.AlphamapResolution > 0 &&
                 chunkData.Alphamaps.GetLength(2) == _data.alphamapLayers && _data.alphamapLayers > 0)
             {
-                if (_data.alphamapResolution != chunkData.AlphamapResolution)
+                using (ApplyAlphamapsMarker.Auto())
                 {
-                    _data.alphamapResolution = chunkData.AlphamapResolution;
+                    if (_data.alphamapResolution != chunkData.AlphamapResolution)
+                    {
+                        _data.alphamapResolution = chunkData.AlphamapResolution;
+                    }
+                    _data.SetAlphamaps(0, 0, chunkData.Alphamaps);
                 }
-                _data.SetAlphamaps(0, 0, chunkData.Alphamaps);
             }
 
             GameObject.transform.position = new Vector3(
@@ -84,9 +94,16 @@ namespace Lootbound.Gameplay.World.Chunking
             _terrain.SetNeighbors(left?._terrain, top?._terrain, right?._terrain, bottom?._terrain);
         }
 
-        /// <summary>Deactivate for reuse by the pool (no destroy).</summary>
+        /// <summary>
+        /// Deactivate for reuse by the pool (no destroy). Old neighbour links are
+        /// cleared so a recycled terrain never keeps stitching to chunks it no
+        /// longer sits beside; the collider deactivates with the GameObject. The
+        /// chunk only reactivates inside <see cref="Apply"/>, AFTER its new data
+        /// is fully written - stale relief is never displayed.
+        /// </summary>
         public void Recycle()
         {
+            _terrain.SetNeighbors(null, null, null, null);
             GameObject.SetActive(false);
         }
 

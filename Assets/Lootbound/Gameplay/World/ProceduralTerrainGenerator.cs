@@ -11,14 +11,16 @@ using Debug = UnityEngine.Debug;
 namespace Lootbound.Gameplay.World
 {
     /// <summary>
-    /// Orchestrates procedural terrain generation.
-    /// Manages the Unity Terrain component and coordinates all generation steps.
-    ///
-    /// It is also the world's <see cref="IWorldHeightSampler"/>: it answers
-    /// Height(x,z) at any coordinate. That is the ONLY thing the chunk streaming
-    /// layer asks of it - the generator never learns that chunks, a streamer or a
-    /// pool exist. (The legacy single-Terrain presentation below is transitional
-    /// and will move out to the chunk layer in a later milestone.)
+    /// The procedural world library: it BUILDS the world (context, layout,
+    /// landmark seats, refuge carve) and ANSWERS questions about it - never how
+    /// it is displayed. Since M4.1 it owns no Unity Terrain: the Editor Terrain
+    /// Preview is filled by <see cref="TerrainPreviewGenerator"/>, streamed
+    /// chunks by the chunk layer, and the player is placed by
+    /// <see cref="WorldPlayerSpawner"/> - all of them CLIENTS of the same two
+    /// sampling contracts this class implements:
+    /// <see cref="IWorldHeightSampler"/> (Height(x,z) at any coordinate) and
+    /// <see cref="IWorldSplatSampler"/> (surface masks). The generator never
+    /// learns that chunks, a streamer, a pool or a preview exist.
     /// </summary>
     public class ProceduralTerrainGenerator : MonoBehaviour, IWorldHeightSampler, IWorldSplatSampler
     {
@@ -29,16 +31,6 @@ namespace Lootbound.Gameplay.World
         [SerializeField]
         [Tooltip("Landmark archetypes. When assigned, the world's elevated / terminal nodes become permanent landmarks attached to the layout (consumed by the LandmarkDirector and the ambient population). Optional: absence is a clean no-op.")]
         private LandmarkRegistry landmarkRegistry;
-
-        [Header("Terrain Reference")]
-        [SerializeField] private Terrain terrain;
-
-        [Header("Terrain Layers")]
-        [SerializeField] private TerrainLayer[] terrainLayers;
-
-        [Header("Player")]
-        [SerializeField] private Transform playerTransform;
-        [SerializeField] private float playerHeight = 1.8f;
 
         [Header("Runtime")]
         [SerializeField] private int currentSeed;
@@ -111,6 +103,7 @@ namespace Lootbound.Gameplay.World
         private float _splatNoiseOffsetZ;
         private int _splatNoiseSeed;
         private bool _hasSplatNoise;
+        private float[] _splatWeightsScratch;
 
         public int SplatLayerCount => 4;
 
@@ -143,6 +136,28 @@ namespace Lootbound.Gameplay.World
             float dhz = (SampleHeight(worldX, worldZ + e) - SampleHeight(worldX, worldZ - e)) / (float)(2.0 * e);
             float slope = Mathf.Atan(Mathf.Sqrt(dhx * dhx + dhz * dhz)) * Mathf.Rad2Deg;
 
+            SampleSplat(worldX, worldZ, height, slope, weights);
+        }
+
+        /// <summary>
+        /// Classification with caller-supplied geometry (normalized height and
+        /// slope measured from an existing buffer). The RULES - thresholds,
+        /// noise, layer weighting - stay here, owned by the generator.
+        /// </summary>
+        public void SampleSplat(double worldX, double worldZ, float normalizedHeight, float slopeDegrees, float[] weights)
+        {
+            if (weights == null || weights.Length == 0)
+            {
+                return;
+            }
+
+            if (config == null)
+            {
+                for (int i = 0; i < weights.Length; i++) weights[i] = 0f;
+                weights[0] = 1f;
+                return;
+            }
+
             EnsureSplatNoise();
             float noise = Mathf.PerlinNoise(
                 (float)((worldX + _splatNoiseOffsetX) / 50.0),
@@ -151,7 +166,14 @@ namespace Lootbound.Gameplay.World
                 (float)((worldX + _splatNoiseOffsetX) / 15.0),
                 (float)((worldZ + _splatNoiseOffsetZ) / 15.0));
 
-            float[] w = TerrainSurfacePainter.CalculateLayerWeights(height, slope, 0f, noise, fineNoise, config);
+            // Member scratch: this runs tens of thousands of times per chunk.
+            if (_splatWeightsScratch == null)
+            {
+                _splatWeightsScratch = new float[4];
+            }
+            float[] w = _splatWeightsScratch;
+            TerrainSurfacePainter.CalculateLayerWeights(
+                normalizedHeight, slopeDegrees, 0f, noise, fineNoise, config, w);
 
             float sum = 0f;
             for (int i = 0; i < w.Length; i++) sum += w[i];
@@ -243,9 +265,6 @@ namespace Lootbound.Gameplay.World
                 WorldBounds.FromCenter(0f, 0f, config.WorldSize)
             );
 
-            // Configure terrain data
-            ConfigureTerrainData();
-
             // Step 1: Generate initial heightmap for spawn planning
             Stopwatch stepWatch = Stopwatch.StartNew();
             TerrainHeightGenerator.Generate(context, config);
@@ -324,13 +343,7 @@ namespace Lootbound.Gameplay.World
             var (refugeHx, refugeHz) = context.WorldToHeightmap(context.SpawnPosition);
             context.SpawnSlope = context.SlopeMap[refugeHx, refugeHz];
 
-            // Step 5: Apply heightmap to terrain
-            stepWatch.Restart();
-            ApplyHeightmapToTerrain();
-            stepWatch.Stop();
-            context.TerrainApplicationTimeMs = stepWatch.ElapsedMilliseconds;
-
-            // Step 6: Validate layout against final terrain (if layout exists)
+            // Step 5: Validate layout against final terrain (if layout exists)
             if (context.LayoutContext != null)
             {
                 var terrainValidation = WorldLayoutValidator.ValidateAgainstTerrain(
@@ -341,24 +354,15 @@ namespace Lootbound.Gameplay.World
                 }
             }
 
-            // Step 7: Paint terrain
-            stepWatch.Restart();
-            PaintTerrain();
-            stepWatch.Stop();
-            context.PaintingTimeMs = stepWatch.ElapsedMilliseconds;
-
-            // Step 8: Position player
-            PositionPlayer();
-
             totalWatch.Stop();
             context.TotalGenerationTimeMs = totalWatch.ElapsedMilliseconds;
 
             isGenerated = true;
 
-            Debug.Log($"[ProceduralTerrainGenerator] Generation complete in {context.TotalGenerationTimeMs}ms " +
-                      $"(Heightmap: {context.HeightmapGenerationTimeMs}ms, " +
-                      $"Apply: {context.TerrainApplicationTimeMs}ms, " +
-                      $"Paint: {context.PaintingTimeMs}ms)");
+            // Presentation happens in the subscribers (preview fill, chunk
+            // streaming, player spawn) - the generator only built the world.
+            Debug.Log($"[ProceduralTerrainGenerator] World built in {context.TotalGenerationTimeMs}ms " +
+                      $"(Heightmap: {context.HeightmapGenerationTimeMs}ms)");
 
             OnGenerationComplete?.Invoke(context);
         }
@@ -372,47 +376,15 @@ namespace Lootbound.Gameplay.World
         }
 
         /// <summary>
-        /// Clear the terrain.
+        /// Forget the built world (the presentation clients react on their own).
         /// </summary>
-        public void ClearTerrain()
+        public void ClearWorld()
         {
-            if (terrain == null || terrain.terrainData == null)
-            {
-                return;
-            }
-
-            TerrainData data = terrain.terrainData;
-
-            // Reset heightmap to flat
-            int resolution = data.heightmapResolution;
-            float[,] heights = new float[resolution, resolution];
-            data.SetHeights(0, 0, heights);
-
-            // Clear alphamaps
-            int alphaRes = data.alphamapResolution;
-            int layers = data.alphamapLayers;
-            if (layers > 0)
-            {
-                float[,,] alphas = new float[alphaRes, alphaRes, layers];
-                for (int y = 0; y < alphaRes; y++)
-                {
-                    for (int x = 0; x < alphaRes; x++)
-                    {
-                        alphas[y, x, 0] = 1f;
-                    }
-                }
-                data.SetAlphamaps(0, 0, alphas);
-            }
-
             context = null;
             isGenerated = false;
-
-            Debug.Log("[ProceduralTerrainGenerator] Terrain cleared.");
+            Debug.Log("[ProceduralTerrainGenerator] World cleared.");
         }
 
-        /// <summary>
-        /// Validate that all required components are set up.
-        /// </summary>
         /// <summary>
         /// Seat the terrain under conforming landmarks, then compute the world's
         /// landmarks once and attach them (with their terrain seats) to the
@@ -468,128 +440,7 @@ namespace Lootbound.Gameplay.World
                 return false;
             }
 
-            if (terrain == null)
-            {
-                Debug.LogError("[ProceduralTerrainGenerator] Terrain is not assigned.");
-                return false;
-            }
-
-            if (terrain.terrainData == null)
-            {
-                Debug.LogError("[ProceduralTerrainGenerator] Terrain has no TerrainData.");
-                return false;
-            }
-
-            if (terrainLayers == null || terrainLayers.Length < 4)
-            {
-                Debug.LogWarning("[ProceduralTerrainGenerator] Terrain layers not properly configured. Need at least 4 layers.");
-            }
-
             return true;
-        }
-
-        /// <summary>
-        /// Configure the terrain data dimensions.
-        /// </summary>
-        private void ConfigureTerrainData()
-        {
-            TerrainData data = terrain.terrainData;
-
-            // Set heightmap resolution
-            data.heightmapResolution = config.HeightmapResolution;
-
-            // Set alphamap resolution
-            data.alphamapResolution = config.AlphamapResolution;
-
-            // Set terrain size
-            data.size = new Vector3(config.WorldSize, config.TerrainHeight, config.WorldSize);
-
-            // Position the terrain so its SW corner sits at the region's Min. With
-            // the Refuge-centred world that is (-WorldSize/2, 0, -WorldSize/2), so
-            // world (0,0) maps to the terrain centre - the Refuge.
-            terrain.transform.position = new Vector3(context.Bounds.MinX, 0f, context.Bounds.MinZ);
-
-            // Apply terrain layers
-            if (terrainLayers != null && terrainLayers.Length > 0)
-            {
-                data.terrainLayers = terrainLayers;
-            }
-        }
-
-        /// <summary>
-        /// Apply the generated heightmap to the Unity Terrain.
-        /// </summary>
-        private void ApplyHeightmapToTerrain()
-        {
-            TerrainData data = terrain.terrainData;
-            float[,] terrainHeights = context.GetTerrainHeightmapData();
-            data.SetHeights(0, 0, terrainHeights);
-        }
-
-        /// <summary>
-        /// Paint the terrain with texture layers.
-        /// </summary>
-        private void PaintTerrain()
-        {
-            if (terrainLayers == null || terrainLayers.Length < 4)
-            {
-                Debug.LogWarning("[ProceduralTerrainGenerator] Skipping painting - insufficient terrain layers.");
-                return;
-            }
-
-            TerrainData data = terrain.terrainData;
-            float[,,] alphamap = TerrainSurfacePainter.Paint(context, config, data.alphamapResolution);
-            data.SetAlphamaps(0, 0, alphamap);
-        }
-
-        /// <summary>
-        /// Position the player at the spawn location.
-        /// </summary>
-        private void PositionPlayer()
-        {
-            if (playerTransform == null)
-            {
-                return;
-            }
-
-            // Get spawn XZ from context
-            Vector3 spawnXZ = context.SpawnPosition;
-
-            // Sample ACTUAL terrain height from Unity Terrain (not context heightmap)
-            // This ensures player is positioned on the real terrain surface after all modifications
-            float actualTerrainHeight = terrain.SampleHeight(new Vector3(spawnXZ.x, 0, spawnXZ.z));
-
-            // Add terrain's world position Y offset (usually 0, but be safe)
-            actualTerrainHeight += terrain.transform.position.y;
-
-            // Place player above terrain surface
-            float safeHeight = actualTerrainHeight + playerHeight * 0.5f + 0.5f;
-            Vector3 startPos = new Vector3(spawnXZ.x, safeHeight, spawnXZ.z);
-
-            // Disable CharacterController temporarily to allow teleport
-            CharacterController cc = playerTransform.GetComponent<CharacterController>();
-            if (cc != null)
-            {
-                cc.enabled = false;
-            }
-
-            playerTransform.position = startPos;
-
-            // Reset rotation to face a random direction based on seed
-            System.Random rotRandom = new System.Random(context.Seed + 99999);
-            float yRotation = (float)(rotRandom.NextDouble() * 360f);
-            playerTransform.rotation = Quaternion.Euler(0, yRotation, 0);
-
-            // Re-enable CharacterController
-            if (cc != null)
-            {
-                cc.enabled = true;
-            }
-
-            // Update context spawn position with actual height for consistency
-            context.SpawnPosition = new Vector3(spawnXZ.x, actualTerrainHeight, spawnXZ.z);
-
-            Debug.Log($"[ProceduralTerrainGenerator] Player positioned at {startPos} (terrain height: {actualTerrainHeight:F2})");
         }
 
 #if UNITY_EDITOR

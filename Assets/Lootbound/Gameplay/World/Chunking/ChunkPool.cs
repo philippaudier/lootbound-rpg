@@ -25,6 +25,19 @@ namespace Lootbound.Gameplay.World.Chunking
             _factory = factory;
         }
 
+        /// <summary>
+        /// Create instances up front so streaming never pays instance creation
+        /// mid-play. Counts toward <see cref="TotalCreated"/>.
+        /// </summary>
+        public void Prewarm(int count)
+        {
+            while (TotalCreated < count)
+            {
+                TotalCreated++;
+                _free.Push(_factory());
+            }
+        }
+
         public TerrainChunk Acquire()
         {
             if (_free.Count > 0)

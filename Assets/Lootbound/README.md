@@ -170,6 +170,7 @@ After opening the project for the first time:
 | Toggle Movement Debug | F4 |
 | Toggle Terrain Debug | F5 |
 | Toggle Combat Debug | F6 |
+| Toggle Chunk Streaming Diagnostics (terrain sandbox) | F7 |
 | Toggle World Knowledge (terrain sandbox) | F9 |
 
 ## Current State: Slices 0.8-0.9 - Attunement, Expeditions & Radial World Layout
