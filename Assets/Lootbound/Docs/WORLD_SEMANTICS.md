@@ -273,5 +273,5 @@ it is a reality rich enough to be read in many ways at once.
 - `PCE_DESIGN_BIBLE.md` — a consumer built entirely on Shared Truth; its
   "one world, many perceptions" is invariant 10 in practice.
 - `PCE_TERRITORIAL_INTELLIGENCE.md` — the first Regional knowledge.
-- *WE 0.2 — World Features* — the Singular family, and the last chapter of
+- `WORLD_FEATURES.md` — the Singular family (WE 0.2), the last chapter of
   Book I.
