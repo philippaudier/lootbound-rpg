@@ -153,6 +153,22 @@ perception may call it steep.
   tuned "because roads shouldn't go there"; World-layer code whose naming or
   comments speak for a mover.
 
+## 19. Territorial Intelligence measures, never names
+The Neutrality Principle (18) applied to territories: this layer produces
+measures — Accessibility 0.71, Isolation 0.23 — never labels. "High valley"
+or "mountain basin" are judgments a consumer may derive later. No enum, no
+`TerritoryType`, no name ever lives in the engine.
+- **Violation**: `enum TerritoryType { Valley, Mountain, Forest }`; a field
+  returning a territory name; thresholds in the World layer converting
+  measures into labels.
+
+## 20. A territory never has an exact boundary
+Influences always decay. A point always belongs to several territorial
+logics at once, by degree — never to exactly one.
+- **Violation**: hard territory borders; region polygons; classifying a
+  point into a single territory; any API answering "which territory is
+  this?" with one label instead of measures.
+
 ## Related Documentation
 
 - `PCE_GLOSSARY.md` — the vocabulary these rules are written in.

@@ -31,13 +31,19 @@
   coordinates, and profile divergence — the same terrain must rank
   differently under different profiles).
 
-### PCE 0.4 — Deterministic Regional Domains
-- **Depends on**: 0.3.
-- **Work**: the seeded, chunk-independent regional domains that make
-  cross-chunk continuity possible without a global graph (the streaming
-  contract's foundation); decay policy toward the disc edge (deferred #4).
-- **Observable**: tests proving same answers regardless of evaluation order
-  or asking chunk; domain visualization overlay.
+### PCE 0.4 — Territorial Intelligence
+- **Depends on**: 0.3. (Renamed from "Deterministic Regional Domains" —
+  knowledge, not objects; see `PCE_TERRITORIAL_INTELLIGENCE.md`.)
+- **Work**: the first mid-scale kernel — `TerritorialIdentity`
+  (Accessibility, Isolation, Connectivity) as grid-free ray statistics over a
+  cost view; invariants 19 (measures, never names) and 20 (no exact
+  boundaries); F10/F11/F12 overlays. Deliberately three measures, no more.
+- **Observable**: territorial heat overlays; property tests (plain vs pocket
+  vs corridor rankings, determinism, continuity, 0..1).
+- **Note**: the grid-free design made the "deterministic regional domains"
+  machinery unnecessary at this stage; that need (and the edge-of-world
+  decay policy, deferred #4) moves to the corridor milestones 0.6–0.8,
+  where domain-bound hydrology and macro flows genuinely require it.
 
 ### PCE 0.5 — Circulation Intents & Attractors
 - **Depends on**: 0.4; existing layout/landmark data as attractor sources.
@@ -152,7 +158,8 @@ NOT designed and NOT implemented.
 3. **Solver algorithm** for corridor resolution — explicitly NOT chosen at
    0.1 (no A* commitment); choose at 0.6-0.7 from measured candidates.
 4. **Edge-of-world decay** (rings, The Void) — how circulation density fades
-   outward; decide at 0.4 with `WORLD_RINGS.md` in hand.
+   outward; decide at 0.6 with `WORLD_RINGS.md` in hand (moved from 0.4,
+   which went grid-free and did not need it).
 5. **Hydrology interplay** (fords, bridges, valley-following vs river
    crossing) — after 0.9.
 6. **Doc refresh**: `WORLD_DISC_AND_STREAMING_VISION.md` predates the

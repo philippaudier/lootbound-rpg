@@ -13,7 +13,7 @@ namespace Lootbound.Gameplay.World.Knowledge
     /// </summary>
     public sealed class WorldKnowledgeDebugOverlay : MonoBehaviour
     {
-        private enum Mode { Slope, Curvature, Roughness, Exposure, Hydrology, Traversability, Landscape, CostMountain, CostAnimal }
+        private enum Mode { Slope, Curvature, Roughness, Exposure, Hydrology, Traversability, Landscape, CostMountain, CostAnimal, Accessibility, Isolation, Connectivity }
 
         [SerializeField] private ProceduralTerrainGenerator generator;
         [SerializeField] private Key toggleKey = Key.F9;
@@ -25,6 +25,7 @@ namespace Lootbound.Gameplay.World.Knowledge
         private WorldKnowledge _knowledge;
         private Lootbound.World.Processing.TerrainCostField _mountainCost;
         private Lootbound.World.Processing.TerrainCostField _animalCost;
+        private Lootbound.World.Processing.TerritorialIdentityField _territorial;
         private int _builtSeed = int.MinValue;
         private Texture2D _texture;
 
@@ -38,6 +39,11 @@ namespace Lootbound.Gameplay.World.Knowledge
                 _visible = !_visible;
                 if (_visible) Rebuild();
             }
+
+            // Territorial Intelligence direct toggles: the debug IS the proof.
+            if (kb.f10Key.wasPressedThisFrame) ToggleTerritorial(Mode.Accessibility);
+            else if (kb.f11Key.wasPressedThisFrame) ToggleTerritorial(Mode.Isolation);
+            else if (kb.f12Key.wasPressedThisFrame) ToggleTerritorial(Mode.Connectivity);
 
             if (!_visible) return;
 
@@ -59,6 +65,18 @@ namespace Lootbound.Gameplay.World.Knowledge
             }
         }
 
+        private void ToggleTerritorial(Mode mode)
+        {
+            if (_visible && _mode == mode)
+            {
+                _visible = false;
+                return;
+            }
+            _mode = mode;
+            _visible = true;
+            Rebuild();
+        }
+
         private void Rebuild()
         {
             if (generator == null || generator.Config == null || !generator.IsGenerated) return;
@@ -75,6 +93,10 @@ namespace Lootbound.Gameplay.World.Knowledge
                 _animalCost = new Lootbound.World.Processing.TerrainCostField(
                     _knowledge.Slope, _knowledge.Cliff, _knowledge.Roughness, _knowledge.RiverMask,
                     _knowledge.Landscape, TraversalProfiles.Animal());
+                // Territorial Intelligence reads the DEFAULT perception's cost
+                // view - measures are perception-relative by construction.
+                _territorial = new Lootbound.World.Processing.TerritorialIdentityField(
+                    _knowledge.Traversability, new Lootbound.World.Processing.TerritorialSettings());
                 _builtSeed = generator.CurrentSeed;
             }
             Redraw();
@@ -139,6 +161,12 @@ namespace Lootbound.Gameplay.World.Knowledge
                     return Color.Lerp(Color.green, Color.red, Mathf.Clamp01((_animalCost.Evaluate(c) - 1f) / 30f));
                 case Mode.Landscape:
                     return LandscapeColor(_knowledge.Landscape.Evaluate(c));
+                case Mode.Accessibility:
+                    return Color.Lerp(Color.black, Color.green, _territorial.Evaluate(c).Accessibility);
+                case Mode.Isolation:
+                    return Color.Lerp(Color.black, Color.red, _territorial.Evaluate(c).Isolation);
+                case Mode.Connectivity:
+                    return Color.Lerp(Color.black, Color.cyan, _territorial.Evaluate(c).Connectivity);
                 default:
                     return Color.magenta;
             }
@@ -167,6 +195,7 @@ namespace Lootbound.Gameplay.World.Knowledge
             GUILayout.BeginArea(new Rect(10, 10, panelSize + 20, panelSize + 70), GUI.skin.box);
             GUILayout.Label($"World Knowledge  [F9]   mode: {_mode}");
             GUILayout.Label("1 Slope  2 Curv  3 Rough  4 Aspect  5 Hydro  6 Cost  7 Landscape  8 Cost:Mtn  9 Cost:Animal");
+            GUILayout.Label("F10 Accessibility  F11 Isolation  F12 Connectivity   (territorial - slow redraw)");
 
             if (_texture != null)
             {

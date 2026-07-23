@@ -103,10 +103,33 @@ The only way the PCE touches the world: a **request** (soften this micro
 relief, clear this vegetation, wear this surface) submitted to the World
 Engine's terrain systems, which remain sovereign and may refuse.
 
+### Territorial Intelligence
+The knowledge layer between Terrain Intelligence and the PCE (PCE 0.4). It
+answers "what geographic logic governs this place?" with MEASURES, never
+names (invariant 19): territories emerge, are never painted, and never have
+exact boundaries (invariant 20).
+
+### TerritorialIdentity
+The measures Territorial Intelligence knows about a place — currently
+`Accessibility`, `Isolation`, `Connectivity`, all 0..1 and
+perception-relative (measured through a cost view built from one
+`TraversalProfile`). Deliberately no enum, no label, no name.
+
+### Accessibility
+Territorial measure: how cheaply a perception moves AROUND a place (mean
+outward cost against ideal ground). 1 = ideal ground everywhere nearby.
+
 ### Isolation
-A derived metric: how far, in circulation terms, a point is from any used
-corridor. Serves spawning, ambience, difficulty — it is a signal for other
+Territorial measure: how costly the EASIEST way out of a place is —
+geographic enclosure, relative to a perception. 1 = even the best exit is
+expensive. Once corridors exist, circulation-level isolation queries
+(`SampleIsolation`) will ENRICH this geographic measure with distance from
+used corridors — same word, one meaning, one refinement. A signal for other
 systems, never an absolute artistic truth.
+
+### Connectivity
+Territorial measure: how many distinct easy directions leave a place (open
+rays over total). High on plains and crossroads, low in dead-end pockets.
 
 ### Curiosity
 A derived metric estimating how *inviting* a point or branch is: partial
