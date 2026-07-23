@@ -14,7 +14,9 @@ namespace Lootbound.Gameplay.World.Knowledge
     /// </summary>
     public static class WorldKnowledgeComposer
     {
-        public static WorldKnowledge Build(TerrainGenerationConfig config, int seed, WorldBounds region, int hydrologyResolution = 129)
+        public static WorldKnowledge Build(
+            TerrainGenerationConfig config, int seed, WorldBounds region,
+            IWorldField<float> heightOverride = null, int hydrologyResolution = 129)
         {
             var settings = new WorldKnowledgeSettings
             {
@@ -22,7 +24,11 @@ namespace Lootbound.Gameplay.World.Knowledge
             };
 
             var offsets = new NoiseOffsets(seed);
-            IWorldField<float> height = WorldFieldComposer.BuildHeightField(config, offsets);
+            // G4 (PCE 0.2): analyzers can be built on the FINAL relief (base +
+            // refuge basin + landmark seats) via an override - typically a
+            // SampledWorldHeightField over the generator - instead of the base
+            // field only.
+            IWorldField<float> height = heightOverride ?? WorldFieldComposer.BuildHeightField(config, offsets);
 
             var slope = new SlopeField(height, settings.HeightScale, settings.SampleStep);
             var curvature = new CurvatureField(height, settings.HeightScale, settings.SampleStep);

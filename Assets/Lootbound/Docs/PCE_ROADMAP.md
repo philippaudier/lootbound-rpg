@@ -132,6 +132,16 @@ a forgotten trail). Expected to emerge naturally around PCE 0.11–0.15 and to
 mature after 1.0: history as a deterministic layer on top of geography, so
 the world can evolve without ever breaking determinism.
 
+## Named early: PerceptionProfile
+
+`TraversalProfile` may prove to be the first of a family. If other systems
+one day need subjective readings of the objective world — a `VisionProfile`,
+a `SoundProfile`, a `ResourcePreferenceProfile` — they will follow the same
+philosophy (the Neutrality Principle, invariant 18: the world is objective,
+systems perceive it differently), and `TraversalProfile` would become one
+specialization of a general `PerceptionProfile` idea. Named now; deliberately
+NOT designed and NOT implemented.
+
 ## Deferred questions (tracked, deliberately unanswered at 0.1)
 
 1. **Assembly home** of PCE logic (Unity-free layer in the World Engine

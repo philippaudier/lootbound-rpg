@@ -130,6 +130,29 @@ no world-wide "difficulty" truth exists.
   gameplay presenting one absolute "terrain difficulty"; any API returning a
   cost without a profile.
 
+## 17. The Terrain Cost System knows no game entity
+It knows no Human, Wolf, Deer, Merchant, Bandit or Player — only
+`TraversalProfile`s. Gameplay maps entities to profiles
+(`Merchant → CirculationProfile → TraversalProfile`); the engine only ever
+receives a profile. The real success of this rule: no engine algorithm ever
+needs to know what an animal IS. Profiles are composable data — a new mover
+is a new instance, never a new class or a new algorithm.
+- **Violation**: `switch (entityType)` anywhere in Terrain Intelligence or
+  the PCE; a `HumanTraversalProfile` subclass; a `HumanTerrainCost` type;
+  entity names appearing in `Lootbound.World`.
+
+## 18. The world holds no opinion (Neutrality Principle)
+Terrain Intelligence measures and classifies — `Slope = 37°`,
+`Landscape = Valley` — it never judges. "Bad slope", "hostile ground", "ugly
+detour" do not exist in the World Engine; judgment is exactly what a
+`TraversalProfile` (and tomorrow, any perception) adds. **The world is
+objective; its actors are subjective.** The engine states 37°; only a
+perception may call it steep.
+- **Violation**: a knowledge field encoding a verdict (a profile-less
+  "difficulty" or "badness" field); thresholds inside Terrain Intelligence
+  tuned "because roads shouldn't go there"; World-layer code whose naming or
+  comments speak for a mover.
+
 ## Related Documentation
 
 - `PCE_GLOSSARY.md` — the vocabulary these rules are written in.

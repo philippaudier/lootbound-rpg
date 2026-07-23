@@ -13,7 +13,7 @@ namespace Lootbound.Gameplay.World.Knowledge
     /// </summary>
     public sealed class WorldKnowledgeDebugOverlay : MonoBehaviour
     {
-        private enum Mode { Slope, Curvature, Roughness, Exposure, Hydrology, Traversability, Landscape }
+        private enum Mode { Slope, Curvature, Roughness, Exposure, Hydrology, Traversability, Landscape, CostMountain, CostAnimal }
 
         [SerializeField] private ProceduralTerrainGenerator generator;
         [SerializeField] private Key toggleKey = Key.F9;
@@ -23,6 +23,8 @@ namespace Lootbound.Gameplay.World.Knowledge
         private bool _visible;
         private Mode _mode = Mode.Landscape;
         private WorldKnowledge _knowledge;
+        private Lootbound.World.Processing.TerrainCostField _mountainCost;
+        private Lootbound.World.Processing.TerrainCostField _animalCost;
         private int _builtSeed = int.MinValue;
         private Texture2D _texture;
 
@@ -47,6 +49,8 @@ namespace Lootbound.Gameplay.World.Knowledge
             else if (kb.digit5Key.wasPressedThisFrame) pick = Mode.Hydrology;
             else if (kb.digit6Key.wasPressedThisFrame) pick = Mode.Traversability;
             else if (kb.digit7Key.wasPressedThisFrame) pick = Mode.Landscape;
+            else if (kb.digit8Key.wasPressedThisFrame) pick = Mode.CostMountain;
+            else if (kb.digit9Key.wasPressedThisFrame) pick = Mode.CostAnimal;
 
             if (pick.HasValue && pick.Value != _mode)
             {
@@ -60,7 +64,17 @@ namespace Lootbound.Gameplay.World.Knowledge
             if (generator == null || generator.Config == null || !generator.IsGenerated) return;
             if (_knowledge == null || _builtSeed != generator.CurrentSeed)
             {
-                _knowledge = WorldKnowledgeComposer.Build(generator.Config, generator.CurrentSeed, generator.Context.Bounds);
+                // Knowledge over the FINAL relief (G4): the carved refuge and
+                // landmark seats are now visible to every analyzer and cost.
+                _knowledge = WorldKnowledgeComposer.Build(
+                    generator.Config, generator.CurrentSeed, generator.Context.Bounds,
+                    new Providers.SampledWorldHeightField(generator));
+                _mountainCost = new Lootbound.World.Processing.TerrainCostField(
+                    _knowledge.Slope, _knowledge.Cliff, _knowledge.Roughness, _knowledge.RiverMask,
+                    _knowledge.Landscape, TraversalProfiles.Mountain());
+                _animalCost = new Lootbound.World.Processing.TerrainCostField(
+                    _knowledge.Slope, _knowledge.Cliff, _knowledge.Roughness, _knowledge.RiverMask,
+                    _knowledge.Landscape, TraversalProfiles.Animal());
                 _builtSeed = generator.CurrentSeed;
             }
             Redraw();
@@ -119,6 +133,10 @@ namespace Lootbound.Gameplay.World.Knowledge
                         Mathf.Clamp01(_knowledge.WaterTable.Evaluate(c)));
                 case Mode.Traversability:
                     return Color.Lerp(Color.green, Color.red, Mathf.Clamp01((_knowledge.Traversability.Evaluate(c) - 1f) / 30f));
+                case Mode.CostMountain:
+                    return Color.Lerp(Color.green, Color.red, Mathf.Clamp01((_mountainCost.Evaluate(c) - 1f) / 30f));
+                case Mode.CostAnimal:
+                    return Color.Lerp(Color.green, Color.red, Mathf.Clamp01((_animalCost.Evaluate(c) - 1f) / 30f));
                 case Mode.Landscape:
                     return LandscapeColor(_knowledge.Landscape.Evaluate(c));
                 default:
@@ -148,7 +166,7 @@ namespace Lootbound.Gameplay.World.Knowledge
 
             GUILayout.BeginArea(new Rect(10, 10, panelSize + 20, panelSize + 70), GUI.skin.box);
             GUILayout.Label($"World Knowledge  [F9]   mode: {_mode}");
-            GUILayout.Label("1 Slope  2 Curv  3 Rough  4 Aspect  5 Hydro  6 Cost  7 Landscape");
+            GUILayout.Label("1 Slope  2 Curv  3 Rough  4 Aspect  5 Hydro  6 Cost  7 Landscape  8 Cost:Mtn  9 Cost:Animal");
 
             if (_texture != null)
             {

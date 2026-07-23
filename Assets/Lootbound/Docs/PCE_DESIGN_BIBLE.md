@@ -33,6 +33,10 @@ Roads are never generated arbitrarily. Circulation **emerges from a
 perception of the territory** — and the same chain serves humans, animals,
 caravans, and systems not yet imagined.
 
+This rests on the **Neutrality Principle** (invariant 18): the world is
+objective; its actors are subjective. The engine states *37°*; only a
+perception may call it *steep*.
+
 ## 1. Why this system exists
 
 Most procedural games generate **terrain**: a heightfield, biomes, scattered
