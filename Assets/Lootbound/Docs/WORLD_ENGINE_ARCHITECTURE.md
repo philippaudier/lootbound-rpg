@@ -478,6 +478,8 @@ the World Engine, and the engine now UNDERSTANDS its geography.
 
 ## Related documentation
 
+- `PCE_DESIGN_BIBLE.md` — the Procedural Circulation Engine, the peer
+  subsystem that reads this world's knowledge to model circulation.
 - `WORLD_DISC_AND_STREAMING_VISION.md` — the earlier vision this formalizes.
 - `LANDMARKS.md` — the Structure Stamp pattern this generalizes.
 - `WORLD_PROGRESSION.md` — the `DangerField`.
