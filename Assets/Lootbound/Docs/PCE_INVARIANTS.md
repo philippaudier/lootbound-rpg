@@ -120,6 +120,16 @@ that honesty; it is never engineered into generation.
   metrics, session length or telemetry into generation. The world stays
   honest even when it is quiet.
 
+## 16. Cost is never absolute
+The terrain is neutral. A 35° slope has no canonical cost — it has a cost
+FOR someone: Cost(human), Cost(animal), Cost(merchant), Cost(goat), Cost(a
+mover not yet imagined). Every cost query goes through a `TraversalProfile`;
+no world-wide "difficulty" truth exists.
+- **Violation**: a single global cost/difficulty map shared by every mover;
+  comparing costs produced by different profiles as if commensurable; UI or
+  gameplay presenting one absolute "terrain difficulty"; any API returning a
+  cost without a profile.
+
 ## Related Documentation
 
 - `PCE_GLOSSARY.md` — the vocabulary these rules are written in.

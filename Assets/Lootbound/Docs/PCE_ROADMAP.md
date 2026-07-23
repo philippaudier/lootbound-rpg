@@ -20,12 +20,16 @@
 - **Observable**: a written mapping "PCE need → existing field / new field",
   plus F-key overlay views for any new field. No circulation yet.
 
-### PCE 0.3 — Terrain Cost Fields
-- **Depends on**: 0.2.
-- **Work**: per-`CirculationProfile` cost fields derived from knowledge
-  (human road vs mountain vs animal read the same ground differently).
+### PCE 0.3 — Terrain Cost System
+- **Depends on**: 0.2 (see `PCE_TERRAIN_INTELLIGENCE.md` §5 for the detailed
+  plan).
+- **Work**: the cost MECHANISM — `TraversalProfile` (how a mover perceives
+  the terrain) → `TerrainCostField`, in Terrain Intelligence; the first
+  three named profiles (human-road, mountain, animal) as PCE-side data;
+  the final-relief adapter (G4). Cost is never absolute (invariant 16).
 - **Observable**: cost overlays per profile; pure tests (determinism, huge
-  coordinates, profile divergence on the same terrain).
+  coordinates, and profile divergence — the same terrain must rank
+  differently under different profiles).
 
 ### PCE 0.4 — Deterministic Regional Domains
 - **Depends on**: 0.3.

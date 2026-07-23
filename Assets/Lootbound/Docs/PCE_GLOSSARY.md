@@ -36,11 +36,20 @@ almost-erased line. Traces are presentation-side, plural, and optional — a
 corridor's logic never depends on its traces being rendered or even existing.
 
 ### CirculationProfile
-The **rules by which one kind of movement reads the terrain**: what slope it
-tolerates, what it prefers (valleys, contour lines, cover, water), what it
-avoids, how wide it travels, how it switchbacks. Each profile owns its own
-terrain cost field. Examples: human major road, mountain trail, animal
-movement, ancient trade route, military passage.
+The PCE-side **semantic bundle** for one kind of movement: its family
+behaviour, its promise, how wide it travels, how it switchbacks — and the
+`TraversalProfile` it perceives the terrain through. Examples: human major
+road, mountain trail, animal movement, ancient trade route, military
+passage. A CirculationProfile MEANS; the TraversalProfile it owns PERCEIVES.
+
+### TraversalProfile
+The terrain-perception parameters of one kind of mover — deliberately not
+called "weights", because it is more than weighting: it is **a way of
+perceiving the terrain** (slope tolerance, cliff penalty, roughness
+sensitivity, fear of exposure, preferred cover…, growing over time). It
+lives in Terrain Intelligence (`Lootbound.World`): the knowledge layer turns
+a TraversalProfile into a `TerrainCostField`. The terrain itself is neutral —
+cost only exists *through* a TraversalProfile (invariant 16).
 
 ### CirculationFamily
 The functional **category** of a corridor, fixed at PCE 0.1 as:
@@ -63,9 +72,11 @@ The implicit **expectation** a circulation family creates in the player
 through the world's natural signs, and **never a guarantee** of reward.
 
 ### Terrain Cost Field
-A per-profile, deterministic field answering "how much does this profile
-dislike crossing this exact ground?" — derived from the World Engine's
-knowledge (slope, cliffs, roughness, water, landscape), never from raw noise.
+A deterministic field answering "how much does this mover dislike crossing
+this exact ground?" — derived by Terrain Intelligence from the World Engine's
+knowledge (slope, cliffs, roughness, water, landscape) **through a
+TraversalProfile**, never from raw noise. Same terrain, different profiles,
+different fields.
 
 ### Traffic
 The **current frequentation** of a corridor: how much life uses it *today*.

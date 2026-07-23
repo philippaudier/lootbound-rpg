@@ -20,6 +20,19 @@
 > A player never follows a path because it exists.
 > They follow it because it promises something.
 
+## The chain of meaning
+
+> **La connaissance calcule ; le PCE signifie.**
+> Knowledge computes; the PCE means.
+
+The World Engine says: *here is the world.*
+A `TraversalProfile` says: *here is how I perceive it.*
+The PCE says: *then here are the paths that make the most sense.*
+
+Roads are never generated arbitrarily. Circulation **emerges from a
+perception of the territory** — and the same chain serves humans, animals,
+caravans, and systems not yet imagined.
+
 ## 1. Why this system exists
 
 Most procedural games generate **terrain**: a heightfield, biomes, scattered
